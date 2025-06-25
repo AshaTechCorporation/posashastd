@@ -174,7 +174,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                       isExpanded: true,
                                       value: selectedCategoryCode,
                                       dropdownColor: Colors.white,
-                                      style: const TextStyle(color: Colors.white, fontSize: 16),
                                       iconEnabledColor: Colors.white,
                                       onChanged: (value) async {
                                         if (value != null) {
@@ -186,6 +185,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           await getProductByCategory(categoryId: categoryId, branchId: 0);
                                         }
                                       },
+
+                                      // ✅ ควบคุมการแสดงผลของตัวเลือกที่ถูกเลือก
+                                      selectedItemBuilder: (context) {
+                                        return categories.map((category) {
+                                          return Align(
+                                            alignment: Alignment.centerLeft, // หรือ Alignment.center ถ้าต้องการให้อยู่ตรงกลางแนวนอน
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(vertical: 8.0), // ✅ แก้ให้ไม่ชิดขอบบน
+                                              child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+
+                                      // ✅ รายการ dropdown
                                       items:
                                           categories.map((category) {
                                             return DropdownMenuItem<String>(
@@ -280,10 +294,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           // TODO: ทำการชำระเงิน
                           if (cartItems.isNotEmpty) {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentPageD2s(cartItems: cartItems)));
+                            final success = await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => PaymentPageD2s(cartItems: cartItems)),
+                            );
+                            if (success == true) {
+                              setState(() {
+                                cartItems.clear();
+                              });
+                            }
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size.fromHeight(50)),
