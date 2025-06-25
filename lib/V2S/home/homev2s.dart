@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:posashastd/V2S/home/orderPagev2s.dart';
 import 'package:posashastd/V2S/home/widgets/PaymentSummaryBar.dart';
+import 'package:posashastd/V2S/home/widgets/ProductNameOverlay.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/color_utils.dart';
@@ -239,23 +240,7 @@ class _Homev2sState extends State<Homev2s> {
                         ),
 
                         // ✅ ชื่อสินค้า
-                        Container(
-                          alignment: Alignment.bottomCenter,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Colors.black45],
-                            ),
-                          ),
-                          child: Text(
-                            name,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                        ProductNameOverlay(name: name),
                       ],
                     ),
                   );

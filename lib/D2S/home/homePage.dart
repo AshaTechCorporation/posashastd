@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:posashastd/D2S/home/paymentPageD2s.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
+import 'package:posashastd/services/homeService.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,6 +13,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  List<Map<String, dynamic>> categories = []; // เก็บ category ทั้งหมด
+  String? selectedCategoryCode; // ใช้รหัสแทน
+  List<Map<String, dynamic>> products = [];
+  List<Map<String, dynamic>> cartItems = [];
   String selectedCategory = "ปูอัด-เต้าหู้-ปลาเส้น";
   late TabController _tabController;
   List<String> tabs = ['แท็บ 1'];
@@ -20,6 +26,59 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     _tabController = TabController(length: tabs.length, vsync: this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await getlistCategory();
+    });
+  }
+
+  //ดึงข้อมูล Category
+  Future<void> getlistCategory() async {
+    try {
+      final rawData = await Homeservice.getCategory();
+      if (!mounted) return;
+      // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
+      final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
+      setState(() {
+        categories = [
+          {'code': 'ALL', 'name': 'ทั้งหมด'},
+          ...parsedCategories,
+        ];
+        selectedCategoryCode = categories.first['code'];
+      });
+      final int categoryId = categories.first['id'] ?? 0;
+      await getProductByCategory(categoryId: categoryId, branchId: 0);
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
+    try {
+      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
+      if (!mounted) return;
+      // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
+      final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
+      setState(() {
+        products = parsedProducts;
+      });
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  void addToCart(Map<String, dynamic> product) {
+    setState(() {
+      final existingIndex = cartItems.indexWhere((item) => item['id'] == product['id']);
+
+      if (existingIndex >= 0) {
+        final currentQty = cartItems[existingIndex]['qty'] ?? 1;
+        cartItems[existingIndex]['qty'] = currentQty + 1;
+      } else {
+        final newItem = Map<String, dynamic>.from(product);
+        newItem['qty'] = 1;
+        cartItems.add(newItem);
+      }
+    });
   }
 
   @override
@@ -65,15 +124,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildGridContent(double width, double height) {
     return ProductGrid(
-      itemCount: 20,
+      itemCount: products.length,
+      products: products,
       isMainTab: _tabController.index == 0,
       width: width,
       height: height,
       onTap: (index) {
-        print("กดสินค้า index: \$index");
+        addToCart(products[index]);
       },
       onLongPress: (index) {
-        print("กดค้างที่ index: \$index ของแท็บเพิ่ม");
+        print("กดค้างที่ index: $index ของแท็บเพิ่ม");
       },
     );
   }
@@ -105,24 +165,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             (context) => Row(
                               children: [
                                 IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
-                                DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: selectedCategory,
-                                    dropdownColor: Colors.white,
-                                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                                    iconEnabledColor: Colors.white,
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        setState(() => selectedCategory = value);
-                                      }
-                                    },
-                                    items:
-                                        ["ปูอัด-เต้าหู้-ปลาเส้น", "เนื้อสัตว์", "ผักสด"]
-                                            .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(color: Colors.black))))
-                                            .toList(),
+
+                                // ✅ Dropdown
+                                SizedBox(
+                                  width: 250,
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: selectedCategoryCode,
+                                      dropdownColor: Colors.white,
+                                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                                      iconEnabledColor: Colors.white,
+                                      onChanged: (value) async {
+                                        if (value != null) {
+                                          setState(() {
+                                            selectedCategoryCode = value;
+                                          });
+                                          final selectedCategory = categories.firstWhere((cat) => cat['code'] == value, orElse: () => {'id': 0});
+                                          final int categoryId = selectedCategory['id'] ?? 0;
+                                          await getProductByCategory(categoryId: categoryId, branchId: 0);
+                                        }
+                                      },
+                                      items:
+                                          categories.map((category) {
+                                            return DropdownMenuItem<String>(
+                                              value: category['code'],
+                                              child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.black)),
+                                            );
+                                          }).toList(),
+                                    ),
                                   ),
                                 ),
-                                const Spacer(),
+
+                                const Spacer(), // ✅ ดันให้ปุ่มค้นหาชิดขวาสุด
+
                                 const Icon(Icons.search, size: 26, color: Colors.white),
                               ],
                             ),
@@ -163,14 +239,55 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 width: rightWidth,
                 child: Column(
                   children: [
-                    const ListTile(title: Text('ตะกร้า', style: TextStyle(fontWeight: FontWeight.bold))),
-                    const Expanded(child: Center(child: Text('ยังไม่มีสินค้า', style: TextStyle(color: Colors.grey)))),
+                    // ✅ หัวตาราง + ปุ่มเคลียร์
+                    ListTile(
+                      title: const Text('ตะกร้า', style: TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            cartItems.clear();
+                          });
+                        },
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        label: const Text('เคลียร์', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+
+                    // ✅ แสดงรายการสินค้าในตะกร้า
+                    Expanded(
+                      child:
+                          cartItems.isEmpty
+                              ? const Center(child: Text('ยังไม่มีสินค้า', style: TextStyle(color: Colors.grey)))
+                              : ListView.builder(
+                                itemCount: cartItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = cartItems[index];
+                                  final name = item['name'] ?? 'ไม่มีชื่อ';
+                                  final qty = item['qty'] ?? 1;
+                                  final price = item['price'] ?? 0;
+
+                                  return ListTile(
+                                    dense: true,
+                                    title: Text(name, style: const TextStyle(fontSize: 14)),
+                                    subtitle: Text('จำนวน: $qty'),
+                                    trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                                  );
+                                },
+                              ),
+                    ),
+
+                    // ✅ ปุ่มชำระเงิน
                     Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          // TODO: ทำการชำระเงิน
+                          if (cartItems.isNotEmpty) {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentPageD2s(cartItems: cartItems)));
+                          }
+                        },
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size.fromHeight(50)),
-                        child: const Text("ชำระเงิน"),
+                        child: const Text("ชำระเงิน", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],

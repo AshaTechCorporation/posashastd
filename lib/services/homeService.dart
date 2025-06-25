@@ -51,4 +51,41 @@ class Homeservice {
       throw Exception(data['message']);
     }
   }
+
+  //สร้างออเดอร์
+  static Future createOrders({
+    required double total,
+    required int deviceId,
+    required String remark,
+    required int branchId,
+    required List<Map<String, dynamic>> orderItems,
+  }) async {
+    //final SharedPreferences prefs = await SharedPreferences.getInstance();
+    //final token = prefs.getString('token');
+    //final domain = prefs.getString('domain');
+    final token =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJuYW1lIjoic2hvcCIsImlhdCI6MTc1MDc2ODAyMSwiZXhwIjoxNzgyMzI1NjIxfQ.czBDdUQeQgvB8YWrCSARElvRK-xxn5sbHHiQmTi65u4';
+    final url = Uri.https(publicUrl, '/api/order');
+    var headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: convert.jsonEncode({
+        "total": total,
+        "deviceId": deviceId,
+        "branchId": branchId,
+        "remark": remark,
+        "orderType": "order",
+        "orderItems": orderItems,
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = convert.jsonDecode(response.body);
+      //return Shift.fromJson(data);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
 }
