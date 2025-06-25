@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 
 class SettingsV2s extends StatelessWidget {
   const SettingsV2s({super.key});
@@ -6,8 +7,13 @@ class SettingsV2s extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const Drawer(), // หรือ AppDrawerv2s() หากใช้ Drawer จริง
-      appBar: AppBar(backgroundColor: Colors.green, title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white))),
+      backgroundColor: Colors.white,
+      drawer: const AppDrawerv2s(),
+      appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.green,
+        title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
+      ),
       body: Column(
         children: [
           const ListTile(leading: Icon(Icons.print), title: Text('เครื่องพิมพ์')),

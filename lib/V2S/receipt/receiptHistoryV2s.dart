@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 
 class ReceiptHistoryV2s extends StatelessWidget {
   const ReceiptHistoryV2s({super.key});
@@ -6,7 +7,18 @@ class ReceiptHistoryV2s extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ใบเสร็จรับเงิน'), backgroundColor: Colors.green),
+      drawer: const AppDrawerv2s(),
+      appBar: AppBar(
+        title: const Text('ใบเสร็จรับเงิน'),
+        backgroundColor: Colors.green,
+        iconTheme: const IconThemeData(color: Colors.white), // 🔸 เปลี่ยนสีไอคอน
+        titleTextStyle: const TextStyle(
+          color: Colors.white, // 🔸 เปลี่ยนสีตัวหนังสือ
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
       body: Column(
         children: [
           // 🔍 ช่องค้นหา

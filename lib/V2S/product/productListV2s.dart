@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 
 class ProductListV2s extends StatelessWidget {
   const ProductListV2s({super.key});
@@ -6,50 +7,47 @@ class ProductListV2s extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // 🔹 Sidebar Left
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.35,
-            child: Column(
-              children: [
-                // Header AppBar (แทน appbar จริง)
-                Container(
-                  height: 50,
-                  color: Colors.green,
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.menu, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('รายการสินค้า', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
+      backgroundColor: Colors.white,
+      drawer: const AppDrawerv2s(),
+      appBar: AppBar(
+        backgroundColor: Colors.green,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('รายการสินค้า', style: TextStyle(color: Colors.white)),
+      ),
 
-                // Menu List
-                Expanded(
-                  child: ListView(
-                    children: const [
-                      ListTile(leading: Icon(Icons.list), title: Text('รายการสินค้า')),
-                      ListTile(leading: Icon(Icons.dashboard), title: Text('หมวดหมู่')),
-                      ListTile(leading: Icon(Icons.insert_drive_file), title: Text('ตัวเลือกเพิ่มเติม')),
-                      ListTile(leading: Icon(Icons.local_offer), title: Text('ส่วนลด')),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 🔸 Vertical Divider
-          const VerticalDivider(width: 1, color: Colors.grey),
-
-          // 🔸 Main Content Right
-          const Expanded(child: Center(child: Text('เลือกเมนูจากด้านซ้ายเพื่อดำเนินการ', style: TextStyle(color: Colors.black54)))),
+      // ✅ รายการเมนูใน Body
+      body: Column(
+        children: const [
+          _MenuItem(icon: Icons.inventory_2, label: 'รายการสินค้า'),
+          _MenuItem(icon: Icons.category, label: 'หมวดหมู่'),
+          _MenuItem(icon: Icons.insert_drive_file, label: 'ตัวเลือกเพิ่มเติม'),
+          _MenuItem(icon: Icons.local_offer, label: 'ส่วนลด'),
         ],
       ),
+    );
+  }
+}
+
+// ✅ เมนูแต่ละรายการ พร้อมเส้นขีดด้านล่าง
+class _MenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MenuItem({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(icon, color: Colors.black54),
+          title: Text(label, style: const TextStyle(color: Colors.black87, fontSize: 15)),
+          onTap: () {
+            // เพิ่มการทำงานเมื่อกด
+          },
+        ),
+        const Divider(height: 1, thickness: 0.6, indent: 16, endIndent: 16, color: Colors.black12),
+      ],
     );
   }
 }
