@@ -3,14 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
+import 'package:posashastd/V2S/login/loginController.dart';
+import 'package:posashastd/V2S/login/loginPageV2s.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'login/login_screen.dart';
+String? token;
+late SharedPreferences prefs;
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 
+  Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+  prefs = await SharedPreferences.getInstance();
+  token = prefs.getString('token');
   runApp(const MyApp());
 }
 
@@ -21,18 +29,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Flutter Demo',
-      // theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow)),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       debugShowCheckedModeBanner: false,
       home: LayoutBuilder(
         builder: (context, constraints) {
-          return LoginScreen();
-          // if (constraints.maxWidth < 720) {
-          //   // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
-          //   return const Homev2s();
-          // } else {
-          //   // 👉 จอใหญ่ แสดงหน้า HomePage
-          //   return const HomePage();
-          // }
+          if (constraints.maxWidth < 720) {
+            // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
+            return const Homev2s();
+          } else {
+            // 👉 จอใหญ่ แสดงหน้า HomePage
+            return const HomePage();
+          }
         },
       ),
     );
