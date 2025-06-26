@@ -1,4 +1,13 @@
+import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:posashastd/helpers/ReceiptWidget.dart';
+import 'package:posashastd/services/homeService.dart';
+import 'package:posashastd/utils/cart_utils.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:sunmi_printer_plus/core/sunmi/sunmi_printer.dart';
 
 class PaymentPageD2s extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -11,7 +20,80 @@ class PaymentPageD2s extends StatefulWidget {
 
 class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double receivedAmount = 0;
-  bool isPaid = false; // ✅ เพิ่ม state สำหรับการชำระเงิน
+  bool isPaid = false;
+  final ScreenshotController screenshotController = ScreenshotController();
+  final GlobalKey receiptKey = GlobalKey();
+
+  Future<void> createOrders() async {
+    try {
+      final formattedOrder = {
+        "deviceId": 1,
+        "shiftId": 1,
+        "total": calculateCartTotal(widget.cartItems),
+        "memberId": null,
+        "date": DateTime.now().toIso8601String(),
+        "orderItems":
+            widget.cartItems.map((item) {
+              return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
+            }).toList(),
+      };
+
+      print("📦 JSON ที่จะส่ง: $formattedOrder");
+      final _order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      if (!mounted) return;
+
+      setState(() {});
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  // Future<Uint8List?> captureWidgetImage(GlobalKey key, {int retries = 5}) async {
+  //   try {
+  //     RenderRepaintBoundary? boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+  //     if (boundary == null) {
+  //       debugPrint("❌ ไม่พบ RepaintBoundary");
+  //       return null;
+  //     }
+
+  //     if (boundary.debugNeedsPaint && retries > 0) {
+  //       await Future.delayed(const Duration(milliseconds: 100));
+  //       return await captureWidgetImage(key, retries: retries - 1); // ✅ จำกัดรอบ
+  //     }
+
+  //     final image = await boundary.toImage(pixelRatio: 2.0);
+  //     final byteData = await image.toByteData(format: ImageByteFormat.png);
+  //     return byteData?.buffer.asUint8List();
+  //   } catch (e) {
+  //     debugPrint("❌ captureWidgetImage error: $e");
+  //     return null;
+  //   }
+  // }
+
+  // Future<void> printReceipt(List<Map<String, dynamic>> cartItems) async {
+  //   final overlay = Overlay.of(context);
+  //   final overlayEntry = OverlayEntry(builder: (_) => buildHiddenReceiptWidget());
+
+  //   overlay.insert(overlayEntry);
+  //   await Future.delayed(const Duration(milliseconds: 300)); // รอ render
+
+  //   try {
+  //     RenderRepaintBoundary boundary = receiptKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+
+  //     final image = await boundary.toImage(pixelRatio: 2.0);
+  //     final byteData = await image.toByteData(format: ImageByteFormat.png);
+  //     final Uint8List imageBytes = byteData!.buffer.asUint8List();
+
+  //     await SunmiPrinter.startTransactionPrint(true);
+  //     await SunmiPrinter.printImage(imageBytes);
+  //     await SunmiPrinter.exitTransactionPrint(true);
+  //   } catch (e) {
+  //     debugPrint('❌ Error printing: $e');
+  //   } finally {
+  //     overlayEntry.remove();
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +149,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               ),
             ),
 
-            // ✅ เนื้อหา
             Expanded(
               child: Row(
                 children: [
@@ -116,7 +197,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                     ),
                   ),
 
-                  // 🔴 ฝั่งขวา
                   Expanded(
                     flex: 3,
                     child: Padding(
@@ -142,7 +222,41 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                                OutlinedButton(onPressed: () {}, child: const Text("จำนวนเงิน", style: TextStyle(color: Colors.black))),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final amount = await showDialog<double>(
+                                      context: context,
+                                      builder: (context) {
+                                        double tempAmount = 0;
+                                        return AlertDialog(
+                                          title: const Text("ใส่จำนวนเงิน"),
+                                          content: TextField(
+                                            keyboardType: TextInputType.number,
+                                            decoration: const InputDecoration(hintText: 'เช่น 500'),
+                                            onChanged: (value) {
+                                              tempAmount = double.tryParse(value) ?? 0;
+                                            },
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              child: const Text("ตกลง"),
+                                              onPressed: () {
+                                                Navigator.of(context).pop(tempAmount);
+                                              },
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+
+                                    if (amount != null && amount > 0) {
+                                      setState(() {
+                                        receivedAmount = amount;
+                                      });
+                                    }
+                                  },
+                                  child: const Text("จำนวนเงิน", style: TextStyle(color: Colors.black)),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -171,16 +285,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 ),
                               ],
                             ),
+
                             const SizedBox(height: 24),
                             const Divider(),
                             const SizedBox(height: 16),
                             OutlinedButton.icon(
                               icon: const Icon(Icons.payments, color: Colors.black),
                               label: const Text("ชำระด้วยเงินสด", style: TextStyle(color: Colors.black)),
-                              onPressed: () {
+                              onPressed: () async {
                                 setState(() {
                                   isPaid = true;
                                 });
+                                await createOrders();
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.grey),
@@ -201,8 +317,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             ),
                           ] else ...[
                             const SizedBox(height: 16),
-
-                            // ✅ ช่องกรอกอีเมล — ไม่มีเส้นขอบ และจัดให้ดูสะอาด
                             Container(
                               decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
                               child: TextField(
@@ -214,28 +328,29 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 ),
                               ),
                             ),
-
                             const SizedBox(height: 25),
-
-                            // ✅ ปุ่มพิมพ์ใบเสร็จ — จัดกลาง, ไม่มีเส้นรอบขอบ
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
-                              child: const Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.print, color: Colors.black),
-                                    SizedBox(width: 8),
-                                    Text('พิมพ์ใบเสร็จ', style: TextStyle(color: Colors.black)),
-                                  ],
+                            GestureDetector(
+                              onTap: () async {
+                                // await printReceipt(widget.cartItems);
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+                                child: const Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.print, color: Colors.black),
+                                      SizedBox(width: 8),
+                                      Text('พิมพ์ใบเสร็จ', style: TextStyle(color: Colors.black)),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
 
                             const Spacer(),
-
                             SizedBox(
                               width: double.infinity,
                               height: 48,
@@ -245,7 +360,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                                 onPressed: () {
-                                  // TODO: เริ่มรายการใหม่
                                   Navigator.pop(context, true);
                                 },
                                 icon: const Icon(Icons.check, color: Colors.white),
@@ -261,6 +375,23 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildHiddenReceiptWidget() {
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: RepaintBoundary(
+          key: receiptKey,
+          child: Container(
+            color: Colors.white,
+            width: 384, // 80mm ขนาดพอดีของ Sunmi
+            padding: const EdgeInsets.all(16),
+            child: ReceiptWidget(cartItems: widget.cartItems, total: calculateCartTotal(widget.cartItems)),
+          ),
         ),
       ),
     );
