@@ -17,6 +17,38 @@ class _SaleSummaryPagev2sState extends State<SaleSummaryPagev2s> {
   final double change = 0.00;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await createOrders();
+    });
+  }
+
+  Future<void> createOrders() async {
+    try {
+      final formattedOrder = {
+        "deviceId": 1,
+        "shiftId": 1,
+        "total": widget.totalAmount,
+        "memberId": null,
+        "date": DateTime.now().toIso8601String(),
+        "orderItems":
+            widget.items.map((item) {
+              return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
+            }).toList(),
+      };
+
+      print("📦 JSON ที่จะส่ง: $formattedOrder");
+      final _order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      if (!mounted) return;
+
+      setState(() {});
+    } catch (e) {
+      // handle error
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -42,23 +74,6 @@ class _SaleSummaryPagev2sState extends State<SaleSummaryPagev2s> {
             ElevatedButton.icon(
               onPressed: () async {
                 // TODO: เริ่มการขายใหม่
-
-                final formattedOrder = {
-                  "deviceId": 1,
-                  "shiftId": 1,
-                  "total": widget.totalAmount,
-                  "memberId": 2,
-                  "date": DateTime.now().toIso8601String(),
-                  "orderItems":
-                      widget.items.map((item) {
-                        return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
-                      }).toList(),
-                };
-
-                print("📦 JSON ที่จะส่ง: $formattedOrder");
-
-                ///final _order = await Homeservice.createOrders(formattedOrder: formattedOrder);
-
                 // ✅ หากต้องการส่งไป API หรือจัดเก็บ สามารถทำได้ตรงนี้
                 Navigator.pushAndRemoveUntil(
                   context,

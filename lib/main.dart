@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
+import 'package:posashastd/D2S/login/loginPage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/V2S/login/loginController.dart';
 import 'package:posashastd/V2S/login/loginPageV2s.dart';
