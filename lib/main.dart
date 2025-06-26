@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
+import 'package:posashastd/D2S/login/loginPage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/V2S/login/loginController.dart';
 import 'package:posashastd/V2S/login/loginPageV2s.dart';
@@ -35,7 +36,7 @@ class MyApp extends StatelessWidget {
               return token == null ? LoginPageV2s() : Homev2s();
             } else {
               // 👉 จอใหญ่ แสดงหน้า HomePage
-              return const HomePage();
+              return token == null ? LoginPage() : HomePage();
             }
           },
         ),
