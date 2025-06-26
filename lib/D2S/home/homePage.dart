@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/paymentPageD2s.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
 import 'package:posashastd/services/homeService.dart';
+
+import 'home_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,11 +24,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late TabController _tabController;
   List<String> tabs = ['แท็บ 1'];
 
+  final HomeController _homeController = Get.put(HomeController());
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: tabs.length, vsync: this);
-    SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await getlistCategory();
     });
@@ -37,7 +45,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final rawData = await Homeservice.getCategory();
       if (!mounted) return;
       // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
+      final List<Map<String, dynamic>> parsedCategories =
+          List<Map<String, dynamic>>.from(rawData);
       setState(() {
         categories = [
           {'code': 'ALL', 'name': 'ทั้งหมด'},
@@ -52,12 +61,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
+  Future<void> getProductByCategory({
+    required int categoryId,
+    required int branchId,
+  }) async {
     try {
-      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
+      final rawData = await Homeservice.getProduct(
+        categoryId: categoryId,
+        branchId: branchId,
+      );
       if (!mounted) return;
       // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
+      final List<Map<String, dynamic>> parsedProducts =
+          List<Map<String, dynamic>>.from(rawData);
       setState(() {
         products = parsedProducts;
       });
@@ -68,7 +84,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void addToCart(Map<String, dynamic> product) {
     setState(() {
-      final existingIndex = cartItems.indexWhere((item) => item['id'] == product['id']);
+      final existingIndex = cartItems.indexWhere(
+        (item) => item['id'] == product['id'],
+      );
 
       if (existingIndex >= 0) {
         final currentQty = cartItems[existingIndex]['qty'] ?? 1;
@@ -108,8 +126,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             title: const Text('ยืนยันการลบ'),
             content: Text('ต้องการลบ "\${tabs[index]}" หรือไม่?'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ยกเลิก'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('ลบ'),
+              ),
             ],
           ),
     );
@@ -123,17 +147,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildGridContent(double width, double height) {
-    return ProductGrid(
-      itemCount: products.length,
-      products: products,
-      isMainTab: _tabController.index == 0,
-      width: width,
-      height: height,
-      onTap: (index) {
-        addToCart(products[index]);
-      },
-      onLongPress: (index) {
-        print("กดค้างที่ index: $index ของแท็บเพิ่ม");
+    return GetX<HomeController>(
+      builder: (controller) {
+        return ProductGrid(
+          itemCount: controller.products.length,
+          products: controller.products,
+          isMainTab: _tabController.index == 0,
+          width: width,
+          height: height,
+          onTap: (index) {
+            // addToCart(products[index]);
+          },
+          onLongPress: (index) {
+            print("กดค้างที่ index: $index ของแท็บเพิ่ม");
+          },
+        );
       },
     );
   }
@@ -164,7 +192,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         builder:
                             (context) => Row(
                               children: [
-                                IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.menu,
+                                    color: Colors.white,
+                                  ),
+                                  onPressed:
+                                      () => Scaffold.of(context).openDrawer(),
+                                ),
 
                                 // ✅ Dropdown
                                 SizedBox(
@@ -180,9 +215,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           setState(() {
                                             selectedCategoryCode = value;
                                           });
-                                          final selectedCategory = categories.firstWhere((cat) => cat['code'] == value, orElse: () => {'id': 0});
-                                          final int categoryId = selectedCategory['id'] ?? 0;
-                                          await getProductByCategory(categoryId: categoryId, branchId: 0);
+                                          final selectedCategory = categories
+                                              .firstWhere(
+                                                (cat) => cat['code'] == value,
+                                                orElse: () => {'id': 0},
+                                              );
+                                          final int categoryId =
+                                              selectedCategory['id'] ?? 0;
+                                          await getProductByCategory(
+                                            categoryId: categoryId,
+                                            branchId: 0,
+                                          );
                                         }
                                       },
 
@@ -190,10 +233,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                       selectedItemBuilder: (context) {
                                         return categories.map((category) {
                                           return Align(
-                                            alignment: Alignment.centerLeft, // หรือ Alignment.center ถ้าต้องการให้อยู่ตรงกลางแนวนอน
+                                            alignment:
+                                                Alignment
+                                                    .centerLeft, // หรือ Alignment.center ถ้าต้องการให้อยู่ตรงกลางแนวนอน
                                             child: Padding(
-                                              padding: const EdgeInsets.symmetric(vertical: 8.0), // ✅ แก้ให้ไม่ชิดขอบบน
-                                              child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 8.0,
+                                                  ), // ✅ แก้ให้ไม่ชิดขอบบน
+                                              child: Text(
+                                                category['name'] ?? '',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
                                             ),
                                           );
                                         }).toList();
@@ -204,7 +258,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           categories.map((category) {
                                             return DropdownMenuItem<String>(
                                               value: category['code'],
-                                              child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.black)),
+                                              child: Text(
+                                                category['name'] ?? '',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                ),
+                                              ),
                                             );
                                           }).toList(),
                                     ),
@@ -213,28 +272,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                                 const Spacer(), // ✅ ดันให้ปุ่มค้นหาชิดขวาสุด
 
-                                const Icon(Icons.search, size: 26, color: Colors.white),
+                                const Icon(
+                                  Icons.search,
+                                  size: 26,
+                                  color: Colors.white,
+                                ),
                               ],
                             ),
                       ),
                     ),
 
                     // GridView
-                    Expanded(child: AnimatedBuilder(animation: _tabController, builder: (_, __) => _buildGridContent(width, height))),
+                    Expanded(
+                      child: AnimatedBuilder(
+                        animation: _tabController,
+                        builder: (_, __) => _buildGridContent(width, height),
+                      ),
+                    ),
 
                     // TabBar
                     SizedBox(
                       height: 48,
                       child: Row(
                         children: [
-                          IconButton(icon: const Icon(Icons.add, color: Colors.green), onPressed: _addTab),
+                          IconButton(
+                            icon: const Icon(Icons.add, color: Colors.green),
+                            onPressed: _addTab,
+                          ),
                           Expanded(
                             child: TabBar(
                               isScrollable: true,
                               controller: _tabController,
                               tabs: List.generate(
                                 tabs.length,
-                                (index) => GestureDetector(onLongPress: () => _removeTab(index), child: Tab(text: tabs[index])),
+                                (index) => GestureDetector(
+                                  onLongPress: () => _removeTab(index),
+                                  child: Tab(text: tabs[index]),
+                                ),
                               ),
                               labelColor: Colors.green,
                               unselectedLabelColor: Colors.black54,
@@ -255,7 +329,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   children: [
                     // ✅ หัวตาราง + ปุ่มเคลียร์
                     ListTile(
-                      title: const Text('ตะกร้า', style: TextStyle(fontWeight: FontWeight.bold)),
+                      title: const Text(
+                        'ตะกร้า',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       trailing: TextButton.icon(
                         onPressed: () {
                           setState(() {
@@ -263,7 +340,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           });
                         },
                         icon: const Icon(Icons.delete, color: Colors.red),
-                        label: const Text('เคลียร์', style: TextStyle(color: Colors.red)),
+                        label: const Text(
+                          'เคลียร์',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
                     ),
 
@@ -271,7 +351,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Expanded(
                       child:
                           cartItems.isEmpty
-                              ? const Center(child: Text('ยังไม่มีสินค้า', style: TextStyle(color: Colors.grey)))
+                              ? const Center(
+                                child: Text(
+                                  'ยังไม่มีสินค้า',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              )
                               : ListView.builder(
                                 itemCount: cartItems.length,
                                 itemBuilder: (context, index) {
@@ -282,9 +367,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                                   return ListTile(
                                     dense: true,
-                                    title: Text(name, style: const TextStyle(fontSize: 14)),
+                                    title: Text(
+                                      name,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
                                     subtitle: Text('จำนวน: $qty'),
-                                    trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                                    trailing: Text(
+                                      '฿${(price * qty).toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
                                   );
                                 },
                               ),
@@ -299,7 +390,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           if (cartItems.isNotEmpty) {
                             final success = await Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => PaymentPageD2s(cartItems: cartItems)),
+                              MaterialPageRoute(
+                                builder:
+                                    (context) =>
+                                        PaymentPageD2s(cartItems: cartItems),
+                              ),
                             );
                             if (success == true) {
                               setState(() {
@@ -308,8 +403,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             }
                           }
                         },
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size.fromHeight(50)),
-                        child: const Text("ชำระเงิน", style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          minimumSize: const Size.fromHeight(50),
+                        ),
+                        child: const Text(
+                          "ชำระเงิน",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],

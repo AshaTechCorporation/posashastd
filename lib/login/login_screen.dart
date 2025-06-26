@@ -203,9 +203,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.isEmpty) {
                             return 'กรุณาระบุรหัสผ่าน';
                           }
-                          if (value.length < 3) {
-                            return 'รหัสผ่านต้องมีอย่างน้อย 3 ตัวอักษร';
-                          }
+                          // if (value.length < 8) {
+                          //   return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+                          // }
                           return null;
                         },
                         textInputAction: TextInputAction.done,

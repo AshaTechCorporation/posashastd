@@ -10,6 +10,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../constants.dart';
 import '../models/category.dart';
+import '../models/panel.dart';
+import '../models/panel_product.dart';
 import 'auth_service.dart';
 
 class DatebaseService {
@@ -29,7 +31,12 @@ class DatebaseService {
 
       final data = await getData();
 
-      await Future.wait([insertProducts(data), insertCategories(data)]);
+      await Future.wait([
+        insertProducts(data),
+        insertCategories(data),
+        insertPanels(data),
+        insertPanelProducts(data),
+      ]);
 
       log('Load Data Sync Done.');
     } catch (e) {
@@ -59,6 +66,8 @@ class DatebaseService {
       onCreate: (db, version) async {
         await db.execute(createProductTable);
         await db.execute(createCategoryTable);
+        await db.execute(createPanelTable);
+        await db.execute(createPanelProductTable);
       },
     );
   }
@@ -229,6 +238,100 @@ class DatebaseService {
 
     return maps.map((e) {
       return Category.fromJson(e);
+    }).toList();
+  }
+
+  String createPanelTable = '''
+    CREATE TABLE panel (
+      id INTEGER PRIMARY KEY,
+      code TEXT,
+      name TEXT
+    );
+  ''';
+
+  Future<void> insertPanels(data) async {
+    final panels =
+        (data['panels'] as List).map((e) => Panel.fromJson(e)).toList();
+
+    for (var panel in panels) {
+      await _database!.rawInsert(
+        '''INSERT INTO panel(
+            id,
+            code,
+            name) VALUES(?, ?, ?)''',
+        [panel.id, panel.code, panel.name],
+      );
+    }
+
+    log('Insert Panel Done.');
+  }
+
+  Future<List<Panel>> getPanels() async {
+    List<Map<String, dynamic>> maps = await _database!.query('panel');
+    
+    final l = [];
+    for (var panel in maps) {
+      Map<String, Object?> map = Map<String, Object?>.from(panel);
+
+      inspect(map);
+
+      final panelProducts = await getPanelProducts(panel['id']);
+
+      map['panelProducts'] = panelProducts;
+
+      l.add(map);
+    }
+
+    return maps.map((e) {
+      return Panel.fromJson(e);
+    }).toList();
+  }
+
+  String createPanelProductTable = '''
+    CREATE TABLE panel_product (
+      id INTEGER PRIMARY KEY,
+      color TEXT,
+      sequence INTEGER,
+      panel_id INTEGER,
+      product_id INTEGER
+    );
+  ''';
+
+  Future<void> insertPanelProducts(data) async {
+    final panelProducts =
+        (data['panelProducts'] as List)
+            .map((e) => PanelProduct.fromJson(e))
+            .toList();
+
+    for (var panelProduct in panelProducts) {
+      await _database!.rawInsert(
+        '''INSERT INTO panel_product(
+            id,
+            color,
+            sequence,
+            panel_id,
+            product_id) VALUES(?, ?, ?, ?, ?)''',
+        [
+          panelProduct.id,
+          panelProduct.color,
+          panelProduct.sequence,
+          panelProduct.panel?.id,
+          panelProduct.product?.id,
+        ],
+      );
+    }
+
+    log('Insert Panel Product Done.');
+  }
+
+  Future<List<PanelProduct>> getPanelProducts(int panelId) async {
+    final List<Map<String, dynamic>> maps = await _database!.query(
+      'panel_product',
+      where: 'panel_id = ?',
+      whereArgs: [panelId],
+    );
+    return maps.map((e) {
+      return PanelProduct.fromJson(e);
     }).toList();
   }
 }

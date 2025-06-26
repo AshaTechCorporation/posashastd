@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/models/product.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
 class ProductGrid extends StatelessWidget {
@@ -8,7 +9,7 @@ class ProductGrid extends StatelessWidget {
   final void Function(int index)? onLongPress;
   final double width;
   final double height;
-  final List<Map<String, dynamic>> products;
+  final List<Product> products;
 
   const ProductGrid({
     super.key,
@@ -38,10 +39,10 @@ class ProductGrid extends StatelessWidget {
       itemCount: itemCount,
       itemBuilder: (context, index) {
         final product = products[index];
-        final String name = product['name'] ?? 'ไม่ระบุชื่อ';
-        final String? showType = product['showType'];
-        final String? colorHex = product['color'];
-        final String? imageUrl = product['imageUrl'];
+        final String name = product.name ?? 'ไม่ระบุชื่อ';
+        final String? showType = product.showType;
+        final String? colorHex = product.code;
+        final String? imageUrl = product.imageUrl;
 
         final Widget productVisual =
             showType == 'color' && colorHex != null
