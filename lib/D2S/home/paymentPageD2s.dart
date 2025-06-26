@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
+import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/cart_utils.dart';
 import 'package:screenshot/screenshot.dart';
@@ -332,6 +333,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             GestureDetector(
                               onTap: () async {
                                 // await printReceipt(widget.cartItems);
+                                await printReceiptFromCartItems(widget.cartItems);
                               },
                               child: Container(
                                 width: double.infinity,
