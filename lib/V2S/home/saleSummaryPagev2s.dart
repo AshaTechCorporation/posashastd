@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/helpers/receipt_printer_v2s.dart';
+import 'package:posashastd/services/homeService.dart';
 
 class SaleSummaryPagev2s extends StatefulWidget {
   final double totalAmount;
@@ -39,8 +40,26 @@ class _SaleSummaryPagev2sState extends State<SaleSummaryPagev2s> {
             ),
             const Spacer(),
             ElevatedButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 // TODO: เริ่มการขายใหม่
+
+                final formattedOrder = {
+                  "deviceId": 1,
+                  "shiftId": 1,
+                  "total": widget.totalAmount,
+                  "memberId": 2,
+                  "date": DateTime.now().toIso8601String(),
+                  "orderItems":
+                      widget.items.map((item) {
+                        return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
+                      }).toList(),
+                };
+
+                print("📦 JSON ที่จะส่ง: $formattedOrder");
+
+                ///final _order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+
+                // ✅ หากต้องการส่งไป API หรือจัดเก็บ สามารถทำได้ตรงนี้
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const Homev2s()),
