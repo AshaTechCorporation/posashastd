@@ -5,6 +5,7 @@ import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/V2S/login/loginController.dart';
 import 'package:posashastd/V2S/login/loginPageV2s.dart';
+import 'package:posashastd/login/login_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,7 +39,7 @@ class MyApp extends StatelessWidget {
             return const Homev2s();
           } else {
             // 👉 จอใหญ่ แสดงหน้า HomePage
-            return const HomePage();
+            return const LoginScreen();
           }
         },
       ),

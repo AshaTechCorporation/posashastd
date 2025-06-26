@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../D2S/home/homePage.dart';
 import '../models/login_response.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+  final _databaseService = DatebaseService();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -38,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkExistingLogin() async {
     final isLoggedIn = await _authService.checkLoginStatus();
     if (isLoggedIn && mounted) {
+      await _databaseService.loadDataSync();
       Get.offAll(HomePage());
     }
   }
