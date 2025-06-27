@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -20,11 +22,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String? selectedCategoryCode; // ใช้รหัสแทน
   List<Map<String, dynamic>> products = [];
   List<Map<String, dynamic>> cartItems = [];
-  String selectedCategory = "ปูอัด-เต้าหู้-ปลาเส้น";
   late TabController _tabController;
   List<String> tabs = ['แท็บ 1'];
-
-  final HomeController _homeController = Get.put(HomeController());
+  final HomeController homeController = Get.put(HomeController());
 
   @override
   void initState() {
@@ -113,7 +113,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _addTab() {
     setState(() {
-      tabs.add("แท็บ \${tabs.length + 1}");
+      homeController.addPanel();
+      tabs.add("แท็บ ${tabs.length + 1}");
       _tabController = TabController(length: tabs.length, vsync: this);
     });
   }
@@ -150,12 +151,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return GetX<HomeController>(
       builder: (controller) {
         return ProductGrid(
-          itemCount: controller.products.length,
-          products: controller.products,
+          itemCount:
+              controller.panels.isNotEmpty
+                  ? controller
+                      .panels[_tabController.index]
+                      .panelProducts!
+                      .length
+                  : 0,
+          panelProduct:
+              controller.panels.isNotEmpty
+                  ? controller.panels[_tabController.index].panelProducts!
+                  : [],
           isMainTab: _tabController.index == 0,
           width: width,
           height: height,
-          onTap: (index) {
+          onTap: (index, product) {
             // addToCart(products[index]);
           },
           onLongPress: (index) {

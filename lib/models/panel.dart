@@ -15,6 +15,7 @@ class Panel {
     this.id, {
     this.code,
     this.name,
+    this.panelProducts,
   });
 
   factory Panel.fromJson(Map<String, dynamic> json) => _$PanelFromJson(json);

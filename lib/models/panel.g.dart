@@ -7,14 +7,14 @@ part of 'panel.dart';
 // **************************************************************************
 
 Panel _$PanelFromJson(Map<String, dynamic> json) => Panel(
-    (json['id'] as num).toInt(),
-    code: json['code'] as String?,
-    name: json['name'] as String?,
-  )
-  ..panelProducts =
+  (json['id'] as num).toInt(),
+  code: json['code'] as String?,
+  name: json['name'] as String?,
+  panelProducts:
       (json['panelProducts'] as List<dynamic>?)
           ?.map((e) => PanelProduct.fromJson(e as Map<String, dynamic>))
-          .toList();
+          .toList(),
+);
 
 Map<String, dynamic> _$PanelToJson(Panel instance) => <String, dynamic>{
   'id': instance.id,

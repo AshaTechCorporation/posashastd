@@ -119,9 +119,9 @@ class DatebaseService {
   String createProductTable = '''
     CREATE TABLE product (
       id INTEGER PRIMARY KEY,
-      created_at TEXT,
-      updated_at TEXT,
-      deleted_at TEXT,
+      createdAt TEXT,
+      updatedAt TEXT,
+      deletedAt TEXT,
       code TEXT,
       name TEXT,
       image TEXT,
@@ -130,10 +130,11 @@ class DatebaseService {
       active INTEGER,
       barcode TEXT,
       remark TEXT,
-      category_id INTEGER,
-      unit_id INTEGER,
-      show_type TEXT,
-      color TEXT
+      categoryId INTEGER,
+      unitId INTEGER,
+      showType TEXT,
+      color TEXT,
+      imageUrl TEXT
     );
   ''';
 
@@ -145,9 +146,9 @@ class DatebaseService {
       await _database!.rawInsert(
         '''INSERT INTO product(
             id,
-            created_at,
-            updated_at,
-            deleted_at,
+            createdAt,
+            updatedAt,
+            deletedAt,
             code,
             name,
             image,
@@ -156,9 +157,11 @@ class DatebaseService {
             active,
             barcode,
             remark,
-            show_type,
-            category_id,
-            color) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?)''',
+            showType,
+            categoryId,
+            color,
+            imageUrl
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,? ,?, ?)''',
         [
           product.id,
           product.createdAt?.toIso8601String(),
@@ -175,6 +178,7 @@ class DatebaseService {
           product.showType,
           product.category?.id,
           product.color,
+          product.imageUrl,
         ],
       );
       // await _database!.insert(
@@ -198,9 +202,9 @@ class DatebaseService {
   String createCategoryTable = '''
     CREATE TABLE category (
       id INTEGER PRIMARY KEY,
-      created_at TEXT,
-      updated_at TEXT,
-      deleted_at TEXT,
+      createdAt TEXT,
+      updatedAt TEXT,
+      deletedAt TEXT,
       code TEXT,
       name TEXT
     );
@@ -214,9 +218,9 @@ class DatebaseService {
       await _database!.rawInsert(
         '''INSERT INTO category(
             id,
-            created_at,
-            updated_at,
-            deleted_at,
+            createdAt,
+            updatedAt,
+            deletedAt,
             code,
             name) VALUES(?, ?, ?, ?, ?, ?)''',
         [
@@ -268,12 +272,10 @@ class DatebaseService {
 
   Future<List<Panel>> getPanels() async {
     List<Map<String, dynamic>> maps = await _database!.query('panel');
-    
+
     final l = [];
     for (var panel in maps) {
       Map<String, Object?> map = Map<String, Object?>.from(panel);
-
-      inspect(map);
 
       final panelProducts = await getPanelProducts(panel['id']);
 
@@ -282,7 +284,7 @@ class DatebaseService {
       l.add(map);
     }
 
-    return maps.map((e) {
+    return l.map((e) {
       return Panel.fromJson(e);
     }).toList();
   }
@@ -292,8 +294,8 @@ class DatebaseService {
       id INTEGER PRIMARY KEY,
       color TEXT,
       sequence INTEGER,
-      panel_id INTEGER,
-      product_id INTEGER
+      panelId INTEGER,
+      productId INTEGER
     );
   ''';
 
@@ -309,8 +311,8 @@ class DatebaseService {
             id,
             color,
             sequence,
-            panel_id,
-            product_id) VALUES(?, ?, ?, ?, ?)''',
+            panelId,
+            productId) VALUES(?, ?, ?, ?, ?)''',
         [
           panelProduct.id,
           panelProduct.color,
@@ -324,14 +326,33 @@ class DatebaseService {
     log('Insert Panel Product Done.');
   }
 
-  Future<List<PanelProduct>> getPanelProducts(int panelId) async {
-    final List<Map<String, dynamic>> maps = await _database!.query(
+  Future<List<Map<String, dynamic>>> getPanelProducts(int panelId) async {
+    final panelProducts = await _database!.query(
       'panel_product',
-      where: 'panel_id = ?',
+      where: 'panelId = ?',
       whereArgs: [panelId],
     );
-    return maps.map((e) {
-      return PanelProduct.fromJson(e);
-    }).toList();
+
+    final results = await Future.wait(
+      panelProducts.map((panelProduct) async {
+        final map = Map<String, Object?>.from(panelProduct);
+        
+        if (panelProduct['productId'] != null) {
+          final product = await _database!.query(
+            'product',
+            where: 'id = ?',
+            whereArgs: [panelProduct['productId']],
+          );
+
+          if (product.isNotEmpty) {
+            map['product'] = product.first;
+          }
+        }
+
+        return map;
+      }),
+    );
+
+    return results;
   }
 }
