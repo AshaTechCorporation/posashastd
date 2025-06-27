@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:posashastd/D2S/login/signInPage.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -43,8 +44,15 @@ class LoginPage extends StatelessWidget {
                     width: screenWidth * 0.25,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8BC34A), padding: const EdgeInsets.symmetric(vertical: 16)),
-                      onPressed: () {
+                      onPressed: () async {
                         // TODO: ไปหน้าลงทะเบียน
+                        final Uri youtubeUrl = Uri.parse('https://www.youtube.com/');
+
+                        if (await canLaunchUrl(youtubeUrl)) {
+                          await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถเปิด YouTube ได้')));
+                        }
                       },
                       child: const Text('ลงทะเบียน', style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),

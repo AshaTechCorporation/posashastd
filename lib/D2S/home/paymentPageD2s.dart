@@ -27,16 +27,22 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
   Future<void> createOrders() async {
     try {
+      final total = await calculateCartTotal(widget.cartItems);
       final formattedOrder = {
         "deviceId": 1,
         "shiftId": 1,
-        "total": calculateCartTotal(widget.cartItems),
+        "total": total,
         "memberId": null,
         "date": DateTime.now().toIso8601String(),
         "orderItems":
             widget.cartItems.map((item) {
               return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
             }).toList(),
+        "paymentMethodId": 1,
+        "paid": receivedAmount,
+        "change": receivedAmount >= total ? receivedAmount - total : 0,
+        "discount": 0,
+        "remark": "string",
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
@@ -48,53 +54,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // handle error
     }
   }
-
-  // Future<Uint8List?> captureWidgetImage(GlobalKey key, {int retries = 5}) async {
-  //   try {
-  //     RenderRepaintBoundary? boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-
-  //     if (boundary == null) {
-  //       debugPrint("❌ ไม่พบ RepaintBoundary");
-  //       return null;
-  //     }
-
-  //     if (boundary.debugNeedsPaint && retries > 0) {
-  //       await Future.delayed(const Duration(milliseconds: 100));
-  //       return await captureWidgetImage(key, retries: retries - 1); // ✅ จำกัดรอบ
-  //     }
-
-  //     final image = await boundary.toImage(pixelRatio: 2.0);
-  //     final byteData = await image.toByteData(format: ImageByteFormat.png);
-  //     return byteData?.buffer.asUint8List();
-  //   } catch (e) {
-  //     debugPrint("❌ captureWidgetImage error: $e");
-  //     return null;
-  //   }
-  // }
-
-  // Future<void> printReceipt(List<Map<String, dynamic>> cartItems) async {
-  //   final overlay = Overlay.of(context);
-  //   final overlayEntry = OverlayEntry(builder: (_) => buildHiddenReceiptWidget());
-
-  //   overlay.insert(overlayEntry);
-  //   await Future.delayed(const Duration(milliseconds: 300)); // รอ render
-
-  //   try {
-  //     RenderRepaintBoundary boundary = receiptKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-
-  //     final image = await boundary.toImage(pixelRatio: 2.0);
-  //     final byteData = await image.toByteData(format: ImageByteFormat.png);
-  //     final Uint8List imageBytes = byteData!.buffer.asUint8List();
-
-  //     await SunmiPrinter.startTransactionPrint(true);
-  //     await SunmiPrinter.printImage(imageBytes);
-  //     await SunmiPrinter.exitTransactionPrint(true);
-  //   } catch (e) {
-  //     debugPrint('❌ Error printing: $e');
-  //   } finally {
-  //     overlayEntry.remove();
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -206,14 +165,57 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Center(
-                            child: Column(
-                              children: [
-                                Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 14)),
-                              ],
-                            ),
+                            child:
+                                receivedAmount >= total
+                                    ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // ส่วนยอดรวมและคำอธิบาย
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              '฿${total.toStringAsFixed(2)}',
+                                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 14), textAlign: TextAlign.center),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 24),
+                                        // เส้นแบ่งแนวตั้ง
+                                        Container(width: 1, height: 50, color: Colors.grey),
+                                        const SizedBox(width: 24),
+                                        // ส่วนเงินทอนและคำอธิบาย
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              '฿${(receivedAmount - total).toStringAsFixed(2)}',
+                                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            const Text('เงินทอน', style: TextStyle(fontSize: 14, color: Colors.green), textAlign: TextAlign.center),
+                                          ],
+                                        ),
+                                      ],
+                                    )
+                                    : Column(
+                                      children: [
+                                        Text(
+                                          '฿${total.toStringAsFixed(2)}',
+                                          style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 14), textAlign: TextAlign.center),
+                                      ],
+                                    ),
                           ),
+
                           const SizedBox(height: 24),
 
                           if (!isPaid) ...[

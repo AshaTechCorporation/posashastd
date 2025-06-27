@@ -60,7 +60,7 @@ class Homeservice {
     //final domain = prefs.getString('domain');
     // final token =
     //     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJuYW1lIjoic2hvcCIsImlhdCI6MTc1MDc2ODAyMSwiZXhwIjoxNzgyMzI1NjIxfQ.czBDdUQeQgvB8YWrCSARElvRK-xxn5sbHHiQmTi65u4';
-    final url = Uri.https(publicUrl, '/api/order');
+    final url = Uri.https(publicUrl, '/api/order/order-with-payment');
     var headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
     final response = await http.post(url, headers: headers, body: convert.jsonEncode(formattedOrder));
     if (response.statusCode == 200 || response.statusCode == 201) {
