@@ -104,12 +104,14 @@ class HomeController extends GetxController {
 
     if (existingIndex >= 0) {
       final currentQty = cartItems[existingIndex]['qty'] ?? 1;
-      cartItems[existingIndex]['qty'] = currentQty + 1;
+      // สร้าง List ใหม่เพื่อให้ GetX ตรวจจับการเปลี่ยนแปลง
+      final updatedList = List<Map<String, dynamic>>.from(cartItems);
+      updatedList[existingIndex] = {...updatedList[existingIndex], 'qty': currentQty + 1};
+      cartItems.assignAll(updatedList); // บังคับให้ RxList อัพเดท
     } else {
       final newItem = {'id': product.id, 'name': product.name ?? 'ไม่มีชื่อ', 'price': product.price ?? 0, 'qty': 1};
       cartItems.add(newItem);
     }
-    update(); // อัพเดท UI
   }
 
   // คำนวณยอดรวมราคา
