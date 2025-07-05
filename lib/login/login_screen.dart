@@ -5,6 +5,7 @@ import '../D2S/home/homePage.dart';
 import '../models/login_response.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,10 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final LoginResponse response = await _authService.login(
-        _usernameController.text,
-        _passwordController.text,
-      );
+      final LoginResponse response = await _authService.login(_usernameController.text, _passwordController.text);
 
       if (response.accessToken != null) {
         // Login สำเร็จ
@@ -66,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // นำทางไปหน้าหลัก
         if (mounted) {
-          // Get.offAll(HomePage());
+          Get.offAll(HomePage());
         }
       } else {
         // Login ไม่สำเร็จ
@@ -107,9 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(24.0),
             child: Card(
               elevation: 8,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
                 child: Form(
@@ -119,27 +115,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Logo หรือชื่อระบบ
-                      const Icon(
-                        Icons.point_of_sale,
-                        size: 80,
-                        color: Colors.blue,
-                      ),
+                      const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
                       const SizedBox(height: 16),
                       const Text(
                         'POS System',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'เข้าสู่ระบบ',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
+                      const Text('เข้าสู่ระบบ', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey)),
                       const SizedBox(height: 32),
 
                       // Username Field
@@ -148,15 +132,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         decoration: InputDecoration(
                           labelText: 'ชื่อผู้ใช้',
                           prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Colors.blue,
-                              width: 2,
-                            ),
+                            borderSide: const BorderSide(color: Colors.blue, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -177,26 +156,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'รหัสผ่าน',
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
+                            icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
                             onPressed: () {
                               setState(() {
                                 _obscurePassword = !_obscurePassword;
                               });
                             },
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Colors.blue,
-                              width: 2,
-                            ),
+                            borderSide: const BorderSide(color: Colors.blue, width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -220,28 +190,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
                         ),
                         child:
                             _isLoading
-                                ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Text(
-                                  'เข้าสู่ระบบ',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 16),
 
@@ -251,10 +206,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           // นำทางไปหน้าลืมรหัสผ่าน
                           Navigator.of(context).pushNamed('/forgot-password');
                         },
-                        child: const Text(
-                          'ลืมรหัสผ่าน?',
-                          style: TextStyle(color: Colors.blue),
-                        ),
+                        child: const Text('ลืมรหัสผ่าน?', style: TextStyle(color: Colors.blue)),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Register Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('ยังไม่มีบัญชี? ', style: TextStyle(color: Colors.grey)),
+                          TextButton(
+                            onPressed: () {
+                              Get.to(() => const RegisterScreen());
+                            },
+                            child: const Text('สมัครสมาชิก', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -46,6 +46,7 @@ dependencies:
   json_annotation: ^4.9.0
   intl: ^0.20.2
   screenshot: ^3.0.0
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:

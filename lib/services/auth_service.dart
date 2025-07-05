@@ -12,10 +12,7 @@ class AuthService {
   AuthService._internal();
 
   // Headers สำหรับ API calls
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => {'Content-Type': 'application/json', 'Accept': 'application/json'};
 
   String? _currentToken;
 
@@ -57,17 +54,14 @@ class AuthService {
 
       final response = await http
           .post(url, headers: _headers, body: body)
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'),
-          );
+          .timeout(const Duration(seconds: 30), onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'));
 
       // final loginResponse = LoginResponse.fromJson(jsonDecode(response.body));
 
       if (response.statusCode == 200) {
         final data = LoginResponse.fromJson(jsonDecode(response.body));
 
-        // บันทึกข้อมูล login 
+        // บันทึกข้อมูล login
         await _saveLoginData(data.accessToken!, data.refreshToken!);
         // _currentToken = loginResponse.token;
         // _currentUser = loginResponse.user;
@@ -94,15 +88,39 @@ class AuthService {
     }
   }
 
+  /// สมัครสมาชิกใหม่
+  Future<LoginResponse> register(String username, String password) async {
+    try {
+      final url = Uri.https(publicUrl, '/api/auth/sign-up');
+
+      final body = jsonEncode({'username': username.trim(), 'password': password});
+
+      final response = await http
+          .post(url, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 30), onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'));
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = LoginResponse.fromJson(jsonDecode(response.body));
+        return data;
+      } else if (response.statusCode == 409) {
+        return LoginResponse(accessToken: null, message: 'ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว');
+      } else if (response.statusCode == 400) {
+        final errorData = jsonDecode(response.body);
+        return LoginResponse(accessToken: null, message: errorData['message'] ?? 'ข้อมูลไม่ถูกต้อง');
+      } else {
+        return LoginResponse(accessToken: null, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
+      }
+    } catch (e) {
+      return LoginResponse(accessToken: null, message: 'เกิดข้อผิดพลาดที่ไม่คาดคิด: ${e.toString()}');
+    }
+  }
+
   /// บันทึกข้อมูล login
   Future<void> _saveLoginData(String token, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', token);
     await prefs.setString('refresh_token', refreshToken);
     // await prefs.setString('user_data', jsonEncode(user.toJson()));
-    await prefs.setInt(
-      'login_timestamp',
-      DateTime.now().millisecondsSinceEpoch,
-    );
+    await prefs.setInt('login_timestamp', DateTime.now().millisecondsSinceEpoch);
   }
 }

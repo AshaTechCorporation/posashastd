@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/login/loginController.dart';
+import 'package:posashastd/D2S/login/forgotPasswordPage.dart';
 import 'package:provider/provider.dart';
 
 class SignInPage extends StatefulWidget {
@@ -87,7 +88,7 @@ class _SignInPageState extends State<SignInPage> {
                     // ลิงก์ลืมรหัสผ่าน
                     GestureDetector(
                       onTap: () {
-                        // TODO: ไปหน้าลืมรหัสผ่าน
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordPage()));
                       },
                       child: const Text('ลืมรหัสผ่าน?', style: TextStyle(color: Colors.blue, fontSize: 14)),
                     ),
