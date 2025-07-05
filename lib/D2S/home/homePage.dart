@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/paymentPageD2s.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
+import 'package:posashastd/utils/color_utils.dart';
 
 import 'home_controller.dart';
 
@@ -79,58 +80,86 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // แท็บ 1: แสดงสินค้าจาก API
       return Obx(() {
         return GridView.builder(
+          key: const ValueKey("grid_main_products"),
           padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 1.0,
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: (width * 0.7) / 5,
+            mainAxisExtent: (height - 50 - 48 - 34) / 4,
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
           ),
           itemCount: homeController.products.length,
           itemBuilder: (context, index) {
             final product = homeController.products[index];
+            final String name = product.name ?? 'ไม่ระบุชื่อ';
+            final String? showType = product.showType;
+            final String? colorHex = product.color;
+            final String? imageUrl = product.imageUrl;
+
+            // สร้างส่วนแสดงผลสินค้าตาม showType
+            final Widget productVisual =
+                showType == 'color' && colorHex != null
+                    ? Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(color: hexToColor(colorHex), borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+                    )
+                    : (showType == 'image' && imageUrl != null
+                        ? ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                          child: Image.network(
+                            imageUrl,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) =>
+                                    Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
+                          ),
+                        )
+                        : Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(color: Colors.grey[300], borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+                          child: const Icon(Icons.shopping_bag, size: 40, color: Colors.grey),
+                        ));
+
+            final content = Column(
+              children: [
+                Expanded(child: productVisual),
+                Container(
+                  decoration: const BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.vertical(bottom: Radius.circular(6))),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(4),
+                  child: Column(
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '฿${product.price ?? 0}',
+                        style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
             return GestureDetector(
               onTap: () {
                 homeController.addToCart(product);
               },
-              child: Card(
-                elevation: 2,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // รูปสินค้า (ถ้ามี)
-                    Expanded(
-                      flex: 3,
-                      child: Container(
-                        decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
-                        child:
-                            product.imageUrl != null
-                                ? Image.network(
-                                  product.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(Icons.image_not_supported, size: 40);
-                                  },
-                                )
-                                : const Icon(Icons.shopping_bag, size: 40),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // ชื่อสินค้า
-                    Expanded(
-                      flex: 1,
-                      child: Text(
-                        product.name ?? 'ไม่มีชื่อ',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // ราคา
-                    Text('฿${product.price ?? 0}', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                  ],
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
                 ),
+                child: ClipRRect(borderRadius: BorderRadius.circular(6), child: content),
               ),
             );
           },
