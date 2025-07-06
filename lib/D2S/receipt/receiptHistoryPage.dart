@@ -1,12 +1,38 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
+import 'package:posashastd/D2S/controllers/order_controller.dart';
+import 'package:posashastd/models/order.dart';
+import 'package:intl/intl.dart';
 
-class ReceiptHistoryPage extends StatelessWidget {
+class ReceiptHistoryPage extends StatefulWidget {
   const ReceiptHistoryPage({super.key});
+
+  @override
+  State<ReceiptHistoryPage> createState() => _ReceiptHistoryPageState();
+}
+
+class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
+  late OrderController orderController;
+
+  @override
+  void initState() {
+    super.initState();
+    log('🏠 ReceiptHistoryPage initState called');
+    orderController = Get.put(OrderController());
+    log('📱 OrderController created: ${orderController.hashCode}');
+    // เรียก API เมื่อหน้าโหลด
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      log('⏰ PostFrameCallback: calling fetchOrders');
+      orderController.fetchOrders();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const AppDrawer(),
@@ -32,7 +58,7 @@ class ReceiptHistoryPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                Expanded(child: _buildReceiptList()),
+                Expanded(child: _buildReceiptList(orderController)),
               ],
             ),
           ),
@@ -41,50 +67,13 @@ class ReceiptHistoryPage extends StatelessWidget {
           const VerticalDivider(width: 1, color: Colors.grey),
 
           // ฝั่งขวา (60%)
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  height: 50,
-                  color: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: const [
-                      Text('#1-1018', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Spacer(),
-                      Text('ยืนยัน', style: TextStyle(color: Colors.white, fontSize: 16)),
-                      SizedBox(width: 8),
-                      Icon(Icons.more_vert, color: Colors.white),
-                    ],
-                  ),
-                ),
-
-                // ปรับการแสดง Card ให้เหมือนรูป
-                GestureDetector(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                    alignment: Alignment.topCenter,
-                    child: Container(
-                      width: double.infinity,
-                      constraints: const BoxConstraints(maxWidth: 400),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                      ),
-                      child: Padding(padding: const EdgeInsets.all(20), child: _buildReceiptDetail()),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Expanded(child: _buildReceiptDetail(orderController)),
         ],
       ),
     );
   }
 
-  Widget _buildReceiptList() {
+  Widget _buildReceiptList(OrderController orderController) {
     return Column(
       children: [
         Padding(
@@ -92,56 +81,150 @@ class ReceiptHistoryPage extends StatelessWidget {
           child: SizedBox(
             height: 40,
             child: Row(
-              children: const [
-                Icon(Icons.search, color: Colors.grey),
-                SizedBox(width: 8),
+              children: [
+                const Icon(Icons.search, color: Colors.grey),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    decoration: InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
-                    style: TextStyle(fontSize: 14),
+                    decoration: const InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
+                    style: const TextStyle(fontSize: 14),
+                    onChanged: (value) {
+                      orderController.searchQuery.value = value;
+                    },
                   ),
                 ),
               ],
             ),
           ),
         ),
-        Divider(thickness: 2),
+        const Divider(thickness: 2),
 
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(left: 8),
-            children: [
-              _buildDateGroup('วันที่ 21 มิ.ย. พ.ศ. 2025'),
-              _buildReceiptItem(price: 60, time: '18:57 น.', code: '#1-1018', selected: true),
-              _buildReceiptItem(price: 60, time: '18:57 น.', code: '#1-1019'),
-              _buildDateGroup('วันที่ 20 กุมภาพันธ์ พ.ศ. 2025'),
-              _buildReceiptItem(price: 255, time: '13:21 น.', code: '#4-1008'),
-            ],
-          ),
+          child: Obx(() {
+            if (orderController.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final groupedOrders = orderController.groupedOrders;
+            if (groupedOrders.isEmpty) {
+              return const Center(child: Text('ไม่มีข้อมูลออเดอร์', style: TextStyle(color: Colors.grey)));
+            }
+
+            return RefreshIndicator(
+              onRefresh: orderController.refreshOrders,
+              child: ListView.builder(
+                padding: const EdgeInsets.only(left: 8),
+                itemCount: groupedOrders.length,
+                itemBuilder: (context, index) {
+                  final dateKey = groupedOrders.keys.elementAt(index);
+                  final orders = groupedOrders[dateKey]!;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDateGroup(dateKey),
+                      ...orders.map(
+                        (order) => _buildReceiptItem(
+                          order: order,
+                          orderController: orderController,
+                          selected: orderController.selectedOrder.value?.id == order.id,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          }),
         ),
       ],
     );
   }
 
-  Widget _buildReceiptDetail() {
+  Widget _buildReceiptDetail(OrderController orderController) {
+    return Column(
+      children: [
+        Obx(() {
+          final selectedOrder = orderController.selectedOrder.value;
+          return Container(
+            height: 50,
+            color: Colors.green,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text(selectedOrder?.orderNo ?? '#-', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                Text(selectedOrder?.orderStatus ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                const SizedBox(width: 8),
+                const Icon(Icons.more_vert, color: Colors.white),
+              ],
+            ),
+          );
+        }),
+
+        Expanded(
+          child: Obx(() {
+            final selectedOrder = orderController.selectedOrder.value;
+            if (selectedOrder == null) {
+              return const Center(child: Text('เลือกออเดอร์เพื่อดูรายละเอียด', style: TextStyle(color: Colors.grey)));
+            }
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              alignment: Alignment.topCenter,
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 400),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                ),
+                child: Padding(padding: const EdgeInsets.all(20), child: _buildOrderDetails(selectedOrder)),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderDetails(Order order) {
+    final grandTotal = order.grandTotal ?? 0;
+    final orderDate = order.orderDate;
+    final deviceName = order.device?.name ?? 'POS 1';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(child: const Text('฿60.00', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+        Center(child: Text('฿${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
         const SizedBox(height: 4),
-        const Text('รวมทั้งหมด', style: TextStyle(fontSize: 14)),
+        const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 14))),
         const SizedBox(height: 16),
-        const Text('พนักงาน: unknown unknown', style: TextStyle(fontSize: 14)),
+        Text('พนักงาน: ${order.shift?.user?.username ?? 'ไม่ระบุ'}', style: const TextStyle(fontSize: 14)),
         const SizedBox(height: 4),
-        const Text('ระบบขาย: POS 1', style: TextStyle(fontSize: 14)),
+        Text('ระบบขาย: $deviceName', style: const TextStyle(fontSize: 14)),
         const SizedBox(height: 16),
-        const Text('AFMหมึกญี่ปุ่น', style: TextStyle(fontSize: 14)),
-        const Text('1 x ฿60.00', style: TextStyle(fontSize: 14)),
+
+        // แสดงรายการสินค้า
+        if (order.orderItems != null && order.orderItems!.isNotEmpty) ...[
+          ...order.orderItems!.map(
+            (item) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 14)),
+                Text('${item.quantity ?? 0} x ฿${(item.price ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        ],
+
         const Divider(height: 24),
-        _buildRow('รวมทั้งหมด', '฿60.00'),
-        _buildRow('โอนชำระ', '฿60.00'),
+        _buildRow('รวมทั้งหมด', '฿${grandTotal.toStringAsFixed(2)}'),
+        _buildRow('ชำระแล้ว', '฿${(order.paid != null ? double.tryParse(order.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
         const SizedBox(height: 16),
-        _buildRow('21/6/25 18:57 น.', '#1-1018'),
+        _buildRow(orderDate != null ? DateFormat('d/M/yy HH:mm น.').format(orderDate) : 'ไม่ระบุวันที่', order.orderNo ?? '#-'),
       ],
     );
   }
@@ -160,15 +243,21 @@ class ReceiptHistoryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildReceiptItem({required double price, required String time, required String code, bool selected = false}) {
+  Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
+    final grandTotal = order.grandTotal ?? 0;
+    final orderDate = order.orderDate;
+    final timeString = orderDate != null ? DateFormat('HH:mm น.').format(orderDate) : 'ไม่ระบุเวลา';
+
     return Container(
       color: selected ? Colors.grey[200] : null,
       child: ListTile(
         leading: const Icon(Icons.receipt_long),
-        title: Text('฿${price.toStringAsFixed(2)}'),
-        subtitle: Text(time),
-        trailing: Text(code),
-        onTap: () {},
+        title: Text('฿${grandTotal.toStringAsFixed(2)}'),
+        subtitle: Text(timeString),
+        trailing: Text(order.orderNo ?? '#-'),
+        onTap: () {
+          orderController.selectOrder(order);
+        },
       ),
     );
   }
