@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
-import 'package:posashastd/D2S/login/loginPage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
-import 'package:posashastd/V2S/login/loginController.dart';
-import 'package:posashastd/V2S/login/loginPageV2s.dart';
-import 'package:posashastd/login/login_screen.dart';
-import 'package:provider/provider.dart';
+import 'package:posashastd/login/loginPage.dart';
+import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String? token;
@@ -15,7 +12,7 @@ late SharedPreferences prefs;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 
   Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
@@ -35,12 +32,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: LayoutBuilder(
         builder: (context, constraints) {
+          final _authService = AuthService();
           if (constraints.maxWidth < 720) {
             // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
             return const Homev2s();
           } else {
-            // 👉 จอใหญ่ แสดงหน้า HomePage
-            return const LoginScreen();
+            // 👉 จอใหญ่ เช่น D2S
+            if (_authService.currentToken != null) {
+              return const HomePage();
+            }
+            return const LoginPage();
           }
         },
       ),

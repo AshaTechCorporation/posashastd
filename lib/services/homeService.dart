@@ -27,7 +27,6 @@ class Homeservice {
   }
 
   static Future getProduct({int? categoryId, required int branchId}) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
     final _authService = AuthService();
     Uri url;
     if (branchId != 0) {
@@ -50,9 +49,8 @@ class Homeservice {
 
   //สร้างออเดอร์
   static Future createOrders({required Map<String, dynamic> formattedOrder}) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
     final _authService = AuthService();
-    final url = Uri.https(publicUrl, '/api/order');
+    final url = Uri.https(publicUrl, '/api/order/order-with-payment');
     var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
     final response = await http.post(url, headers: headers, body: convert.jsonEncode(formattedOrder));
     if (response.statusCode == 200 || response.statusCode == 201) {

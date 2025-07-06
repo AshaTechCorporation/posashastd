@@ -8,7 +8,7 @@ import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
-import 'home_controller.dart';
+import '../controllers/home_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

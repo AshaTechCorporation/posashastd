@@ -98,135 +98,238 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('ลงชื่อเข้าใช้', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF4CAF50),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
       backgroundColor: Colors.grey[100],
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Logo หรือชื่อระบบ
-                      const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'POS System',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text('เข้าสู่ระบบ', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey)),
-                      const SizedBox(height: 32),
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                Center(
+                  child: Container(
+                    width: 360,
+                    padding: EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'POS System',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                        const SizedBox(height: 16),
+                        // ช่องกรอกอีเมล
+                        TextFormField(
+                          controller: _usernameController,
+                          decoration: InputDecoration(labelText: 'อีเมล'),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'กรุณาระบุชื่อผู้ใช้';
+                            }
+                            return null;
+                          },
+                          textInputAction: TextInputAction.next,
+                        ),
+                        SizedBox(height: 16),
 
-                      // Username Field
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: InputDecoration(
-                          labelText: 'ชื่อผู้ใช้',
-                          prefixIcon: const Icon(Icons.person),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.blue, width: 2),
+                        // ช่องกรอกรหัสผ่าน
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'รหัสผ่าน',
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'กรุณาระบุรหัสผ่าน';
+                            }
+                            // if (value.length < 8) {
+                            //   return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+                            // }
+                            return null;
+                          },
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _login(),
+                        ),
+                        SizedBox(height: 24),
+
+                        // ปุ่มลงชื่อเข้าใช้
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _login,
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8BC34A), padding: EdgeInsets.symmetric(vertical: 14)),
+                            child:
+                                _isLoading
+                                    ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                    : Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 16, color: Colors.white)),
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'กรุณาระบุชื่อผู้ใช้';
-                          }
-                          return null;
-                        },
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
+                        SizedBox(height: 12),
 
-                      // Password Field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'รหัสผ่าน',
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.blue, width: 2),
-                          ),
+                        // ลิงก์ลืมรหัสผ่าน
+                        GestureDetector(
+                          onTap: () {
+                            // TODO: ไปหน้าลืมรหัสผ่าน
+                          },
+                          child: const Text('ลืมรหัสผ่าน?', style: TextStyle(color: Colors.blue, fontSize: 14)),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'กรุณาระบุรหัสผ่าน';
-                          }
-                          // if (value.length < 8) {
-                          //   return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
-                          // }
-                          return null;
-                        },
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _login(),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Login Button
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 2,
-                        ),
-                        child:
-                            _isLoading
-                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Forgot Password Link
-                      TextButton(
-                        onPressed: () {
-                          // นำทางไปหน้าลืมรหัสผ่าน
-                          Navigator.of(context).pushNamed('/forgot-password');
-                        },
-                        child: const Text('ลืมรหัสผ่าน?', style: TextStyle(color: Colors.blue)),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Register Link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('ยังไม่มีบัญชี? ', style: TextStyle(color: Colors.grey)),
-                          TextButton(
-                            onPressed: () {
-                              Get.to(() => const RegisterScreen());
-                            },
-                            child: const Text('สมัครสมาชิก', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+
+                // Card(
+                //   elevation: 8,
+                //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                //   child: Padding(
+                //     padding: EdgeInsets.all(32.0),
+                //     child: Form(
+                //       key: _formKey,
+                //       child: Column(
+                //         mainAxisSize: MainAxisSize.min,
+                //         crossAxisAlignment: CrossAxisAlignment.stretch,
+                //         children: [
+                //           // Logo หรือชื่อระบบ
+                //           const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
+                //           const SizedBox(height: 16),
+                //           const Text(
+                //             'POS System',
+                //             textAlign: TextAlign.center,
+                //             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
+                //           ),
+                //           const SizedBox(height: 8),
+                //           const Text('เข้าสู่ระบบ', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: Colors.grey)),
+                //           const SizedBox(height: 32),
+
+                //           // Username Field
+                //           TextFormField(
+                //             controller: _usernameController,
+                //             decoration: InputDecoration(
+                //               labelText: 'ชื่อผู้ใช้',
+                //               prefixIcon: const Icon(Icons.person),
+                //               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                //               focusedBorder: OutlineInputBorder(
+                //                 borderRadius: BorderRadius.circular(12),
+                //                 borderSide: const BorderSide(color: Colors.blue, width: 2),
+                //               ),
+                //             ),
+                //             validator: (value) {
+                //               if (value == null || value.isEmpty) {
+                //                 return 'กรุณาระบุชื่อผู้ใช้';
+                //               }
+                //               return null;
+                //             },
+                //             textInputAction: TextInputAction.next,
+                //           ),
+                //           const SizedBox(height: 16),
+
+                //           // Password Field
+                //           TextFormField(
+                //             controller: _passwordController,
+                //             obscureText: _obscurePassword,
+                //             decoration: InputDecoration(
+                //               labelText: 'รหัสผ่าน',
+                //               prefixIcon: const Icon(Icons.lock),
+                //               suffixIcon: IconButton(
+                //                 icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                //                 onPressed: () {
+                //                   setState(() {
+                //                     _obscurePassword = !_obscurePassword;
+                //                   });
+                //                 },
+                //               ),
+                //               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                //               focusedBorder: OutlineInputBorder(
+                //                 borderRadius: BorderRadius.circular(12),
+                //                 borderSide: const BorderSide(color: Colors.blue, width: 2),
+                //               ),
+                //             ),
+                //             validator: (value) {
+                //               if (value == null || value.isEmpty) {
+                //                 return 'กรุณาระบุรหัสผ่าน';
+                //               }
+                //               // if (value.length < 8) {
+                //               //   return 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+                //               // }
+                //               return null;
+                //             },
+                //             textInputAction: TextInputAction.done,
+                //             onFieldSubmitted: (_) => _login(),
+                //           ),
+                //           const SizedBox(height: 24),
+
+                //           // Login Button
+                //           ElevatedButton(
+                //             onPressed: _isLoading ? null : _login,
+                //             style: ElevatedButton.styleFrom(
+                //               backgroundColor: Colors.blue,
+                //               foregroundColor: Colors.white,
+                //               padding: const EdgeInsets.symmetric(vertical: 16),
+                //               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                //               elevation: 2,
+                //             ),
+                //             child:
+                //                 _isLoading
+                //                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                //                     : const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                //           ),
+                //           const SizedBox(height: 16),
+
+                //           // Forgot Password Link
+                //           TextButton(
+                //             onPressed: () {
+                //               // นำทางไปหน้าลืมรหัสผ่าน
+                //               Navigator.of(context).pushNamed('/forgot-password');
+                //             },
+                //             child: const Text('ลืมรหัสผ่าน?', style: TextStyle(color: Colors.blue)),
+                //           ),
+                //           const SizedBox(height: 16),
+
+                //           // Register Link
+                //           Row(
+                //             mainAxisAlignment: MainAxisAlignment.center,
+                //             children: [
+                //               const Text('ยังไม่มีบัญชี? ', style: TextStyle(color: Colors.grey)),
+                //               TextButton(
+                //                 onPressed: () {
+                //                   Get.to(() => const RegisterScreen());
+                //                 },
+                //                 child: const Text('สมัครสมาชิก', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                //               ),
+                //             ],
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //   ),
+                // ),
+              ],
             ),
           ),
         ),
