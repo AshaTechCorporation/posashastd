@@ -47,12 +47,17 @@ class HomeController extends GetxController {
   // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและโหลดข้อมูล
   Future<void> checkConnectivityAndLoadData() async {
     try {
+      log('🌐 Checking connectivity and loading data...');
       final connectivityResult = await Connectivity().checkConnectivity();
       isConnected.value = !connectivityResult.contains(ConnectivityResult.none);
+      log('📶 Connected: ${isConnected.value}');
 
       if (isConnected.value) {
+        log('🔄 Loading categories...');
         await getlistCategory();
+        log('✅ Categories loaded successfully');
       } else {
+        log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
         Get.snackbar(
           'ไม่มีการเชื่อมต่อ',
@@ -62,26 +67,33 @@ class HomeController extends GetxController {
         );
       }
     } catch (e) {
-      log('Error checking connectivity: $e');
+      log('❌ Error checking connectivity: $e');
     }
   }
 
   // ดึงข้อมูล Category
   Future<void> getlistCategory() async {
     try {
+      log('📂 Fetching categories...');
       final rawData = await Homeservice.getCategory();
+      log('📦 Raw category data received: ${rawData.toString()}');
+
       // แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
       final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
+      log('📋 Parsed categories count: ${parsedCategories.length}');
+
       categories.assignAll([
         {'code': 'ALL', 'name': 'ทั้งหมด'},
         ...parsedCategories,
       ]);
       selectedCategoryCode.value = categories.first['code'];
+      log('🎯 Selected category: ${selectedCategoryCode.value}');
 
       final int categoryId = categories.first['id'] ?? 0;
+      log('🛍️ Loading products for category: $categoryId');
       await getProductByCategory(categoryId: categoryId, branchId: 0);
     } catch (e) {
-      log('Error loading categories: $e');
+      log('❌ Error loading categories: $e');
     }
   }
 

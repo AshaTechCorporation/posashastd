@@ -63,8 +63,8 @@ class AuthService {
 
         // บันทึกข้อมูล login
         await _saveLoginData(data.accessToken!, data.refreshToken!);
-        // _currentToken = loginResponse.token;
-        // _currentUser = loginResponse.user;
+        _currentToken = data.accessToken;
+        //_currentUser = loginResponse.user;
 
         return data;
       } else if (response.statusCode == 401) {

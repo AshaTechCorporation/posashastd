@@ -20,15 +20,27 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late TabController _tabController;
   List<String> tabs = ['แท็บ 1'];
-  final HomeController homeController = Get.put(HomeController());
+  late HomeController homeController;
 
   @override
   void initState() {
     super.initState();
+    log('🏠 HomePage initState called');
     _tabController = TabController(length: tabs.length, vsync: this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
+
+    // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
+    if (Get.isRegistered<HomeController>()) {
+      log('🗑️ Deleting existing HomeController');
+      Get.delete<HomeController>();
+    }
+    log('🆕 Creating new HomeController');
+    homeController = Get.put(HomeController());
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      log('⏰ PostFrameCallback: loading data');
       await homeController.checkConnectivityAndLoadData();
+      log('✅ Data loading completed');
     });
   }
 
