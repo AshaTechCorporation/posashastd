@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -28,69 +29,89 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // 🔹 Side Menu
-          Container(
-            width: 250,
-            color: const Color(0xFFEFEFEF),
-            child: Column(
-              children: [
-                const SizedBox(height: 40),
-                for (int i = 0; i < tabs.length; i++)
-                  ListTile(
-                    leading: Icon(
-                      i == 0
-                          ? Icons.print
-                          : i == 1
-                          ? Icons.percent
-                          : Icons.settings,
-                      color: selectedTab == i ? Colors.green : Colors.black54,
+      drawer: const AppDrawer(),
+      body: SafeArea(
+        child: Row(
+          children: [
+            // 🔹 Side menu and tabs
+            Container(
+              width: 250,
+              color: const Color(0xFFEFEFEF),
+              child: Column(
+                children: [
+                  // ✅ Menu button
+                  Container(
+                    height: 50,
+                    color: Colors.green,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Builder(
+                          builder:
+                              (context) =>
+                                  IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('ตั้งค่า', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ],
                     ),
-                    title: Text(
-                      tabs[i],
-                      style: TextStyle(
-                        color: selectedTab == i ? Colors.green : Colors.black87,
-                        fontWeight: selectedTab == i ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  const SizedBox(height: 8),
+                  for (int i = 0; i < tabs.length; i++)
+                    ListTile(
+                      leading: Icon(
+                        i == 0
+                            ? Icons.print
+                            : i == 1
+                            ? Icons.percent
+                            : Icons.settings,
+                        color: selectedTab == i ? Colors.green : Colors.black54,
                       ),
+                      title: Text(
+                        tabs[i],
+                        style: TextStyle(
+                          color: selectedTab == i ? Colors.green : Colors.black87,
+                          fontWeight: selectedTab == i ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      selected: selectedTab == i,
+                      onTap: () => setState(() => selectedTab = i),
                     ),
-                    selected: selectedTab == i,
-                    onTap: () => setState(() => selectedTab = i),
-                  ),
-                const Spacer(),
-                const Divider(),
-                const Padding(padding: EdgeInsets.all(8.0), child: Text("jumpoll7107@hotmail.com", style: TextStyle(fontSize: 12))),
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      side: const BorderSide(color: Colors.grey),
+                  const Spacer(),
+                  const Divider(),
+                  const Padding(padding: EdgeInsets.all(8.0), child: Text("jumpoll7107@hotmail.com", style: TextStyle(fontSize: 12))),
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        side: const BorderSide(color: Colors.grey),
+                      ),
+                      child: const Text("ออกจากระบบ"),
                     ),
-                    child: const Text("ออกจากระบบ"),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // 🔹 Tab Content
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  color: Colors.green,
-                  height: 50,
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(tabs[selectedTab], style: const TextStyle(color: Colors.white, fontSize: 18)),
-                ),
-                Expanded(child: buildTabContent()),
-              ],
+            // 🔸 Tab Content
+            Expanded(
+              child: Column(
+                children: [
+                  Container(
+                    height: 50,
+                    color: Colors.green,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(tabs[selectedTab], style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(child: buildTabContent()),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
