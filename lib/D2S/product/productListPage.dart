@@ -75,8 +75,8 @@ class _ProductListPageState extends State<ProductListPage> {
                     children: [
                       _buildMenuItem(0, 'รายการสินค้าทั้งหมด', icon: Icons.list),
                       _buildMenuItem(1, 'หมวดหมู่', icon: Icons.category),
-                      _buildMenuItem(2, 'ตั. อัฟกิตะโอมิเมะ', icon: Icons.playlist_add_check),
-                      _buildMenuItem(3, 'ซ่า..เวอร์', icon: Icons.label),
+                      _buildMenuItem(2, 'ตัวเลือกเพิ่มเติม', icon: Icons.playlist_add_check),
+                      _buildMenuItem(3, 'ส่วนลด', icon: Icons.label),
                     ],
                   ),
                 ),
@@ -259,8 +259,8 @@ class _ProductListPageState extends State<ProductListPage> {
                 subtitle: Text('รหัส: $code'),
                 onTap: () {
                   // เปลี่ยนไปแท็บรายการสินค้าและเลือกหมวดหมู่นี้
-                  setState(() => selectedTabIndex = 0);
-                  productController.selectCategory(code);
+                  // setState(() => selectedTabIndex = 0);
+                  // productController.selectCategory(code);
                 },
               );
             },

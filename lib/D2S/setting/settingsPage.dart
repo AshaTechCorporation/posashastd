@@ -1,124 +1,144 @@
 import 'package:flutter/material.dart';
-import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  int selectedTab = 0;
+
+  final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
+
+  Widget buildTabContent() {
+    switch (selectedTab) {
+      case 0:
+        return _printerTab();
+      case 1:
+        return _taxTab();
+      case 2:
+        return _generalTab();
+      default:
+        return const SizedBox();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const AppDrawer(),
-      body: Column(
+      body: Row(
         children: [
-          // ✅ Header
+          // 🔹 Side Menu
           Container(
-            height: 50,
-            color: Colors.green,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            width: 250,
+            color: const Color(0xFFEFEFEF),
+            child: Column(
               children: [
-                Row(
-                  children: [
-                    Builder(
-                      builder:
-                          (context) =>
-                              IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
+                const SizedBox(height: 40),
+                for (int i = 0; i < tabs.length; i++)
+                  ListTile(
+                    leading: Icon(
+                      i == 0
+                          ? Icons.print
+                          : i == 1
+                          ? Icons.percent
+                          : Icons.settings,
+                      color: selectedTab == i ? Colors.green : Colors.black54,
                     ),
-                    const Text('การตั้งค่า', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                  ],
+                    title: Text(
+                      tabs[i],
+                      style: TextStyle(
+                        color: selectedTab == i ? Colors.green : Colors.black87,
+                        fontWeight: selectedTab == i ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    selected: selectedTab == i,
+                    onTap: () => setState(() => selectedTab = i),
+                  ),
+                const Spacer(),
+                const Divider(),
+                const Padding(padding: EdgeInsets.all(8.0), child: Text("jumpoll7107@hotmail.com", style: TextStyle(fontSize: 12))),
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      side: const BorderSide(color: Colors.grey),
+                    ),
+                    child: const Text("ออกจากระบบ"),
+                  ),
                 ),
-                const Text('เครื่องพิมพ์', style: TextStyle(color: Colors.white, fontSize: 16)),
               ],
             ),
           ),
-
-          // ✅ Main Body
+          // 🔹 Tab Content
           Expanded(
-            child: Row(
+            child: Column(
               children: [
-                // 🔹 Left menu
                 Container(
-                  width: MediaQuery.of(context).size.width * 0.4,
-                  color: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SettingsMenuItem(icon: Icons.print, label: 'เครื่องพิมพ์', selected: true),
-                      _SettingsMenuItem(icon: Icons.percent, label: 'ภาษี'),
-                      _SettingsMenuItem(icon: Icons.settings, label: 'ทั่วไป'),
-                      const Spacer(),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('jumpoll207@hotmail.com', style: TextStyle(color: Colors.black54)),
-                      ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], foregroundColor: Colors.black),
-                          onPressed: () {},
-                          child: const Text('ออกจากระบบ'),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                  color: Colors.green,
+                  height: 50,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(tabs[selectedTab], style: const TextStyle(color: Colors.white, fontSize: 18)),
                 ),
-
-                // 🔸 Divider
-                const VerticalDivider(width: 1, color: Colors.grey),
-
-                // 🟩 Right content
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.print, size: 80, color: Colors.black26),
-                        SizedBox(height: 16),
-                        Text('ไม่ได้เชื่อมต่อเครื่องพิมพ์', style: TextStyle(fontSize: 16, color: Colors.black54)),
-                        SizedBox(height: 4),
-                        Text('คุณสามารถเชื่อมต่อเครื่องพิมพ์ในเครือข่ายของคุณได้ที่', style: TextStyle(fontSize: 14, color: Colors.black45)),
-                        SizedBox(height: 4),
-                        Text('ตั้งค่าเพิ่มเติม', style: TextStyle(fontSize: 14, color: Colors.blue, decoration: TextDecoration.underline)),
-                      ],
-                    ),
-                  ),
-                ),
+                Expanded(child: buildTabContent()),
               ],
-            ),
-          ),
-
-          // ✅ Floating Add Button
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16, right: 16),
-            child: Align(
-              alignment: Alignment.bottomRight,
-              child: FloatingActionButton(onPressed: () {}, backgroundColor: Colors.green, child: const Icon(Icons.add)),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _SettingsMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
+  Widget _printerTab() {
+    return Column(
+      children: [
+        ListTile(leading: const Icon(Icons.print), title: const Text('test'), subtitle: const Text('Sunmi'), trailing: const Text('ใบเสร็จรับเงิน')),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Align(
+            alignment: Alignment.bottomRight,
+            child: FloatingActionButton(onPressed: () {}, backgroundColor: Colors.green, child: const Icon(Icons.add)),
+          ),
+        ),
+      ],
+    );
+  }
 
-  const _SettingsMenuItem({required this.icon, required this.label, this.selected = false});
+  Widget _taxTab() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.percent, size: 64, color: Colors.grey),
+          SizedBox(height: 20),
+          Text("คุณยังไม่มีการใช้ภาษีของคุณ"),
+          SizedBox(height: 8),
+          Text("โปรดแตะที่การรวม รายการคำสั่งขาย", style: TextStyle(color: Colors.grey)),
+          Text("ได้ภาษีที่ถูกต้อง", style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: selected ? Colors.grey[200] : null,
-      child: ListTile(
-        leading: Icon(icon, color: selected ? Colors.green : Colors.black54),
-        title: Text(label, style: TextStyle(color: selected ? Colors.green : Colors.black87)),
-        onTap: () {},
+  Widget _generalTab() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: ListView(
+        children: [
+          SwitchListTile(title: const Text("ใช้ต้นฉบับและสำเนาใบเสร็จ"), value: false, onChanged: (val) {}),
+          SwitchListTile(title: const Text("โหมดเงียบ"), value: false, onChanged: (val) {}),
+          const SizedBox(height: 16),
+          const Text("เผื่อโครงหน้าอาจารย์การขาย: ระบบ", style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 16),
+          const Text("ภาษา: ใช้ค่าตั้งต้นอุปกรณ์", style: TextStyle(color: Colors.grey)),
+        ],
       ),
     );
   }
