@@ -1,14 +1,9 @@
-import 'dart:typed_data';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/cart_utils.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:sunmi_printer_plus/core/sunmi/sunmi_printer.dart';
 
 class PaymentPageD2s extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -25,12 +20,72 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   final ScreenshotController screenshotController = ScreenshotController();
   final GlobalKey receiptKey = GlobalKey();
 
-  Future<void> createOrders() async {
+  // ตัวแปรสำหรับจัดการส่วนลด
+  double? selectedDiscountAmount;
+  double discountAmount = 0;
+
+  // คำนวณยอดรวมหลังหักส่วนลด
+  double calculateTotalWithDiscount() {
+    final originalTotal = widget.cartItems.fold(0.0, (sum, item) {
+      final price = item['price'] ?? 0;
+      final qty = item['qty'] ?? 1;
+      return sum + (price * qty);
+    });
+
+    if (selectedDiscountAmount != null) {
+      discountAmount = selectedDiscountAmount!;
+      // ตรวจสอบไม่ให้ส่วนลดเกินยอดรวม
+      if (discountAmount > originalTotal) {
+        discountAmount = originalTotal;
+      }
+      return originalTotal - discountAmount;
+    }
+
+    discountAmount = 0;
+    return originalTotal;
+  }
+
+  // จัดการการเลือกส่วนลด
+  void handleDiscountSelection(double amount) {
+    setState(() {
+      if (selectedDiscountAmount == amount) {
+        // ถ้ากดปุ่มเดิม ให้ยกเลิกส่วนลด
+        selectedDiscountAmount = null;
+        discountAmount = 0;
+      } else {
+        // เลือกส่วนลดใหม่
+        selectedDiscountAmount = amount;
+      }
+    });
+  }
+
+  // เช็คเครื่องปริ้นและปริ้นใบเสร็จ
+  Future<void> checkPrinterAndPrint() async {
     try {
-      final total = await calculateCartTotal(widget.cartItems);
+      // ลองปริ้นและเช็คว่าสำเร็จหรือไม่
+      await printReceiptFromCartItems(widget.cartItems);
+
+      // ถ้าปริ้นสำเร็จ แสดงข้อความสำเร็จ
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ปริ้นใบเสร็จสำเร็จ'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      // ถ้าปริ้นไม่สำเร็จ (ไม่เจอเครื่องปริ้นหรือเกิดข้อผิดพลาด)
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('ไม่สามารถปริ้นใบเสร็จได้: ${e.toString()}'), backgroundColor: Colors.orange));
+      }
+    }
+  }
+
+  Future<void> createOrders({required int paymentMethodId}) async {
+    try {
+      final total = calculateTotalWithDiscount();
       final formattedOrder = {
         "deviceId": 1,
         "shiftId": 1,
+        "branchId": 1,
         "total": total,
         "memberId": null,
         "date": DateTime.now().toIso8601String(),
@@ -38,15 +93,15 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             widget.cartItems.map((item) {
               return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
             }).toList(),
-        "paymentMethodId": 1,
+        "paymentMethodId": paymentMethodId,
         "paid": receivedAmount,
         "change": receivedAmount >= total ? receivedAmount - total : 0,
-        "discount": 0,
-        "remark": "string",
+        "discount": discountAmount,
+        "remark": selectedDiscountAmount != null ? "ส่วนลด ฿${selectedDiscountAmount!.toStringAsFixed(0)}" : "string",
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
-      final _order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
       if (!mounted) return;
 
       setState(() {});
@@ -57,11 +112,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
   @override
   Widget build(BuildContext context) {
-    final double total = widget.cartItems.fold(0, (sum, item) {
+    final double originalTotal = widget.cartItems.fold(0, (sum, item) {
       final price = item['price'] ?? 0;
       final qty = item['qty'] ?? 1;
       return sum + (price * qty);
     });
+
+    final double total = calculateTotalWithDiscount();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -142,13 +199,41 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             ),
                           ),
                           const Divider(height: 1),
+
+                          // แสดงยอดรวมก่อนส่วนลด
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold)),
-                                Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const Text('ยอดรวม', style: TextStyle(fontSize: 14)),
+                                Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                              ],
+                            ),
+                          ),
+
+                          // แสดงส่วนลด (ถ้ามี)
+                          if (selectedDiscountAmount != null) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('ส่วนลด', style: TextStyle(fontSize: 14, color: Colors.red)),
+                                  Text('-฿${discountAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          // แสดงยอดรวมหลังหักส่วนลด
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               ],
                             ),
                           ),
@@ -299,7 +384,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 setState(() {
                                   isPaid = true;
                                 });
-                                await createOrders();
+                                await createOrders(paymentMethodId: 1);
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.grey),
@@ -318,6 +403,51 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 minimumSize: const Size.fromHeight(50),
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.add_card, color: Colors.black),
+                              label: const Text("เครดิต", style: TextStyle(color: Colors.black)),
+                              onPressed: () {},
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.grey),
+                                backgroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(50),
+                              ),
+                            ),
+
+                            // ปุ่มส่วนลด
+                            const SizedBox(height: 16),
+                            const Text('ส่วนลด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                for (final amount in [1.0, 2.0, 5.0, 10.0])
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: OutlinedButton(
+                                        onPressed: () => handleDiscountSelection(amount),
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                            color: selectedDiscountAmount == amount ? Colors.green : Colors.grey,
+                                            width: selectedDiscountAmount == amount ? 2 : 1,
+                                          ),
+                                          backgroundColor: selectedDiscountAmount == amount ? Colors.green.shade50 : Colors.white,
+                                          fixedSize: const Size.fromHeight(48),
+                                        ),
+                                        child: Text(
+                                          '฿${amount.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            color: selectedDiscountAmount == amount ? Colors.green : Colors.black,
+                                            fontWeight: selectedDiscountAmount == amount ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ] else ...[
                             const SizedBox(height: 16),
                             Container(
@@ -334,8 +464,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             const SizedBox(height: 25),
                             GestureDetector(
                               onTap: () async {
-                                // await printReceipt(widget.cartItems);
-                                await printReceiptFromCartItems(widget.cartItems);
+                                await checkPrinterAndPrint();
                               },
                               child: Container(
                                 width: double.infinity,

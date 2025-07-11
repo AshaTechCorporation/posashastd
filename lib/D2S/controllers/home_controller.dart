@@ -8,6 +8,7 @@ import 'package:posashastd/services/homeService.dart';
 import '../../models/panel.dart';
 import '../../models/panel_product.dart';
 import '../../services/database_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeController extends GetxController {
   RxList<Product> products = <Product>[].obs;
@@ -17,12 +18,81 @@ class HomeController extends GetxController {
   RxString selectedCategoryCode = ''.obs;
   RxBool isConnected = false.obs;
 
+  // ตัวแปรสำหรับจัดการ shift
+  RxBool isShiftOpen = false.obs;
+  RxString currentShiftId = ''.obs;
+
   final _databaseService = DatebaseService();
 
   @override
   void onInit() {
     super.onInit();
+    log('🚀 HomeController onInit called');
+    checkShiftStatus();
     fetchProducts();
+  }
+
+  // เช็คสถานะ shift
+  Future<void> checkShiftStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final shiftId = prefs.getString('shift_id');
+
+      if (shiftId != null && shiftId.isNotEmpty) {
+        log('✅ Found shift_id: $shiftId');
+        currentShiftId.value = shiftId;
+        isShiftOpen.value = true;
+        // โหลดข้อมูลเมื่อมี shift
+        await checkConnectivityAndLoadData();
+      } else {
+        log('❌ No shift_id found - shift is closed');
+        isShiftOpen.value = false;
+      }
+    } catch (e) {
+      log('❌ Error checking shift status: $e');
+      isShiftOpen.value = false;
+    }
+  }
+
+  // เปิดกะ
+  Future<bool> openShift({required double change, required double cash, required String remark}) async {
+    try {
+      log('🔄 Opening shift...');
+
+      final shiftData = {"deviceId": 1, "change": change, "cash": cash, "remark": remark};
+
+      final response = await Homeservice.openShift(formattedShift: shiftData);
+
+      if (response != null && response['id'] != null) {
+        final shiftId = response['id'].toString();
+
+        // บันทึก shift_id ลง SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('shift_id', shiftId);
+
+        currentShiftId.value = shiftId;
+        isShiftOpen.value = true;
+
+        log('✅ Shift opened successfully with ID: $shiftId');
+
+        // โหลดข้อมูลหลังเปิดกะ
+        await checkConnectivityAndLoadData();
+
+        return true;
+      } else {
+        log('❌ Failed to open shift - no ID returned');
+        return false;
+      }
+    } catch (e) {
+      log('❌ Error opening shift: $e');
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถเปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
+      return false;
+    }
   }
 
   void fetchProducts() async {
@@ -89,9 +159,9 @@ class HomeController extends GetxController {
       selectedCategoryCode.value = categories.first['code'];
       log('🎯 Selected category: ${selectedCategoryCode.value}');
 
-      final int categoryId = categories.first['id'] ?? 0;
-      log('🛍️ Loading products for category: $categoryId');
-      await getProductByCategory(categoryId: categoryId, branchId: 0);
+      // โหลดสินค้าทั้งหมด (categoryId = 0 สำหรับทั้งหมด)
+      log('🛍️ Loading all products for main tab');
+      await getProductByCategory(categoryId: 0, branchId: 0);
     } catch (e) {
       log('❌ Error loading categories: $e');
     }

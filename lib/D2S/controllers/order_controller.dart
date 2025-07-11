@@ -58,6 +58,7 @@ class OrderController extends GetxController {
   // เลือก order
   void selectOrder(Order order) {
     selectedOrder.value = order;
+    selectedOrder.refresh();
   }
 
   // ค้นหา orders

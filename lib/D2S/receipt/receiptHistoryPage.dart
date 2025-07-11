@@ -124,10 +124,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     children: [
                       _buildDateGroup(dateKey),
                       ...orders.map(
-                        (order) => _buildReceiptItem(
-                          order: order,
-                          orderController: orderController,
-                          selected: orderController.selectedOrder.value?.id == order.id,
+                        (order) => Obx(
+                          () => _buildReceiptItem(
+                            order: order,
+                            orderController: orderController,
+                            selected: orderController.selectedOrder.value?.id == order.id,
+                          ),
                         ),
                       ),
                     ],
@@ -190,7 +192,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   }
 
   Widget _buildOrderDetails(Order order) {
-    final grandTotal = order.grandTotal ?? 0;
+    final grandTotal = order.total ?? 0;
+    final change = order.change ?? 0;
     final orderDate = order.orderDate;
     final deviceName = order.device?.name ?? 'POS 1';
 
@@ -223,6 +226,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         const Divider(height: 24),
         _buildRow('รวมทั้งหมด', '฿${grandTotal.toStringAsFixed(2)}'),
         _buildRow('ชำระแล้ว', '฿${(order.paid != null ? double.tryParse(order.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
+        _buildRow('เงินทอน', '฿${change.toStringAsFixed(2)}'),
         const SizedBox(height: 16),
         _buildRow(orderDate != null ? DateFormat('d/M/yy HH:mm น.').format(orderDate) : 'ไม่ระบุวันที่', order.orderNo ?? '#-'),
       ],
@@ -249,16 +253,47 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     final timeString = orderDate != null ? DateFormat('HH:mm น.').format(orderDate) : 'ไม่ระบุเวลา';
 
     return Container(
-      color: selected ? Colors.grey[200] : null,
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFFE0F7FA) : null, // สีฟ้าอ่อนเมื่อเลือก
+        border:
+            selected
+                ? Border(left: BorderSide(width: 4, color: Colors.green)) // เส้นขอบซ้ายเมื่อเลือก
+                : null,
+      ),
       child: ListTile(
-        leading: const Icon(Icons.receipt_long),
-        title: Text('฿${grandTotal.toStringAsFixed(2)}'),
-        subtitle: Text(timeString),
-        trailing: Text(order.orderNo ?? '#-'),
+        leading: Icon(Icons.receipt_long, color: selected ? Colors.green : Colors.grey),
+        title: Text(
+          '฿${grandTotal.toStringAsFixed(2)}',
+          style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, color: selected ? Colors.black : Colors.grey[800]),
+        ),
+        subtitle: Text(timeString, style: TextStyle(color: selected ? Colors.black : Colors.grey)),
+        trailing: Text(
+          order.orderNo ?? '#-',
+          style: TextStyle(color: selected ? Colors.green : Colors.black, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+        ),
         onTap: () {
           orderController.selectOrder(order);
         },
       ),
     );
   }
+
+  // Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
+  //   final grandTotal = order.grandTotal ?? 0;
+  //   final orderDate = order.orderDate;
+  //   final timeString = orderDate != null ? DateFormat('HH:mm น.').format(orderDate) : 'ไม่ระบุเวลา';
+
+  //   return Container(
+  //     color: selected ? Colors.grey[200] : null,
+  //     child: ListTile(
+  //       leading: const Icon(Icons.receipt_long),
+  //       title: Text('฿${grandTotal.toStringAsFixed(2)}'),
+  //       subtitle: Text(timeString),
+  //       trailing: Text(order.orderNo ?? '#-'),
+  //       onTap: () {
+  //         orderController.selectOrder(order);
+  //       },
+  //     ),
+  //   );
+  // }
 }

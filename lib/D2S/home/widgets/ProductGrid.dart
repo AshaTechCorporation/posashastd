@@ -32,10 +32,7 @@ class ProductGrid extends StatelessWidget {
     return GridView.builder(
       key: ValueKey("grid_${isMainTab ? 'main' : 'extra'}"),
       padding: const EdgeInsets.all(8),
-      physics:
-          isMainTab
-              ? const BouncingScrollPhysics()
-              : const NeverScrollableScrollPhysics(),
+      physics: isMainTab ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: (width * 0.7) / 5,
         mainAxisExtent: gridHeight / 4,
@@ -50,28 +47,29 @@ class ProductGrid extends StatelessWidget {
         final String? colorHex = product?.color;
         final String? imageUrl = product?.imageUrl;
 
+        // สร้างส่วนแสดงผลสินค้าตาม showType (เหมือนกับแท็บสินค้าทั้งหมด)
         final Widget productVisual =
             showType == 'color' && colorHex != null
                 ? Container(
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: hexToColor(colorHex),
-                  ),
+                  decoration: BoxDecoration(color: hexToColor(colorHex), borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
                 )
                 : (showType == 'image' && imageUrl != null
                     ? ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                       child: Image.network(
                         imageUrl,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder:
-                            (_, __, ___) => Container(color: Colors.grey[300]),
+                            (_, __, ___) =>
+                                Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
                       ),
                     )
                     : Container(
                       width: double.infinity,
-                      color: Colors.grey[300],
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+                      child: const Icon(Icons.shopping_bag, size: 40, color: Colors.grey),
                     ));
 
         final content =
@@ -80,26 +78,32 @@ class ProductGrid extends StatelessWidget {
                   children: [
                     Expanded(child: productVisual),
                     Container(
-                      color: Colors.black54,
+                      decoration: const BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.vertical(bottom: Radius.circular(6))),
                       width: double.infinity,
                       padding: const EdgeInsets.all(4),
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '฿${product.price ?? 0}',
+                            style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 )
                 : Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(Icons.add, color: Colors.white),
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(6)),
+                  child: const Center(child: Icon(Icons.add, color: Colors.white, size: 40)),
                 );
 
         return GestureDetector(
@@ -109,7 +113,13 @@ class ProductGrid extends StatelessWidget {
           onLongPress: () {
             if (!isMainTab) onLongPress?.call(index);
           },
-          child: content,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+            ),
+            child: ClipRRect(borderRadius: BorderRadius.circular(6), child: content),
+          ),
         );
       },
     );

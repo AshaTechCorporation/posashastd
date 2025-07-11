@@ -19,7 +19,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late TabController _tabController;
-  List<String> tabs = ['แท็บ 1'];
+  List<String> tabs = ['สินค้าทั้งหมด'];
   late HomeController homeController;
 
   @override
@@ -41,6 +41,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       log('⏰ PostFrameCallback: loading data');
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
+
+      // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
+      _updateTabsFromPanels();
     });
   }
 
@@ -56,15 +59,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // อัพเดทแท็บตามจำนวนพาเนลที่มี
+  void _updateTabsFromPanels() {
+    setState(() {
+      // เริ่มต้นด้วยแท็บแรกที่เป็นสินค้าทั้งหมด
+      List<String> newTabs = ['สินค้าทั้งหมด'];
+
+      // เพิ่มแท็บตามจำนวนพาเนลที่มี
+      for (int i = 0; i < homeController.panels.length; i++) {
+        newTabs.add('พาเนล ${i + 1}');
+      }
+
+      // อัพเดทแท็บและ TabController
+      tabs = newTabs;
+      _tabController.dispose(); // ลบ controller เก่า
+      _tabController = TabController(length: tabs.length, vsync: this);
+
+      log('📋 Updated tabs: ${tabs.length} tabs total');
+      log('🎯 Tabs: ${tabs.join(", ")}');
+    });
+  }
+
   void _addTab() {
     setState(() {
       homeController.addPanel();
-      tabs.add("แท็บ ${tabs.length + 1}");
+      tabs.add("พาเนล ${homeController.panels.length}");
+      _tabController.dispose();
       _tabController = TabController(length: tabs.length, vsync: this);
     });
   }
 
   void _removeTab(int index) async {
+    // ป้องกันการลบแท็บแรก (สินค้าทั้งหมด)
+    if (index == 0) {
+      Get.snackbar(
+        'ไม่สามารถลบได้',
+        'ไม่สามารถลบแท็บ "สินค้าทั้งหมด" ได้',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder:
@@ -80,16 +116,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     if (confirm == true) {
       setState(() {
+        // ลบแท็บและพาเนลที่สอดคล้องกัน (index - 1 เพราะแท็บแรกไม่ใช่พาเนล)
+        final panelIndex = index - 1;
+        if (panelIndex >= 0 && panelIndex < homeController.panels.length) {
+          homeController.panels.removeAt(panelIndex);
+        }
+
         tabs.removeAt(index);
+        _tabController.dispose();
         _tabController = TabController(length: tabs.length, vsync: this);
+
+        log('🗑️ Removed tab at index $index, panel at index $panelIndex');
       });
     }
   }
 
   Widget _buildGridContent(double width, double height) {
-    // แท็บ 1 แสดงสินค้าจาก products, แท็บอื่นๆ แสดงจาก panels
+    // แท็บแรก (สินค้าทั้งหมด) แสดงสินค้าจาก products, แท็บอื่นๆ แสดงจาก panels
     if (_tabController.index == 0) {
-      // แท็บ 1: แสดงสินค้าจาก API
+      // แท็บแรก: แสดงสินค้าทั้งหมดจาก API
       return Obx(() {
         return GridView.builder(
           key: const ValueKey("grid_main_products"),
@@ -178,26 +223,269 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
       });
     } else {
-      // แท็บอื่นๆ: แสดงจาก panels
+      // แท็บอื่นๆ: แสดงจาก panels (index - 1 เพราะแท็บแรกเป็นสินค้าทั้งหมด)
+      final panelIndex = _tabController.index - 1;
       return GetX<HomeController>(
         builder: (controller) {
+          // ตรวจสอบว่ามีพาเนลในตำแหน่งนี้หรือไม่
+          if (panelIndex < 0 || panelIndex >= controller.panels.length) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.dashboard_outlined, size: 60, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('ไม่มีข้อมูลพาเนล', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
+          }
+
           return ProductGrid(
-            itemCount: controller.panels.isNotEmpty ? controller.panels[_tabController.index].panelProducts!.length : 0,
-            panelProduct: controller.panels.isNotEmpty ? controller.panels[_tabController.index].panelProducts! : [],
+            itemCount: controller.panels[panelIndex].panelProducts?.length ?? 0,
+            panelProduct: controller.panels[panelIndex].panelProducts ?? [],
             isMainTab: false,
             width: width,
             height: height,
             onTap: (index, product) {
-              // สำหรับแท็บอื่นๆ ยังใช้ระบบเดิม
+              // เมื่อกดสินค้าในพาเนล ให้เพิ่มลงตะกร้าเหมือนกับแท็บสินค้าทั้งหมด
+              if (product != null) {
+                log("🛒 Adding product to cart from panel ${panelIndex + 1}: ${product.name}");
+                homeController.addToCart(product);
+              } else {
+                log("📝 Empty slot clicked at index: $index ของพาเนล ${panelIndex + 1}");
+                // TODO: เพิ่มฟังก์ชันเลือกสินค้าเพื่อเพิ่มลงพาเนล
+              }
             },
             onLongPress: (index) {
-              log("กดค้างที่ index: $index ของแท็บเพิ่ม");
+              log("🔧 Long press at index: $index ของพาเนล ${panelIndex + 1}");
+              // TODO: เพิ่มฟังก์ชันแก้ไขหรือลบสินค้าจากพาเนล
             },
           );
         },
       );
     }
   }
+
+  // UI เมื่อกะปิดอยู่
+  Widget _buildShiftClosedUI() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.access_time, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('กะปิดอยู่ กรุณาเปิดกะ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _showOpenShiftDialog,
+            icon: const Icon(Icons.play_arrow, color: Colors.white),
+            label: const Text('เปิดกะ', style: TextStyle(color: Colors.white, fontSize: 18)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // แสดง Dialog เปิดกะ
+  void _showOpenShiftDialog() {
+    final changeController = TextEditingController();
+    final cashController = TextEditingController();
+    final remarkController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+
+        return AlertDialog(
+          titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          title: Row(
+            children: const [
+              Icon(Icons.access_time, color: Colors.green),
+              SizedBox(width: 8),
+              Text('เปิดกะ', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SizedBox(
+            width: screenWidth * 0.5, // ✅ กำหนดให้กว้าง 50% ของหน้าจอ
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 🔹 จำนวนเงินทอน
+                TextField(
+                  controller: changeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'จำนวนเงินทอน',
+                    hintText: 'เช่น 100',
+                    prefixIcon: const Icon(Icons.money),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 🔹 ยอดยกมา
+                TextField(
+                  controller: cashController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'ยอดยกมา',
+                    hintText: 'เช่น 1000',
+                    prefixIcon: const Icon(Icons.account_balance_wallet),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 🔹 หมายเหตุ
+                TextField(
+                  controller: remarkController,
+                  decoration: InputDecoration(
+                    labelText: 'หมายเหตุ',
+                    hintText: 'เช่น เปิดกะเช้า',
+                    prefixIcon: const Icon(Icons.note),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+            ElevatedButton(
+              onPressed: () async {
+                final change = double.tryParse(changeController.text) ?? 0;
+                final cash = double.tryParse(cashController.text) ?? 0;
+                final remark = remarkController.text.trim();
+
+                if (remark.isEmpty) {
+                  Get.snackbar(
+                    'ข้อมูลไม่ครบ',
+                    'กรุณากรอกหมายเหตุ',
+                    backgroundColor: Get.theme.colorScheme.error,
+                    colorText: Get.theme.colorScheme.onError,
+                  );
+                  return;
+                }
+
+                Navigator.pop(context);
+
+                // แสดง loading
+                Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+
+                final success = await homeController.openShift(change: change, cash: cash, remark: remark);
+
+                Get.back(); // ปิด loading
+
+                if (success) {
+                  Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // void _showOpenShiftDialog() {
+  //   final changeController = TextEditingController();
+  //   final cashController = TextEditingController();
+  //   final remarkController = TextEditingController();
+
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder:
+  //         (context) => AlertDialog(
+  //           title: const Row(children: [Icon(Icons.access_time, color: Colors.green), SizedBox(width: 8), Text('เปิดกะ')]),
+  //           content: Column(
+  //             mainAxisSize: MainAxisSize.min,
+  //             children: [
+  //               TextField(
+  //                 controller: changeController,
+  //                 keyboardType: TextInputType.number,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'จำนวนเงินทอน',
+  //                   hintText: 'เช่น 100',
+  //                   prefixIcon: Icon(Icons.money),
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 16),
+  //               TextField(
+  //                 controller: cashController,
+  //                 keyboardType: TextInputType.number,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'ยอดยกมา',
+  //                   hintText: 'เช่น 1000',
+  //                   prefixIcon: Icon(Icons.account_balance_wallet),
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 16),
+  //               TextField(
+  //                 controller: remarkController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'หมายเหตุ',
+  //                   hintText: 'เช่น เปิดกะเช้า',
+  //                   prefixIcon: Icon(Icons.note),
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //           actions: [
+  //             TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+  //             ElevatedButton(
+  //               onPressed: () async {
+  //                 final change = double.tryParse(changeController.text) ?? 0;
+  //                 final cash = double.tryParse(cashController.text) ?? 0;
+  //                 final remark = remarkController.text.trim();
+
+  //                 if (remark.isEmpty) {
+  //                   Get.snackbar(
+  //                     'ข้อมูลไม่ครบ',
+  //                     'กรุณากรอกหมายเหตุ',
+  //                     backgroundColor: Get.theme.colorScheme.error,
+  //                     colorText: Get.theme.colorScheme.onError,
+  //                   );
+  //                   return;
+  //                 }
+
+  //                 Navigator.pop(context);
+
+  //                 // แสดง loading
+  //                 Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+
+  //                 final success = await homeController.openShift(change: change, cash: cash, remark: remark);
+
+  //                 Get.back(); // ปิด loading
+
+  //                 if (success) {
+  //                   Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white);
+  //                 }
+  //               },
+  //               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+  //               child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+  //             ),
+  //           ],
+  //         ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -237,17 +525,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         value: homeController.selectedCategoryCode.value.isEmpty ? null : homeController.selectedCategoryCode.value,
                                         dropdownColor: Colors.white,
                                         iconEnabledColor: Colors.white,
-                                        onChanged: (value) async {
-                                          if (value != null) {
-                                            homeController.selectedCategoryCode.value = value;
-                                            final selectedCategory = homeController.categories.firstWhere(
-                                              (cat) => cat['code'] == value,
-                                              orElse: () => {'id': 0},
-                                            );
-                                            final int categoryId = selectedCategory['id'] ?? 0;
-                                            await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
-                                          }
-                                        },
+                                        onChanged:
+                                            homeController.isShiftOpen.value
+                                                ? (value) async {
+                                                  if (value != null) {
+                                                    homeController.selectedCategoryCode.value = value;
+                                                    final selectedCategory = homeController.categories.firstWhere(
+                                                      (cat) => cat['code'] == value,
+                                                      orElse: () => {'id': 0},
+                                                    );
+                                                    final int categoryId = selectedCategory['id'] ?? 0;
+                                                    await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                                                  }
+                                                }
+                                                : null,
 
                                         // ✅ ควบคุมการแสดงผลของตัวเลือกที่ถูกเลือก
                                         selectedItemBuilder: (context) {
@@ -284,30 +575,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
 
                     // GridView
-                    Expanded(child: AnimatedBuilder(animation: _tabController, builder: (_, __) => _buildGridContent(width, height))),
+                    Expanded(
+                      child: Obx(() {
+                        // ถ้ากะปิดอยู่ แสดง UI เปิดกะ
+                        if (!homeController.isShiftOpen.value) {
+                          return _buildShiftClosedUI();
+                        }
+
+                        // ถ้ากะเปิดแล้ว แสดง GridView ปกติ
+                        return AnimatedBuilder(animation: _tabController, builder: (_, __) => _buildGridContent(width, height));
+                      }),
+                    ),
 
                     // TabBar
-                    SizedBox(
-                      height: 48,
-                      child: Row(
-                        children: [
-                          IconButton(icon: const Icon(Icons.add, color: Colors.green), onPressed: _addTab),
-                          Expanded(
-                            child: TabBar(
-                              isScrollable: true,
-                              controller: _tabController,
-                              tabs: List.generate(
-                                tabs.length,
-                                (index) => GestureDetector(onLongPress: () => _removeTab(index), child: Tab(text: tabs[index])),
+                    Obx(() {
+                      return SizedBox(
+                        height: 48,
+                        child: Row(
+                          children: [
+                            //IconButton(icon: const Icon(Icons.add, color: Colors.green), onPressed: _addTab),
+                            Expanded(
+                              child: TabBar(
+                                isScrollable: true,
+                                controller: _tabController,
+                                tabs: List.generate(
+                                  tabs.length,
+                                  (index) => GestureDetector(
+                                    onLongPress: homeController.isShiftOpen.value ? () => _removeTab(index) : null,
+                                    child: Tab(text: tabs[index]),
+                                  ),
+                                ),
+                                labelColor: homeController.isShiftOpen.value ? Colors.green : Colors.grey,
+                                unselectedLabelColor: homeController.isShiftOpen.value ? Colors.black54 : Colors.grey,
+                                indicatorColor: homeController.isShiftOpen.value ? Colors.green : Colors.grey,
+                                onTap:
+                                    homeController.isShiftOpen.value
+                                        ? null
+                                        : (index) {
+                                          // ป้องกันการเปลี่ยนแท็บเมื่อกะปิด
+                                        },
                               ),
-                              labelColor: Colors.green,
-                              unselectedLabelColor: Colors.black54,
-                              indicatorColor: Colors.green,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
