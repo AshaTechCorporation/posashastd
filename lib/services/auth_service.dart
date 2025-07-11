@@ -123,4 +123,18 @@ class AuthService {
     // await prefs.setString('user_data', jsonEncode(user.toJson()));
     await prefs.setInt('login_timestamp', DateTime.now().millisecondsSinceEpoch);
   }
+
+  /// ออกจากระบบ
+  Future<void> logout() async {
+    try {
+      // เคลียร์ข้อมูลจาก SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      // เคลียร์ token ในหน่วยความจำ
+      _currentToken = null;
+    } catch (e) {
+      throw Exception('ไม่สามารถออกจากระบบได้: ${e.toString()}');
+    }
+  }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
+import 'package:posashastd/services/auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -12,6 +14,50 @@ class _SettingsPageState extends State<SettingsPage> {
   int selectedTab = 0;
 
   final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
+
+  // ฟังก์ชันออกจากระบบ
+  Future<void> _logout() async {
+    // แสดง Dialog ยืนยัน
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Row(children: [Icon(Icons.logout, color: Colors.red), SizedBox(width: 8), Text('ออกจากระบบ')]),
+            content: const Text('คุณต้องการออกจากระบบหรือไม่?\nข้อมูลทั้งหมดจะถูกลบออกจากเครื่อง', style: TextStyle(fontSize: 16)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('ออกจากระบบ', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      // แสดง loading
+      Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+
+      try {
+        // ออกจากระบบผ่าน AuthService
+        final authService = AuthService();
+        await authService.logout();
+
+        Get.back(); // ปิด loading
+
+        // กลับไปหน้า Login และปิดหน้าทั้งหมด
+        Get.offAllNamed('/login');
+
+        // แสดงข้อความสำเร็จ
+        Get.snackbar('ออกจากระบบสำเร็จ', 'กรุณาเข้าสู่ระบบใหม่', backgroundColor: Colors.green, colorText: Colors.white);
+      } catch (e) {
+        Get.back(); // ปิด loading
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถออกจากระบบได้: ${e.toString()}', backgroundColor: Colors.red, colorText: Colors.white);
+        print(e);
+      }
+    }
+  }
 
   Widget buildTabContent() {
     switch (selectedTab) {
@@ -83,7 +129,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _logout,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,

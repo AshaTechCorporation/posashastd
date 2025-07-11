@@ -95,6 +95,58 @@ class HomeController extends GetxController {
     }
   }
 
+  // ปิดกะ
+  Future<bool> closeShift() async {
+    try {
+      if (currentShiftId.value.isEmpty) {
+        log('❌ No shift ID to close');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่พบข้อมูลกะที่จะปิด', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        return false;
+      }
+
+      log('🔄 Closing shift with ID: ${currentShiftId.value}');
+
+      final shiftId = int.tryParse(currentShiftId.value);
+      if (shiftId == null) {
+        log('❌ Invalid shift ID format');
+        return false;
+      }
+
+      final response = await Homeservice.closedShift(shiftId: shiftId);
+
+      if (response != null) {
+        // ลบ shift_id จาก SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('shift_id');
+
+        currentShiftId.value = '';
+        isShiftOpen.value = false;
+
+        log('✅ Shift closed successfully');
+
+        // เคลียร์ข้อมูลที่โหลดไว้
+        products.clear();
+        categories.clear();
+        cartItems.clear();
+        selectedCategoryCode.value = '';
+
+        return true;
+      } else {
+        log('❌ Failed to close shift - no response');
+        return false;
+      }
+    } catch (e) {
+      log('❌ Error closing shift: $e');
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
+      return false;
+    }
+  }
+
   void fetchProducts() async {
     log('Fetch Products');
     try {

@@ -30,21 +30,33 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
       debugShowCheckedModeBanner: false,
-      home: LayoutBuilder(
-        builder: (context, constraints) {
-          final _authService = AuthService();
-          if (constraints.maxWidth < 720) {
-            // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
-            return const Homev2s();
-          } else {
-            // 👉 จอใหญ่ เช่น D2S
-            if (_authService.currentToken != null) {
-              return const HomePage();
-            }
-            return const LoginPage();
+      // เพิ่ม routes สำหรับ GetX
+      initialRoute: '/',
+      getPages: [
+        GetPage(name: '/', page: () => _getInitialPage()),
+        GetPage(name: '/login', page: () => const LoginPage()),
+        GetPage(name: '/home', page: () => const HomePage()),
+        GetPage(name: '/homev2s', page: () => const Homev2s()),
+      ],
+    );
+  }
+
+  // ฟังก์ชันกำหนดหน้าเริ่มต้น
+  Widget _getInitialPage() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final authService = AuthService();
+        if (constraints.maxWidth < 720) {
+          // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
+          return const Homev2s();
+        } else {
+          // 👉 จอใหญ่ เช่น D2S
+          if (authService.currentToken != null) {
+            return const HomePage();
           }
-        },
-      ),
+          return const LoginPage();
+        }
+      },
     );
   }
 }
