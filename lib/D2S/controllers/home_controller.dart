@@ -114,6 +114,8 @@ class HomeController extends GetxController {
 
       final response = await Homeservice.closedShift(shiftId: shiftId);
 
+      log('🔍 Debug - API Response: $response');
+
       if (response != null) {
         // ลบ shift_id จาก SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -133,6 +135,12 @@ class HomeController extends GetxController {
         return true;
       } else {
         log('❌ Failed to close shift - no response');
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
         return false;
       }
     } catch (e) {
@@ -251,6 +259,14 @@ class HomeController extends GetxController {
   // คำนวณยอดรวมราคา
   double get totalPrice {
     return cartItems.fold<double>(0, (sum, item) => sum + ((item['price'] ?? 0) * (item['qty'] ?? 1)));
+  }
+
+  // ลบสินค้าออกจากตะกร้าตาม index
+  void removeFromCart(int index) {
+    if (index >= 0 && index < cartItems.length) {
+      cartItems.removeAt(index);
+      log('🗑️ Removed item at index $index from cart');
+    }
   }
 
   // เคลียร์ตะกร้า

@@ -23,7 +23,7 @@ class AppDrawer extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text('unknown unknown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('ธวัชชัย มุ้งภูเขียว', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
                 Text('POS 1', style: TextStyle(color: Colors.white70, fontSize: 14)),
                 Text('ตะวันตก', style: TextStyle(color: Colors.white70, fontSize: 14)),

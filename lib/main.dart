@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/login/loginPage.dart';
@@ -15,9 +16,12 @@ void main() async {
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 
-  Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   prefs = await SharedPreferences.getInstance();
   token = prefs.getString('token');
+
+  // ✅ Register HomeController ใน GetX dependency injection
+  Get.put(HomeController());
+
   runApp(const MyApp());
 }
 
@@ -30,6 +34,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        fontFamily: 'IBMPlexSansThai', // กำหนดชื่อฟอนต์ที่ใช้
         // ✅ กำหนดขนาดฟอนต์ขั้นต่ำ 18 และปรับหัวข้อให้ใหญ่ขึ้น
         textTheme: const TextTheme(
           // หัวข้อใหญ่

@@ -1,10 +1,41 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 
-class SummaryReportPage extends StatelessWidget {
+class SummaryReportPage extends StatefulWidget {
   const SummaryReportPage({super.key});
+
+  @override
+  State<SummaryReportPage> createState() => _SummaryReportPageState();
+}
+
+class _SummaryReportPageState extends State<SummaryReportPage> {
+  late HomeController homeController;
+
+  @override
+  void initState() {
+    super.initState();
+    log('🏠 HomePage initState called');
+
+    // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
+    if (Get.isRegistered<HomeController>()) {
+      log('🗑️ Deleting existing HomeController');
+      Get.delete<HomeController>();
+    }
+    log('🆕 Creating new HomeController');
+    homeController = Get.put(HomeController());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      log('⏰ PostFrameCallback: loading data');
+      await homeController.checkConnectivityAndLoadData();
+      log('✅ Data loading completed');
+
+      // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
+    });
+  }
 
   // ฟังก์ชันแสดง Dialog ปิดกะ
   void _showCloseShiftDialog(BuildContext context) {
@@ -30,43 +61,90 @@ class SummaryReportPage extends StatelessWidget {
 
   // ฟังก์ชันปิดกะ
   Future<void> _closeShift(BuildContext context) async {
-    final homeController = Get.find<HomeController>();
+    try {
+      // ✅ ใช้ homeController ที่สร้างใน initState แล้ว
+      log('🔍 Debug - Before closing shift:');
+      log('   currentShiftId: ${homeController.currentShiftId.value}');
+      log('   isShiftOpen: ${homeController.isShiftOpen.value}');
 
-    // แสดง loading
-    Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+      // ถ้า currentShiftId ว่าง ให้โหลดข้อมูลใหม่ก่อน
+      if (homeController.currentShiftId.value.isEmpty) {
+        log('⚠️ currentShiftId is empty, checking shift status...');
+        await homeController.checkShiftStatus();
 
-    final success = await homeController.closeShift();
+        // ถ้ายังว่างอยู่ แสดงว่าไม่มีกะเปิดอยู่
+        if (homeController.currentShiftId.value.isEmpty) {
+          Get.snackbar('ข้อผิดพลาด', 'ไม่พบข้อมูลกะที่เปิดอยู่', backgroundColor: Colors.red, colorText: Colors.white);
+          return;
+        }
+      }
 
-    Get.back(); // ปิด loading
+      // แสดง loading
+      Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
-    if (success) {
-      // ✅ ใช้ Get.dialog แทน showDialog เพื่อหลีกเลี่ยงปัญหา BuildContext
-      Get.dialog(
-        AlertDialog(
-          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
-          content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 18)),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                Get.back(); // ปิด dialog
+      final success = await homeController.closeShift();
 
-                // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
-                homeController.currentShiftId.value = '';
-                homeController.isShiftOpen.value = false;
+      // 🔍 Debug: ตรวจสอบผลลัพธ์
+      log('🔍 Debug - Close shift result: $success');
 
-                // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
-                await homeController.checkShiftStatus();
+      // ✅ ปิด loading dialog ก่อนแสดง result dialog
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
 
-                // กลับไปหน้าหลัก
-                Get.offAllNamed('/home');
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-        barrierDismissible: false,
-      );
+      if (success) {
+        // ✅ ใช้ Get.dialog แทน showDialog เพื่อหลีกเลี่ยงปัญหา BuildContext
+        Get.dialog(
+          AlertDialog(
+            title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
+            content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 18)),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  Get.back(); // ปิด dialog
+
+                  // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
+                  homeController.currentShiftId.value = '';
+                  homeController.isShiftOpen.value = false;
+
+                  // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
+                  await homeController.checkShiftStatus();
+
+                  // กลับไปหน้าหลัก
+                  Get.offAllNamed('/home');
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+      } else {
+        // ❌ แสดง error dialog เมื่อปิดกะไม่สำเร็จ
+        Get.dialog(
+          AlertDialog(
+            title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ปิดกะไม่สำเร็จ')]),
+            content: const Text('ไม่สามารถปิดกะได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 18)),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+      }
+    } catch (e) {
+      // ✅ ปิด loading dialog หากเกิด error
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      log('❌ Error in _closeShift: $e');
+      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปิดกะ: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 

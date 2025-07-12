@@ -194,7 +194,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   Widget _buildOrderDetails(Order order) {
     final grandTotal = order.total ?? 0;
     final change = order.change ?? 0;
-    final orderDate = order.orderDate;
+    final orderDate = order.orderDate != null ? order.orderDate!.add(Duration(hours: 7)) : null;
     final deviceName = order.device?.name ?? 'POS 1';
 
     return Column(
@@ -248,8 +248,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   }
 
   Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
-    final grandTotal = order.grandTotal ?? 0;
-    final orderDate = order.orderDate;
+    final grandTotal = order.total ?? 0;
+    final orderDate = order.orderDate != null ? order.orderDate!.add(Duration(hours: 7)) : null;
     final timeString = orderDate != null ? DateFormat('HH:mm น.').format(orderDate) : 'ไม่ระบุเวลา';
 
     return Container(

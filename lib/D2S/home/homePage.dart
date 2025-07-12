@@ -291,6 +291,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // ✅ แสดง Dialog ยืนยันการลบสินค้าจากตะกร้า
+  void _showDeleteItemDialog(BuildContext context, Map<String, dynamic> item, int index) {
+    final itemName = item['name'] ?? 'ไม่มีชื่อ';
+    final qty = item['qty'] ?? 1;
+
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('ลบสินค้า')]),
+        content: Text('ต้องการลบ "$itemName" (จำนวน: $qty) ออกจากตะกร้าหรือไม่?', style: const TextStyle(fontSize: 18)),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก', style: TextStyle(fontSize: 18))),
+          ElevatedButton(
+            onPressed: () {
+              // ลบสินค้าออกจากตะกร้า
+              homeController.removeFromCart(index);
+              Get.back();
+
+              // แสดงข้อความยืนยัน
+              Get.snackbar(
+                'ลบสำเร็จ',
+                'ลบ "$itemName" ออกจากตะกร้าแล้ว',
+                backgroundColor: Colors.green,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 2),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('ลบ', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
   // แสดง Dialog เปิดกะ
   void _showOpenShiftDialog() {
     final changeController = TextEditingController();
@@ -579,22 +614,62 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Expanded(
                       child: Obx(() {
                         return homeController.cartItems.isEmpty
-                            ? const Center(child: Text('ยังไม่มีสินค้า', style: TextStyle(color: Colors.grey)))
-                            : ListView.builder(
-                              itemCount: homeController.cartItems.length,
-                              itemBuilder: (context, index) {
-                                final item = homeController.cartItems[index];
-                                final name = item['name'] ?? 'ไม่มีชื่อ';
-                                final qty = item['qty'] ?? 1;
-                                final price = item['price'] ?? 0;
+                            ? const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('ยังไม่มีสินค้า', style: TextStyle(color: Colors.grey, fontSize: 18)),
+                                  SizedBox(height: 8),
+                                  Text('เลือกสินค้าเพื่อเพิ่มลงตะกร้า', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                                ],
+                              ),
+                            )
+                            : Column(
+                              children: [
+                                // ✅ คำแนะนำการใช้งาน
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.blue[200]!),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.info_outline, color: Colors.blue, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('กดค้างที่สินค้าเพื่อลบออกจากตะกร้า', style: TextStyle(color: Colors.blue, fontSize: 14)),
+                                    ],
+                                  ),
+                                ),
+                                // ✅ รายการสินค้า
+                                Expanded(
+                                  child: ListView.builder(
+                                    itemCount: homeController.cartItems.length,
+                                    itemBuilder: (context, index) {
+                                      final item = homeController.cartItems[index];
+                                      final name = item['name'] ?? 'ไม่มีชื่อ';
+                                      final qty = item['qty'] ?? 1;
+                                      final price = item['price'] ?? 0;
 
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(name, style: TextStyle(fontSize: 16)),
-                                  subtitle: Text('จำนวน: $qty', style: TextStyle(fontSize: 16)),
-                                  trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 16)),
-                                );
-                              },
+                                      return GestureDetector(
+                                        onLongPress: () {
+                                          // ✅ แสดง dialog ยืนยันการลบเมื่อกดค้าง
+                                          _showDeleteItemDialog(context, item, index);
+                                        },
+                                        child: ListTile(
+                                          dense: true,
+                                          title: Text(name, style: const TextStyle(fontSize: 16)),
+                                          subtitle: Text('จำนวน: $qty', style: const TextStyle(fontSize: 16)),
+                                          trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 16)),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             );
                       }),
                     ),

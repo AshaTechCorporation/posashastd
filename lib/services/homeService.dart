@@ -80,16 +80,33 @@ class Homeservice {
 
   //ปิดกะงาน
   static Future closedShift({required int shiftId}) async {
-    final _authService = AuthService();
-    final url = Uri.https(publicUrl, '/api/shift/$shiftId/off');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
-    final response = await http.post(url, headers: headers);
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = convert.jsonDecode(response.body);
-      return data;
-    } else {
-      final data = convert.jsonDecode(response.body);
-      throw Exception(data['message']);
+    try {
+      final _authService = AuthService();
+      final url = Uri.https(publicUrl, '/api/shift/$shiftId/off');
+      var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+
+      print('🔍 Debug - Close Shift API Call:');
+      print('   URL: $url');
+      print('   ShiftId: $shiftId');
+      print('   Token: ${_authService.currentToken?.substring(0, 20)}...');
+
+      final response = await http.post(url, headers: headers);
+
+      print('🔍 Debug - API Response:');
+      print('   Status Code: ${response.statusCode}');
+      print('   Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = convert.jsonDecode(response.body);
+        return data;
+      } else {
+        final data = convert.jsonDecode(response.body);
+        print('❌ API Error: ${data['message']}');
+        throw Exception(data['message']);
+      }
+    } catch (e) {
+      print('❌ Exception in closedShift: $e');
+      rethrow;
     }
   }
 }
