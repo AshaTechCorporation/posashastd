@@ -128,8 +128,8 @@ class AuthService {
   Future<void> logout() async {
     try {
       // เคลียร์ข้อมูลจาก SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      // final prefs = await SharedPreferences.getInstance();
+      // await prefs.clear();
 
       // เคลียร์ token ในหน่วยความจำ
       _currentToken = null;

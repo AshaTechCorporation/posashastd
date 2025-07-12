@@ -64,7 +64,7 @@ class _ProductListPageState extends State<ProductListPage> {
                                 IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
                       ),
                       const SizedBox(width: 8),
-                      const Text('รายการสินค้า', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text('รายการสินค้า', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                     ],
                   ),
                 ),
@@ -102,7 +102,7 @@ class _ProductListPageState extends State<ProductListPage> {
                             alignment: Alignment.centerLeft,
                             child: Obx(() {
                               if (productController.categories.isEmpty) {
-                                return const Text('กำลังโหลด...', style: TextStyle(color: Colors.white, fontSize: 16));
+                                return const Text('กำลังโหลด...', style: TextStyle(color: Colors.white, fontSize: 18));
                               }
 
                               return DropdownButton<String>(
@@ -116,7 +116,7 @@ class _ProductListPageState extends State<ProductListPage> {
                                 underline: const SizedBox(),
                                 selectedItemBuilder: (BuildContext context) {
                                   return productController.categories.map((category) {
-                                    return Text(category['name'] ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 16));
+                                    return Text(category['name'] ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 18));
                                   }).toList();
                                 },
                                 style: const TextStyle(color: Colors.black, fontSize: 16),
@@ -132,7 +132,7 @@ class _ProductListPageState extends State<ProductListPage> {
                               );
                             }),
                           )
-                          : Text(tabTitles[selectedTabIndex], style: const TextStyle(color: Colors.white, fontSize: 16)),
+                          : Text(tabTitles[selectedTabIndex], style: const TextStyle(color: Colors.white, fontSize: 18)),
                 ),
 
                 // Content

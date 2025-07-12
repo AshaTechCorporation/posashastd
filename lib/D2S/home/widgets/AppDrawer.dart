@@ -102,7 +102,7 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
 
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('v2.55.1', style: TextStyle(color: Colors.grey))),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('v1.01.1', style: TextStyle(color: Colors.grey))),
         ],
       ),
     );

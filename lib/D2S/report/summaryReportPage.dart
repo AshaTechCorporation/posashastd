@@ -8,25 +8,23 @@ class SummaryReportPage extends StatelessWidget {
 
   // ฟังก์ชันแสดง Dialog ปิดกะ
   void _showCloseShiftDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: const Row(children: [Icon(Icons.lock, color: Colors.red), SizedBox(width: 8), Text('ยืนยันการปิดกะ')]),
-            content: const Text('คุณต้องการปิดกะหรือไม่?\nเมื่อปิดกะแล้วจะไม่สามารถทำรายการได้จนกว่าจะเปิดกะใหม่', style: TextStyle(fontSize: 16)),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _closeShift(context);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('ปิดกะ', style: TextStyle(color: Colors.white)),
-              ),
-            ],
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.lock, color: Colors.red), SizedBox(width: 8), Text('ยืนยันการปิดกะ')]),
+        content: const Text('คุณต้องการปิดกะหรือไม่?\nเมื่อปิดกะแล้วจะไม่สามารถทำรายการได้จนกว่าจะเปิดกะใหม่', style: TextStyle(fontSize: 18)),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back(); // ปิด dialog ยืนยัน
+              await _closeShift(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('ปิดกะ', style: TextStyle(color: Colors.white)),
           ),
+        ],
+      ),
+      barrierDismissible: false,
     );
   }
 
@@ -42,34 +40,32 @@ class SummaryReportPage extends StatelessWidget {
     Get.back(); // ปิด loading
 
     if (success) {
-      // แสดง Dialog สำเร็จ
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => AlertDialog(
-              title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
-              content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 16)),
-              actions: [
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
+      // ✅ ใช้ Get.dialog แทน showDialog เพื่อหลีกเลี่ยงปัญหา BuildContext
+      Get.dialog(
+        AlertDialog(
+          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
+          content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 18)),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                Get.back(); // ปิด dialog
 
-                    // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
-                    homeController.currentShiftId.value = '';
-                    homeController.isShiftOpen.value = false;
+                // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
+                homeController.currentShiftId.value = '';
+                homeController.isShiftOpen.value = false;
 
-                    // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
-                    await homeController.checkShiftStatus();
+                // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
+                await homeController.checkShiftStatus();
 
-                    // กลับไปหน้าหลัก
-                    Get.offAllNamed('/home');
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
-                ),
-              ],
+                // กลับไปหน้าหลัก
+                Get.offAllNamed('/home');
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
             ),
+          ],
+        ),
+        barrierDismissible: false,
       );
     }
   }
@@ -99,7 +95,7 @@ class SummaryReportPage extends StatelessWidget {
                               IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
                     ),
                     const SizedBox(width: 4),
-                    const Text('กะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text('กะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                   ],
                 ),
                 Row(
@@ -163,7 +159,12 @@ class SummaryReportPage extends StatelessWidget {
                     Expanded(
                       child: ListView(
                         children: [
-                          Center(child: Text('การสรุปราย รับยอดขาย', style: TextStyle(color: Colors.green.shade700, fontSize: 16))),
+                          Center(
+                            child: Text(
+                              'การสรุปราย รับยอดขาย',
+                              style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           _buildRow('จำนวนรายการทั้งหมด:', '3'),
                           _buildRow('ปิดแล้ว:', 'unknown unknown'),

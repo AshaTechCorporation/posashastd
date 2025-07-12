@@ -72,9 +72,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     } catch (e) {
       // ถ้าปริ้นไม่สำเร็จ (ไม่เจอเครื่องปริ้นหรือเกิดข้อผิดพลาด)
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('ไม่สามารถปริ้นใบเสร็จได้: ${e.toString()}'), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ไม่สามารถปริ้นใบเสร็จได้: ไม่พบเครื่องปริ๊น หรือไม่ได้เชื่อต่อเครื่องปริ๊น'), backgroundColor: Colors.orange),
+        );
       }
     }
   }
@@ -140,7 +140,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: const [
-                          Text('ตัวออเดอร์', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('ตัวออเดอร์', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
                           Icon(Icons.person, color: Colors.black),
                         ],
                       ),
@@ -156,7 +156,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                           const Spacer(),
                           const Padding(
                             padding: EdgeInsets.only(right: 16),
-                            child: Text('USER', style: TextStyle(color: Colors.white, fontSize: 14)),
+                            child: Text('USER', style: TextStyle(color: Colors.white, fontSize: 18)),
                           ),
                         ],
                       ),
@@ -190,8 +190,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('$name x $qty', style: const TextStyle(fontSize: 14)),
-                                      Text('฿${totalItem.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                                      Text('$name x $qty', style: const TextStyle(fontSize: 18)),
+                                      Text('฿${totalItem.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
                                     ],
                                   ),
                                 );
@@ -206,8 +206,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('ยอดรวม', style: TextStyle(fontSize: 14)),
-                                Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                                const Text('ยอดรวม', style: TextStyle(fontSize: 18)),
+                                Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
                               ],
                             ),
                           ),
@@ -219,8 +219,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('ส่วนลด', style: TextStyle(fontSize: 14, color: Colors.red)),
-                                  Text('-฿${discountAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, color: Colors.red)),
+                                  const Text('ส่วนลด', style: TextStyle(fontSize: 18, color: Colors.red)),
+                                  Text('-฿${discountAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, color: Colors.red)),
                                 ],
                               ),
                             ),
@@ -232,8 +232,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+                                Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
                               ],
                             ),
                           ),
@@ -266,7 +266,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               textAlign: TextAlign.center,
                                             ),
                                             const SizedBox(height: 4),
-                                            const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 14), textAlign: TextAlign.center),
+                                            const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
                                           ],
                                         ),
                                         const SizedBox(width: 24),
@@ -283,7 +283,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               textAlign: TextAlign.center,
                                             ),
                                             const SizedBox(height: 4),
-                                            const Text('เงินทอน', style: TextStyle(fontSize: 14, color: Colors.green), textAlign: TextAlign.center),
+                                            const Text('เงินทอน', style: TextStyle(fontSize: 18, color: Colors.green), textAlign: TextAlign.center),
                                           ],
                                         ),
                                       ],
@@ -296,7 +296,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                           textAlign: TextAlign.center,
                                         ),
                                         const SizedBox(height: 4),
-                                        const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 14), textAlign: TextAlign.center),
+                                        const Text('ยอดค้างชำระ', style: TextStyle(fontSize: 18), textAlign: TextAlign.center),
                                       ],
                                     ),
                           ),
@@ -304,12 +304,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                           const SizedBox(height: 24),
 
                           if (!isPaid) ...[
-                            const Text('จำนวนรับ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 14)),
+                            const Text('จำนวนรับ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 20)),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+                                Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
                                 OutlinedButton(
                                   onPressed: () async {
                                     final amount = await showDialog<double>(
@@ -377,47 +377,103 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             const SizedBox(height: 24),
                             const Divider(),
                             const SizedBox(height: 16),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.payments, color: Colors.black),
-                              label: const Text("ชำระด้วยเงินสด", style: TextStyle(color: Colors.black)),
-                              onPressed: () async {
-                                setState(() {
-                                  isPaid = true;
-                                });
-                                await createOrders(paymentMethodId: 1);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.grey),
-                                backgroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(50),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.account_balance, color: Colors.black),
-                              label: const Text("โอนชำระ", style: TextStyle(color: Colors.black)),
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.grey),
-                                backgroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(50),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.add_card, color: Colors.black),
-                              label: const Text("เครดิต", style: TextStyle(color: Colors.black)),
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.grey),
-                                backgroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(50),
-                              ),
+                            Row(
+                              children: [
+                                // 🔹 เงินสด
+                                Expanded(
+                                  child: Card(
+                                    elevation: 4, // เพิ่มเงา
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    child: InkWell(
+                                      onTap: () async {
+                                        if (receivedAmount >= total) {
+                                          setState(() {
+                                            isPaid = true;
+                                          });
+                                          await createOrders(paymentMethodId: 1);
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่พอ'), backgroundColor: Colors.orange));
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // ✅ สูงขึ้น
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.payments, color: Colors.black, size: 32), // ✅ ใหญ่ขึ้น
+                                            SizedBox(height: 8),
+                                            Text("เงินสด", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // 🔹 โอน
+                                Expanded(
+                                  child: Card(
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    child: InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นนี้ยังไม่เปิดใช้งาน'), backgroundColor: Colors.orange));
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.account_balance, color: Colors.black, size: 32),
+                                            SizedBox(height: 8),
+                                            Text("โอน", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // 🔹 เครดิต
+                                Expanded(
+                                  child: Card(
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    child: InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นนี้ยังไม่เปิดใช้งาน'), backgroundColor: Colors.orange));
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.add_card, color: Colors.black, size: 32),
+                                            SizedBox(height: 8),
+                                            Text("เครดิต", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
 
                             // ปุ่มส่วนลด
                             const SizedBox(height: 16),
-                            const Text('ส่วนลด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Text('ส่วนลด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,

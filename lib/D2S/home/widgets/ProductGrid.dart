@@ -85,7 +85,7 @@ class ProductGrid extends StatelessWidget {
                         children: [
                           Text(
                             name,
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -93,7 +93,7 @@ class ProductGrid extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             '฿${product.price ?? 0}',
-                            style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
                         ],

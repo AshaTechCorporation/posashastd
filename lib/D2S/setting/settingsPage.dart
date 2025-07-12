@@ -23,13 +23,13 @@ class _SettingsPageState extends State<SettingsPage> {
       builder:
           (context) => AlertDialog(
             title: const Row(children: [Icon(Icons.logout, color: Colors.red), SizedBox(width: 8), Text('ออกจากระบบ')]),
-            content: const Text('คุณต้องการออกจากระบบหรือไม่?\nข้อมูลทั้งหมดจะถูกลบออกจากเครื่อง', style: TextStyle(fontSize: 16)),
+            content: const Text('คุณต้องการออกจากระบบหรือไม่?\nข้อมูลทั้งหมดจะถูกลบออกจากเครื่อง', style: TextStyle(fontSize: 18)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก', style: TextStyle(fontSize: 18))),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('ออกจากระบบ', style: TextStyle(color: Colors.white)),
+                child: const Text('ออกจากระบบ', style: TextStyle(color: Colors.white, fontSize: 18)),
               ),
             ],
           ),
@@ -81,7 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             // 🔹 Side menu and tabs
             Container(
-              width: 250,
+              width: 350,
               color: const Color(0xFFEFEFEF),
               child: Column(
                 children: [
@@ -125,7 +125,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   const Spacer(),
                   const Divider(),
-                  const Padding(padding: EdgeInsets.all(8.0), child: Text("jumpoll7107@hotmail.com", style: TextStyle(fontSize: 12))),
+                  const Padding(padding: EdgeInsets.all(8.0), child: Text("jumpoll7107@hotmail.com", style: TextStyle(fontSize: 16))),
                   Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: ElevatedButton(
@@ -135,7 +135,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         foregroundColor: Colors.black,
                         side: const BorderSide(color: Colors.grey),
                       ),
-                      child: const Text("ออกจากระบบ"),
+                      child: const Text("ออกจากระบบ", style: TextStyle(color: Colors.black, fontSize: 18)),
                     ),
                   ),
                 ],

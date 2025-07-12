@@ -190,15 +190,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
-                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         '฿${product.price ?? 0}',
-                        style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -275,12 +274,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         children: [
           const Icon(Icons.access_time, size: 80, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text('กะปิดอยู่ กรุณาเปิดกะ', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Text('กะปิดอยู่ กรุณาเปิดกะ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: _showOpenShiftDialog,
             icon: const Icon(Icons.play_arrow, color: Colors.white),
-            label: const Text('เปิดกะ', style: TextStyle(color: Colors.white, fontSize: 18)),
+            label: const Text('เปิดกะ', style: TextStyle(color: Colors.white, fontSize: 22)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -297,6 +296,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final changeController = TextEditingController();
     final cashController = TextEditingController();
     final remarkController = TextEditingController();
+
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
@@ -315,73 +316,92 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           content: SizedBox(
-            width: screenWidth * 0.5, // ✅ กำหนดให้กว้าง 50% ของหน้าจอ
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 🔹 จำนวนเงินทอน
-                TextField(
-                  controller: changeController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'จำนวนเงินทอน',
-                    hintText: 'เช่น 100',
-                    prefixIcon: const Icon(Icons.money),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            width: screenWidth * 0.5,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔹 จำนวนเงินทอน
+                  TextFormField(
+                    controller: changeController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'จำนวนเงินทอน',
+                      hintText: 'เช่น 100',
+                      labelStyle: const TextStyle(fontSize: 20),
+                      prefixIcon: const Icon(Icons.money),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      errorStyle: const TextStyle(fontSize: 18, color: Colors.red),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'กรุณากรอกจำนวนเงินทอน';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // 🔹 ยอดยกมา
-                TextField(
-                  controller: cashController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'ยอดยกมา',
-                    hintText: 'เช่น 1000',
-                    prefixIcon: const Icon(Icons.account_balance_wallet),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  // 🔹 ยอดยกมา
+                  TextFormField(
+                    controller: cashController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'ยอดยกมา',
+                      hintText: 'เช่น 1000',
+                      labelStyle: const TextStyle(fontSize: 20),
+                      prefixIcon: const Icon(Icons.account_balance_wallet),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                      errorStyle: const TextStyle(fontSize: 18, color: Colors.red),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'กรุณากรอกยอดยกมา';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // 🔹 หมายเหตุ
-                TextField(
-                  controller: remarkController,
-                  decoration: InputDecoration(
-                    labelText: 'หมายเหตุ',
-                    hintText: 'เช่น เปิดกะเช้า',
-                    prefixIcon: const Icon(Icons.note),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                  // 🔹 หมายเหตุ
+                  TextFormField(
+                    controller: remarkController,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: 'หมายเหตุ',
+                      hintText: 'เช่น เปิดกะเช้า',
+                      labelStyle: const TextStyle(fontSize: 20),
+                      prefixIcon: const Icon(Icons.note),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              child: const Text('ยกเลิก', style: TextStyle(color: Colors.white, fontSize: 20)),
+            ),
+            const SizedBox(width: 12),
             ElevatedButton(
               onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+
                 final change = double.tryParse(changeController.text) ?? 0;
                 final cash = double.tryParse(cashController.text) ?? 0;
                 final remark = remarkController.text.trim();
 
-                if (remark.isEmpty) {
-                  Get.snackbar(
-                    'ข้อมูลไม่ครบ',
-                    'กรุณากรอกหมายเหตุ',
-                    backgroundColor: Get.theme.colorScheme.error,
-                    colorText: Get.theme.colorScheme.onError,
-                  );
-                  return;
-                }
-
                 Navigator.pop(context);
 
-                // แสดง loading
                 Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
 
                 final success = await homeController.openShift(change: change, cash: cash, remark: remark);
@@ -392,100 +412,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white);
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              child: const Text('ตกลง', style: TextStyle(color: Colors.white, fontSize: 20)),
             ),
           ],
         );
       },
     );
   }
-
-  // void _showOpenShiftDialog() {
-  //   final changeController = TextEditingController();
-  //   final cashController = TextEditingController();
-  //   final remarkController = TextEditingController();
-
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder:
-  //         (context) => AlertDialog(
-  //           title: const Row(children: [Icon(Icons.access_time, color: Colors.green), SizedBox(width: 8), Text('เปิดกะ')]),
-  //           content: Column(
-  //             mainAxisSize: MainAxisSize.min,
-  //             children: [
-  //               TextField(
-  //                 controller: changeController,
-  //                 keyboardType: TextInputType.number,
-  //                 decoration: const InputDecoration(
-  //                   labelText: 'จำนวนเงินทอน',
-  //                   hintText: 'เช่น 100',
-  //                   prefixIcon: Icon(Icons.money),
-  //                   border: OutlineInputBorder(),
-  //                 ),
-  //               ),
-  //               const SizedBox(height: 16),
-  //               TextField(
-  //                 controller: cashController,
-  //                 keyboardType: TextInputType.number,
-  //                 decoration: const InputDecoration(
-  //                   labelText: 'ยอดยกมา',
-  //                   hintText: 'เช่น 1000',
-  //                   prefixIcon: Icon(Icons.account_balance_wallet),
-  //                   border: OutlineInputBorder(),
-  //                 ),
-  //               ),
-  //               const SizedBox(height: 16),
-  //               TextField(
-  //                 controller: remarkController,
-  //                 decoration: const InputDecoration(
-  //                   labelText: 'หมายเหตุ',
-  //                   hintText: 'เช่น เปิดกะเช้า',
-  //                   prefixIcon: Icon(Icons.note),
-  //                   border: OutlineInputBorder(),
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //           actions: [
-  //             TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
-  //             ElevatedButton(
-  //               onPressed: () async {
-  //                 final change = double.tryParse(changeController.text) ?? 0;
-  //                 final cash = double.tryParse(cashController.text) ?? 0;
-  //                 final remark = remarkController.text.trim();
-
-  //                 if (remark.isEmpty) {
-  //                   Get.snackbar(
-  //                     'ข้อมูลไม่ครบ',
-  //                     'กรุณากรอกหมายเหตุ',
-  //                     backgroundColor: Get.theme.colorScheme.error,
-  //                     colorText: Get.theme.colorScheme.onError,
-  //                   );
-  //                   return;
-  //                 }
-
-  //                 Navigator.pop(context);
-
-  //                 // แสดง loading
-  //                 Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
-
-  //                 final success = await homeController.openShift(change: change, cash: cash, remark: remark);
-
-  //                 Get.back(); // ปิด loading
-
-  //                 if (success) {
-  //                   Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white);
-  //                 }
-  //               },
-  //               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-  //               child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
-  //             ),
-  //           ],
-  //         ),
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -547,7 +481,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               alignment: Alignment.centerLeft,
                                               child: Padding(
                                                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                                child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                                                child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 18)),
                                               ),
                                             );
                                           }).toList();
@@ -568,7 +502,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                                 const Spacer(), // ✅ ดันให้ปุ่มค้นหาชิดขวาสุด
 
-                                const Icon(Icons.search, size: 26, color: Colors.white),
+                                const Icon(Icons.search, size: 30, color: Colors.white),
                               ],
                             ),
                       ),
@@ -656,9 +590,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                                 return ListTile(
                                   dense: true,
-                                  title: Text(name, style: const TextStyle(fontSize: 14)),
-                                  subtitle: Text('จำนวน: $qty'),
-                                  trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                                  title: Text(name, style: TextStyle(fontSize: 16)),
+                                  subtitle: Text('จำนวน: $qty', style: TextStyle(fontSize: 16)),
+                                  trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 16)),
                                 );
                               },
                             );

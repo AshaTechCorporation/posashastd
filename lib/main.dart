@@ -28,7 +28,31 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        // ✅ กำหนดขนาดฟอนต์ขั้นต่ำ 18 และปรับหัวข้อให้ใหญ่ขึ้น
+        textTheme: const TextTheme(
+          // หัวข้อใหญ่
+          headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+
+          // หัวข้อย่อย
+          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          titleSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+
+          // เนื้อหาทั่วไป (ขั้นต่ำ 18)
+          bodyLarge: TextStyle(fontSize: 20),
+          bodyMedium: TextStyle(fontSize: 18),
+          bodySmall: TextStyle(fontSize: 18),
+
+          // ป้ายกำกับ
+          labelLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          labelMedium: TextStyle(fontSize: 18),
+          labelSmall: TextStyle(fontSize: 18),
+        ),
+      ),
       debugShowCheckedModeBanner: false,
       // เพิ่ม routes สำหรับ GetX
       initialRoute: '/',

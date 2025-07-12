@@ -54,7 +54,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                         builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer()),
                       ),
                       const SizedBox(width: 4),
-                      const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                     ],
                   ),
                 ),
@@ -87,7 +87,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 16),
                     onChanged: (value) {
                       orderController.searchQuery.value = value;
                     },
@@ -154,9 +154,9 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(selectedOrder?.orderNo ?? '#-', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(selectedOrder?.orderNo ?? '#-', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                Text(selectedOrder?.orderStatus ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                Text(selectedOrder?.orderStatus ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 18)),
                 const SizedBox(width: 8),
                 const Icon(Icons.more_vert, color: Colors.white),
               ],
@@ -202,11 +202,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       children: [
         Center(child: Text('฿${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
         const SizedBox(height: 4),
-        const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 14))),
+        const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
         const SizedBox(height: 16),
-        Text('พนักงาน: ${order.shift?.user?.username ?? 'ไม่ระบุ'}', style: const TextStyle(fontSize: 14)),
+        Text('พนักงาน: ${order.shift?.user?.username ?? 'ไม่ระบุ'}', style: const TextStyle(fontSize: 18)),
         const SizedBox(height: 4),
-        Text('ระบบขาย: $deviceName', style: const TextStyle(fontSize: 14)),
+        Text('ระบบขาย: $deviceName', style: const TextStyle(fontSize: 18)),
         const SizedBox(height: 16),
 
         // แสดงรายการสินค้า
@@ -215,8 +215,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
             (item) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 14)),
-                Text('${item.quantity ?? 0} x ฿${(item.price ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
+                Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18)),
+                Text('${item.quantity ?? 0} x ฿${(item.price ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
                 const SizedBox(height: 4),
               ],
             ),

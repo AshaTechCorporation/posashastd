@@ -23,8 +23,8 @@ class LoginPage extends StatelessWidget {
                 children: [
                   Icon(Icons.card_giftcard, size: 64, color: Colors.white),
                   SizedBox(height: 12),
-                  Text('POSASHA', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text('POINT OF SALE', style: TextStyle(fontSize: 14, letterSpacing: 1.5, color: Colors.white)),
+                  Text('POSASHA', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('POINT OF SALE', style: TextStyle(fontSize: 18, letterSpacing: 1.5, color: Colors.white)),
                 ],
               ),
             ),
@@ -55,7 +55,7 @@ class LoginPage extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถเปิด YouTube ได้')));
                         }
                       },
-                      child: const Text('ลงทะเบียน', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      child: const Text('ลงทะเบียน', style: TextStyle(fontSize: 20, color: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -70,7 +70,7 @@ class LoginPage extends StatelessWidget {
                       onPressed: () {
                         Get.to(() => const LoginScreen());
                       },
-                      child: const Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 18, color: Color(0xFF8BC34A))),
+                      child: const Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 20, color: Color(0xFF8BC34A))),
                     ),
                   ),
                 ],
