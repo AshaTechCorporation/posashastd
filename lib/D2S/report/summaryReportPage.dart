@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
+import 'package:posashastd/constants.dart';
 
 class SummaryReportPage extends StatefulWidget {
   const SummaryReportPage({super.key});
@@ -113,7 +114,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                   // กลับไปหน้าหลัก
                   Get.offAllNamed('/home');
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
                 child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
               ),
             ],
@@ -160,7 +161,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
           // 🔰 Header Bar
           Container(
             height: 50,
-            color: Colors.green,
+            color: kTabColor,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/models/order.dart';
 import 'package:intl/intl.dart';
 
@@ -45,7 +46,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
               children: [
                 Container(
                   height: 50,
-                  color: Colors.green,
+                  color: kTabColor,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   alignment: Alignment.centerLeft,
                   child: Row(
@@ -150,7 +151,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
           final selectedOrder = orderController.selectedOrder.value;
           return Container(
             height: 50,
-            color: Colors.green,
+            color: kTabColor,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [

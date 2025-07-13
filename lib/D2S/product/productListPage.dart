@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/controllers/product_controller.dart';
+import 'package:posashastd/constants.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -43,7 +44,7 @@ class _ProductListPageState extends State<ProductListPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const AppDrawer(),
-      floatingActionButton: FloatingActionButton(onPressed: () {}, backgroundColor: Colors.green, child: const Icon(Icons.add, color: Colors.white)),
+      floatingActionButton: FloatingActionButton(onPressed: () {}, backgroundColor: kTabColor, child: const Icon(Icons.add, color: Colors.white)),
       body: Row(
         children: [
           // 🔹 Sidebar
@@ -54,7 +55,7 @@ class _ProductListPageState extends State<ProductListPage> {
                 // Header
                 Container(
                   height: 50,
-                  color: Colors.green,
+                  color: kTabColor,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
                     children: [
@@ -93,7 +94,7 @@ class _ProductListPageState extends State<ProductListPage> {
                 // Header with Dropdown
                 Container(
                   height: 50,
-                  color: Colors.green,
+                  color: kTabColor,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   alignment: Alignment.centerLeft,
                   child:

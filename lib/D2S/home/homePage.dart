@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/paymentPageD2s.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
 import '../controllers/home_controller.dart';
@@ -281,7 +282,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             icon: const Icon(Icons.play_arrow, color: Colors.white),
             label: const Text('เปิดกะ', style: TextStyle(color: Colors.white, fontSize: 22)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+              backgroundColor: kTabColor,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -444,10 +445,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Get.back(); // ปิด loading
 
                 if (success) {
-                  Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white);
+                  Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: kTabColor, colorText: Colors.white);
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              style: ElevatedButton.styleFrom(backgroundColor: kTabColor, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
               child: const Text('ตกลง', style: TextStyle(color: Colors.white, fontSize: 20)),
             ),
           ],
@@ -476,7 +477,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   children: [
                     Container(
                       height: 50,
-                      color: Colors.green,
+                      color: kTabColor,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Builder(
                         builder:
@@ -714,7 +715,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             }
                           }
                         },
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: const Size.fromHeight(50)),
+                        style: ElevatedButton.styleFrom(backgroundColor: kTabColor, minimumSize: const Size.fromHeight(50)),
                         child: const Text("ชำระเงิน", style: TextStyle(color: Colors.white)),
                       ),
                     ),

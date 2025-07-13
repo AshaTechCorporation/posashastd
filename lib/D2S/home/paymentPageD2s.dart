@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
 import 'package:posashastd/services/homeService.dart';
@@ -161,7 +162,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
               await createOrders(paymentMethodId: paymentMethodId);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
             child: const Text('ยืนยัน', style: TextStyle(color: Colors.white, fontSize: 18)),
           ),
         ],
@@ -245,7 +246,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                   Expanded(
                     flex: 3,
                     child: Container(
-                      color: Colors.green,
+                      color: kTabColor,
                       child: Row(
                         children: [
                           IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
@@ -655,7 +656,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               height: 48,
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: kTabColor,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                                 onPressed: () {

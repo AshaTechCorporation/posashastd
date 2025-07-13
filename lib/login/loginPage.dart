@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/login/login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,7 +12,7 @@ class LoginPage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF4CAF50), // เขียวหลัก
+      backgroundColor: kTabColor, // เขียวหลัก
       body: Column(
         children: [
           // ส่วนบน (โลโก้และชื่อแอป)
@@ -44,7 +45,7 @@ class LoginPage extends StatelessWidget {
                   SizedBox(
                     width: screenWidth * 0.25,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8BC34A), padding: const EdgeInsets.symmetric(vertical: 16)),
+                      style: ElevatedButton.styleFrom(backgroundColor: kTabColor, padding: const EdgeInsets.symmetric(vertical: 16)),
                       onPressed: () async {
                         // TODO: ไปหน้าลงทะเบียน
                         final Uri youtubeUrl = Uri.parse('https://www.youtube.com/');
@@ -52,7 +53,7 @@ class LoginPage extends StatelessWidget {
                         if (await canLaunchUrl(youtubeUrl)) {
                           await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถเปิด YouTube ได้')));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นอยุ่ระหว่างพัฒนา')));
                         }
                       },
                       child: const Text('ลงทะเบียน', style: TextStyle(fontSize: 20, color: Colors.white)),

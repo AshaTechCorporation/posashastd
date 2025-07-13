@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/auth_service.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -50,7 +51,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Get.offAllNamed('/login');
 
         // แสดงข้อความสำเร็จ
-        Get.snackbar('ออกจากระบบสำเร็จ', 'กรุณาเข้าสู่ระบบใหม่', backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar('ออกจากระบบสำเร็จ', 'กรุณาเข้าสู่ระบบใหม่', backgroundColor: kTabColor, colorText: Colors.white);
       } catch (e) {
         Get.back(); // ปิด loading
         Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถออกจากระบบได้: ${e.toString()}', backgroundColor: Colors.red, colorText: Colors.white);
@@ -88,7 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   // ✅ Menu button
                   Container(
                     height: 50,
-                    color: Colors.green,
+                    color: kTabColor,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
@@ -147,7 +148,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   Container(
                     height: 50,
-                    color: Colors.green,
+                    color: kTabColor,
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(tabs[selectedTab], style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -171,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.all(16),
           child: Align(
             alignment: Alignment.bottomRight,
-            child: FloatingActionButton(onPressed: () {}, backgroundColor: Colors.green, child: const Icon(Icons.add)),
+            child: FloatingActionButton(onPressed: () {}, backgroundColor: kTabColor, child: const Icon(Icons.add, color: Colors.white)),
           ),
         ),
       ],

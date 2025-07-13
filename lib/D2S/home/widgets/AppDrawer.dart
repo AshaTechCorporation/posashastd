@@ -4,6 +4,7 @@ import 'package:posashastd/D2S/product/productListPage.dart';
 import 'package:posashastd/D2S/receipt/receiptHistoryPage.dart';
 import 'package:posashastd/D2S/report/summaryReportPage.dart';
 import 'package:posashastd/D2S/setting/settingsPage.dart';
+import 'package:posashastd/constants.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -17,7 +18,7 @@ class AppDrawer extends StatelessWidget {
         children: [
           // 🔹 ส่วนหัว
           Container(
-            color: Colors.green,
+            color: kTabColor,
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
