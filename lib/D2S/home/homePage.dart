@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // เพิ่มแท็บตามจำนวนพาเนลที่มี
       for (int i = 0; i < homeController.panels.length; i++) {
-        newTabs.add('พาเนล ${i + 1}');
+        newTabs.add('${homeController.panels[i].name}');
       }
 
       // อัพเดทแท็บและ TabController

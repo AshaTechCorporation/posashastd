@@ -182,7 +182,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         "date": DateTime.now().toIso8601String(),
         "orderItems":
             widget.cartItems.map((item) {
-              return {"productId": item["id"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["total"] ?? 0};
+              return {
+                "productId": item["id"] ?? 0,
+                "price": item["price"] ?? 0,
+                "quantity": item["qty"] ?? 0,
+                "total": item["price"] * item["qty"] ?? 0,
+              };
             }).toList(),
         "paymentMethodId": paymentMethodId,
         "paid": receivedAmount,
