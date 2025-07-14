@@ -90,47 +90,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  void _removeTab(int index) async {
-    // ป้องกันการลบแท็บแรก (สินค้าทั้งหมด)
-    if (index == 0) {
-      Get.snackbar(
-        'ไม่สามารถลบได้',
-        'ไม่สามารถลบแท็บ "สินค้าทั้งหมด" ได้',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
-      return;
-    }
+  // void _removeTab(int index) async {
+  //   // ป้องกันการลบแท็บแรก (สินค้าทั้งหมด)
+  //   if (index == 0) {
+  //     Get.snackbar(
+  //       'ไม่สามารถลบได้',
+  //       'ไม่สามารถลบแท็บ "สินค้าทั้งหมด" ได้',
+  //       backgroundColor: Get.theme.colorScheme.error,
+  //       colorText: Get.theme.colorScheme.onError,
+  //     );
+  //     return;
+  //   }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('ยืนยันการลบ'),
-            content: Text('ต้องการลบ "\${tabs[index]}" หรือไม่?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
-            ],
-          ),
-    );
+  //   final confirm = await showDialog<bool>(
+  //     context: context,
+  //     builder:
+  //         (context) => AlertDialog(
+  //           title: const Text('ยืนยันการลบ'),
+  //           content: Text('ต้องการลบ "\${tabs[index]}" หรือไม่?'),
+  //           actions: [
+  //             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+  //             ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('ลบ')),
+  //           ],
+  //         ),
+  //   );
 
-    if (confirm == true) {
-      setState(() {
-        // ลบแท็บและพาเนลที่สอดคล้องกัน (index - 1 เพราะแท็บแรกไม่ใช่พาเนล)
-        final panelIndex = index - 1;
-        if (panelIndex >= 0 && panelIndex < homeController.panels.length) {
-          homeController.panels.removeAt(panelIndex);
-        }
+  //   if (confirm == true) {
+  //     setState(() {
+  //       // ลบแท็บและพาเนลที่สอดคล้องกัน (index - 1 เพราะแท็บแรกไม่ใช่พาเนล)
+  //       final panelIndex = index - 1;
+  //       if (panelIndex >= 0 && panelIndex < homeController.panels.length) {
+  //         homeController.panels.removeAt(panelIndex);
+  //       }
 
-        tabs.removeAt(index);
-        _tabController.dispose();
-        _tabController = TabController(length: tabs.length, vsync: this);
+  //       tabs.removeAt(index);
+  //       _tabController.dispose();
+  //       _tabController = TabController(length: tabs.length, vsync: this);
 
-        log('🗑️ Removed tab at index $index, panel at index $panelIndex');
-      });
-    }
-  }
+  //       log('🗑️ Removed tab at index $index, panel at index $panelIndex');
+  //     });
+  //   }
+  // }
 
   Widget _buildGridContent(double width, double height) {
     // แท็บแรก (สินค้าทั้งหมด) แสดงสินค้าจาก products, แท็บอื่นๆ แสดงจาก panels
@@ -313,7 +313,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Get.snackbar(
                 'ลบสำเร็จ',
                 'ลบ "$itemName" ออกจากตะกร้าแล้ว',
-                backgroundColor: Colors.green,
+                backgroundColor: kTabColor,
                 colorText: Colors.white,
                 duration: const Duration(seconds: 2),
               );
@@ -641,7 +641,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     children: [
                                       Icon(Icons.info_outline, color: Colors.blue, size: 16),
                                       SizedBox(width: 8),
-                                      Text('กดค้างที่สินค้าเพื่อลบออกจากตะกร้า', style: TextStyle(color: Colors.blue, fontSize: 14)),
+                                      Expanded(
+                                        child: Text(
+                                          'ใช้ปุ่ม +/- เพื่อเพิ่มลดจำนวน • กดค้างเพื่อลบสินค้า',
+                                          style: TextStyle(color: Colors.blue, fontSize: 14),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -660,11 +665,121 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                           // ✅ แสดง dialog ยืนยันการลบเมื่อกดค้าง
                                           _showDeleteItemDialog(context, item, index);
                                         },
-                                        child: ListTile(
-                                          dense: true,
-                                          title: Text(name, style: const TextStyle(fontSize: 16)),
-                                          subtitle: Text('จำนวน: $qty', style: const TextStyle(fontSize: 16)),
-                                          trailing: Text('฿${(price * qty).toStringAsFixed(2)}', style: const TextStyle(fontSize: 16)),
+                                        child: Container(
+                                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.grey[300]!),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.grey.withValues(alpha: 0.1),
+                                                spreadRadius: 1,
+                                                blurRadius: 2,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // ข้อมูลสินค้า
+                                              Expanded(
+                                                flex: 3,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      name,
+                                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '฿${price.toStringAsFixed(2)} / ชิ้น',
+                                                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                                                    ),
+                                                    Text(
+                                                      '฿${(price * qty).toStringAsFixed(2)}',
+                                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                                                      textAlign: TextAlign.right,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // ปุ่มควบคุมจำนวน
+                                              Expanded(
+                                                flex: 3,
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    // ปุ่มลบ
+                                                    Container(
+                                                      width: 32,
+                                                      height: 32,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red[50],
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.red[200]!),
+                                                      ),
+                                                      child: IconButton(
+                                                        padding: EdgeInsets.zero,
+                                                        onPressed: () {
+                                                          if (qty > 1) {
+                                                            homeController.updateCartItemQuantity(index, qty - 1);
+                                                          } else {
+                                                            _showDeleteItemDialog(context, item, index);
+                                                          }
+                                                        },
+                                                        icon: Icon(qty > 1 ? Icons.remove : Icons.delete, color: Colors.red, size: 16),
+                                                      ),
+                                                    ),
+
+                                                    // แสดงจำนวน
+                                                    Container(
+                                                      width: 40,
+                                                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                                                      child: Text(
+                                                        '$qty',
+                                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ),
+
+                                                    // ปุ่มเพิ่ม
+                                                    Container(
+                                                      width: 32,
+                                                      height: 32,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green[50],
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.green[200]!),
+                                                      ),
+                                                      child: IconButton(
+                                                        padding: EdgeInsets.zero,
+                                                        onPressed: () {
+                                                          homeController.updateCartItemQuantity(index, qty + 1);
+                                                        },
+                                                        icon: const Icon(Icons.add, color: Colors.green, size: 16),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              // ราคารวม
+                                              // Expanded(
+                                              //   flex: 1,
+                                              //   child: Text(
+                                              //     '฿${(price * qty).toStringAsFixed(2)}',
+                                              //     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                                              //     textAlign: TextAlign.right,
+                                              //   ),
+                                              // ),
+                                            ],
+                                          ),
                                         ),
                                       );
                                     },

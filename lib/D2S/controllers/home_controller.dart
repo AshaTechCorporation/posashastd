@@ -269,6 +269,18 @@ class HomeController extends GetxController {
     }
   }
 
+  // ✅ อัพเดทจำนวนสินค้าในตะกร้า
+  void updateCartItemQuantity(int index, int newQuantity) {
+    if (index >= 0 && index < cartItems.length && newQuantity > 0) {
+      // สร้าง List ใหม่เพื่อให้ GetX ตรวจจับการเปลี่ยนแปลง
+      final updatedList = List<Map<String, dynamic>>.from(cartItems);
+      updatedList[index] = {...updatedList[index], 'qty': newQuantity};
+      cartItems.assignAll(updatedList);
+
+      log('📝 Updated item at index $index to quantity $newQuantity');
+    }
+  }
+
   // เคลียร์ตะกร้า
   void clearCart() {
     cartItems.clear();
