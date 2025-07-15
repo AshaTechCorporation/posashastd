@@ -571,7 +571,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 tabs: List.generate(
                                   tabs.length,
                                   (index) => GestureDetector(
-                                    onLongPress: homeController.isShiftOpen.value ? () => _removeTab(index) : null,
+                                    onLongPress:
+                                        homeController.isShiftOpen.value
+                                            ? () {
+                                              //_removeTab(index);
+                                            }
+                                            : null,
                                     child: Tab(text: tabs[index]),
                                   ),
                                 ),
