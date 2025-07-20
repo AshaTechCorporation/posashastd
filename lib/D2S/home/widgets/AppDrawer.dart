@@ -4,6 +4,7 @@ import 'package:posashastd/D2S/product/productListPage.dart';
 import 'package:posashastd/D2S/receipt/receiptHistoryPage.dart';
 import 'package:posashastd/D2S/report/summaryReportPage.dart';
 import 'package:posashastd/D2S/setting/settingsPage.dart';
+import 'package:posashastd/D2S/stock/stockPage.dart';
 import 'package:posashastd/constants.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -97,7 +98,18 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
                 _DrawerItem(icon: Icons.bar_chart, label: 'รายงานการขาย', onTap: () {}),
-                _DrawerItem(icon: Icons.inventory, label: 'สต็อก', onTap: () {}),
+                _DrawerItem(
+                  icon: Icons.inventory,
+                  label: 'สต็อก',
+                  onTap: () {
+                    Navigator.pop(context); // ปิด Drawer ก่อน
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => StockPage()),
+                      (route) => false, // ลบ route ทั้งหมด
+                    );
+                  },
+                ),
                 _DrawerItem(icon: Icons.info_outline, label: 'รายละเอียดบัญชี', onTap: () {}),
               ],
             ),
