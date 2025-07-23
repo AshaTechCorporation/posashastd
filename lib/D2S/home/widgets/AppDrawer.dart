@@ -6,6 +6,7 @@ import 'package:posashastd/D2S/report/summaryReportPage.dart';
 import 'package:posashastd/D2S/setting/settingsPage.dart';
 import 'package:posashastd/D2S/stock/stockPage.dart';
 import 'package:posashastd/constants.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -101,13 +102,20 @@ class AppDrawer extends StatelessWidget {
                 _DrawerItem(
                   icon: Icons.inventory,
                   label: 'สต็อก',
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context); // ปิด Drawer ก่อน
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => StockPage()),
-                      (route) => false, // ลบ route ทั้งหมด
-                    );
+                    // Navigator.pushAndRemoveUntil(
+                    //   context,
+                    //   MaterialPageRoute(builder: (_) => StockPage()),
+                    //   (route) => false, // ลบ route ทั้งหมด
+                    // );
+                    final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/inventory');
+
+                    if (await canLaunchUrl(youtubeUrl)) {
+                      await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นอยุ่ระหว่างพัฒนา')));
+                    }
                   },
                 ),
                 _DrawerItem(icon: Icons.info_outline, label: 'รายละเอียดบัญชี', onTap: () {}),

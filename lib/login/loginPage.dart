@@ -48,7 +48,7 @@ class LoginPage extends StatelessWidget {
                       style: ElevatedButton.styleFrom(backgroundColor: kTabColor, padding: const EdgeInsets.symmetric(vertical: 16)),
                       onPressed: () async {
                         // TODO: ไปหน้าลงทะเบียน
-                        final Uri youtubeUrl = Uri.parse('https://www.youtube.com/');
+                        final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/sign-up');
 
                         if (await canLaunchUrl(youtubeUrl)) {
                           await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);

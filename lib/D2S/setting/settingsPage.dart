@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/auth_service.dart';
@@ -13,8 +14,15 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   int selectedTab = 0;
+  late PrinterController printerController;
 
   final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
+
+  @override
+  void initState() {
+    super.initState();
+    printerController = Get.put(PrinterController());
+  }
 
   // ฟังก์ชันออกจากระบบ
   Future<void> _logout() async {
@@ -164,18 +172,59 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _printerTab() {
-    return Column(
-      children: [
-        ListTile(leading: const Icon(Icons.print), title: const Text('test'), subtitle: const Text('Sunmi'), trailing: const Text('ใบเสร็จรับเงิน')),
-        const Spacer(),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Align(
-            alignment: Alignment.bottomRight,
-            child: FloatingActionButton(onPressed: () {}, backgroundColor: kTabColor, child: const Icon(Icons.add, color: Colors.white)),
+    return Obx(
+      () => Column(
+        children: [
+          // ✅ Header พร้อมปุ่มสแกน
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'ปริ๊นเตอร์ที่บันทึกไว้ (${printerController.savedPrinters.length})',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: printerController.isScanning.value ? null : () => _showScanDialog(),
+                  icon:
+                      printerController.isScanning.value
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.search),
+                  label: Text(printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์'),
+                  style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+
+          // ✅ รายการปริ๊นเตอร์ที่บันทึกไว้
+          Expanded(
+            child:
+                printerController.savedPrinters.isEmpty
+                    ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.print_disabled, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text('ยังไม่มีปริ๊นเตอร์ที่บันทึกไว้', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                          SizedBox(height: 8),
+                          Text('กดปุ่ม "สแกนปริ๊นเตอร์" เพื่อค้นหาปริ๊นเตอร์', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    )
+                    : ListView.builder(
+                      itemCount: printerController.savedPrinters.length,
+                      itemBuilder: (context, index) {
+                        final printer = printerController.savedPrinters[index];
+                        return _buildPrinterTile(printer, true);
+                      },
+                    ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -209,5 +258,217 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  // ✅ แสดง Dialog สำหรับสแกนปริ๊นเตอร์
+  void _showScanDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.search, color: Colors.blue), SizedBox(width: 8), Text('สแกนหาปริ๊นเตอร์')]),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: Obx(
+            () => Column(
+              children: [
+                // Status
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      if (printerController.isScanning.value)
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      else
+                        Icon(Icons.info_outline, color: Colors.blue[600]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          printerController.scanStatus.value.isEmpty ? 'กดปุ่ม "เริ่มสแกน" เพื่อค้นหาปริ๊นเตอร์' : printerController.scanStatus.value,
+                          style: TextStyle(color: Colors.blue[600]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // รายการปริ๊นเตอร์ที่พบ
+                Expanded(
+                  child:
+                      printerController.availablePrinters.isEmpty
+                          ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off, size: 48, color: Colors.grey),
+                                SizedBox(height: 16),
+                                Text('ยังไม่พบปริ๊นเตอร์', style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          )
+                          : ListView.builder(
+                            itemCount: printerController.availablePrinters.length,
+                            itemBuilder: (context, index) {
+                              final printer = printerController.availablePrinters[index];
+                              return _buildPrinterTile(printer, false);
+                            },
+                          ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
+          ElevatedButton(
+            onPressed: printerController.isScanning.value ? null : () => printerController.scanForPrinters(),
+            style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+            child: Text(printerController.isScanning.value ? 'กำลังสแกน...' : 'เริ่มสแกน'),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  // ✅ สร้าง Tile สำหรับแสดงปริ๊นเตอร์
+  Widget _buildPrinterTile(PrinterInfo printer, bool isSaved) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: _getPrinterTypeColor(printer.type),
+          child: Icon(_getPrinterTypeIcon(printer.type), color: Colors.white, size: 20),
+        ),
+        title: Text(printer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${printer.type} • ${printer.address}'),
+            if (printer.isDefault)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)),
+                child: const Text('ค่าเริ่มต้น', style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+          ],
+        ),
+        trailing: isSaved ? _buildSavedPrinterActions(printer) : _buildAvailablePrinterActions(printer),
+      ),
+    );
+  }
+
+  // ✅ Actions สำหรับปริ๊นเตอร์ที่บันทึกไว้
+  Widget _buildSavedPrinterActions(PrinterInfo printer) {
+    return PopupMenuButton<String>(
+      onSelected: (value) async {
+        switch (value) {
+          case 'test':
+            await printerController.testPrinterConnection(printer);
+            break;
+          case 'default':
+            await printerController.setDefaultPrinter(printer);
+            break;
+          case 'delete':
+            _showDeleteConfirmDialog(printer);
+            break;
+        }
+      },
+      itemBuilder:
+          (context) => [
+            const PopupMenuItem(
+              value: 'test',
+              child: Row(children: [Icon(Icons.wifi_tethering, size: 20), SizedBox(width: 8), Text('ทดสอบการเชื่อมต่อ')]),
+            ),
+            if (!printer.isDefault)
+              const PopupMenuItem(
+                value: 'default',
+                child: Row(children: [Icon(Icons.star, size: 20), SizedBox(width: 8), Text('ตั้งเป็นค่าเริ่มต้น')]),
+              ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('ลบ', style: TextStyle(color: Colors.red))],
+              ),
+            ),
+          ],
+    );
+  }
+
+  // ✅ Actions สำหรับปริ๊นเตอร์ที่พบ
+  Widget _buildAvailablePrinterActions(PrinterInfo printer) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        // ทดสอบการเชื่อมต่อก่อน
+        final isConnected = await printerController.testPrinterConnection(printer);
+        if (isConnected) {
+          // บันทึกปริ๊นเตอร์
+          await printerController.savePrinter(printer);
+          Get.back(); // ปิด dialog
+        }
+      },
+      icon: const Icon(Icons.add, size: 16),
+      label: const Text('เพิ่ม'),
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+    );
+  }
+
+  // ✅ แสดง Dialog ยืนยันการลบ
+  void _showDeleteConfirmDialog(PrinterInfo printer) {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('ลบปริ๊นเตอร์')]),
+        content: Text('ต้องการลบปริ๊นเตอร์ "${printer.name}" หรือไม่?'),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () {
+              printerController.removeSavedPrinter(printer);
+              Get.back();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('ลบ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Helper functions
+  Color _getPrinterTypeColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'wifi':
+        return Colors.blue;
+      case 'lan':
+        return Colors.green;
+      case 'usb':
+        return Colors.orange;
+      case 'bluetooth':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getPrinterTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'wifi':
+        return Icons.wifi;
+      case 'lan':
+        return Icons.lan;
+      case 'usb':
+        return Icons.usb;
+      case 'bluetooth':
+        return Icons.bluetooth;
+      default:
+        return Icons.print;
+    }
   }
 }
