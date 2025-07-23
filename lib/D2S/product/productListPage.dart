@@ -44,7 +44,7 @@ class _ProductListPageState extends State<ProductListPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const AppDrawer(),
-      floatingActionButton: FloatingActionButton(onPressed: () {}, backgroundColor: kTabColor, child: const Icon(Icons.add, color: Colors.white)),
+      //floatingActionButton: FloatingActionButton(onPressed: () {}, backgroundColor: kTabColor, child: const Icon(Icons.add, color: Colors.white)),
       body: Row(
         children: [
           // 🔹 Sidebar
@@ -73,12 +73,7 @@ class _ProductListPageState extends State<ProductListPage> {
                 // Tabs
                 Expanded(
                   child: ListView(
-                    children: [
-                      _buildMenuItem(0, 'รายการสินค้าทั้งหมด', icon: Icons.list),
-                      _buildMenuItem(1, 'หมวดหมู่', icon: Icons.category),
-                      _buildMenuItem(2, 'ตัวเลือกเพิ่มเติม', icon: Icons.playlist_add_check),
-                      _buildMenuItem(3, 'ส่วนลด', icon: Icons.label),
-                    ],
+                    children: [_buildMenuItem(0, 'รายการสินค้าทั้งหมด', icon: Icons.list), _buildMenuItem(1, 'หมวดหมู่', icon: Icons.category)],
                   ),
                 ),
               ],

@@ -186,13 +186,13 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                         // TODO: เพิ่มฟังก์ชันรีเฟรช
                       },
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.print, color: Colors.white),
-                      tooltip: 'พิมพ์',
-                      onPressed: () {
-                        // TODO: เพิ่มฟังก์ชันพิมพ์
-                      },
-                    ),
+                    // IconButton(
+                    //   icon: const Icon(Icons.print, color: Colors.white),
+                    //   tooltip: 'พิมพ์',
+                    //   onPressed: () {
+                    //     // TODO: เพิ่มฟังก์ชันพิมพ์
+                    //   },
+                    // ),
                   ],
                 ),
               ],
@@ -213,14 +213,14 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                          icon: const Icon(Icons.attach_money, color: Colors.white, size: 18),
-                          label: const Text('จัดการเงินสด', style: TextStyle(color: Colors.white)),
-                          onPressed: () {
-                            // TODO: แสดงหน้าจัดการเงินสด
-                          },
-                        ),
+                        // ElevatedButton.icon(
+                        //   style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                        //   icon: const Icon(Icons.attach_money, color: Colors.white, size: 18),
+                        //   label: const Text('จัดการเงินสด', style: TextStyle(color: Colors.white)),
+                        //   onPressed: () {
+                        //     // TODO: แสดงหน้าจัดการเงินสด
+                        //   },
+                        // ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

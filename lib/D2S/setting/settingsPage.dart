@@ -16,7 +16,8 @@ class _SettingsPageState extends State<SettingsPage> {
   int selectedTab = 0;
   late PrinterController printerController;
 
-  final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
+  final List<String> tabs = ['เครื่องพิมพ์'];
+  //final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
 
   @override
   void initState() {
@@ -183,7 +184,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 Expanded(
                   child: Text(
                     'ปริ๊นเตอร์ที่บันทึกไว้ (${printerController.savedPrinters.length})',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -191,8 +192,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon:
                       printerController.isScanning.value
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.search),
-                  label: Text(printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์'),
+                          : const Icon(Icons.search, color: Colors.white),
+                  label: Text(
+                    printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
                 ),
               ],
@@ -274,7 +278,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 // Status
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
@@ -283,7 +287,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Row(
                     children: [
                       if (printerController.isScanning.value)
-                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       else
                         Icon(Icons.info_outline, color: Colors.blue[600]),
                       const SizedBox(width: 12),
@@ -296,13 +300,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
 
                 // รายการปริ๊นเตอร์ที่พบ
                 Expanded(
                   child:
                       printerController.availablePrinters.isEmpty
-                          ? const Center(
+                          ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -325,11 +329,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
+          TextButton(onPressed: () => Get.back(), child: Text('ปิด')),
           ElevatedButton(
             onPressed: printerController.isScanning.value ? null : () => printerController.scanForPrinters(),
             style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
-            child: Text(printerController.isScanning.value ? 'กำลังสแกน...' : 'เริ่มสแกน'),
+            child: Text(printerController.isScanning.value ? 'กำลังสแกน...' : 'เริ่มสแกน', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
