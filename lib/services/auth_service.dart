@@ -15,9 +15,11 @@ class AuthService {
   Map<String, String> get _headers => {'Content-Type': 'application/json', 'Accept': 'application/json'};
 
   String? _currentToken;
+  String? _currentUser;
 
   // Getters
   String? get currentToken => _currentToken;
+  String? get currentUser => _currentUser;
   bool get isLoggedIn => _currentToken != null;
 
   /// ตรวจสอบสถานะการ login จาก SharedPreferences
@@ -25,10 +27,11 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
-      // final userDataString = prefs.getString('user_data');
+      final userDataString = prefs.getString('user_data');
 
       if (token != null) {
         _currentToken = token;
+        _currentUser = userDataString;
 
         // ตรวจสอบว่า token ยังใช้งานได้อยู่หรือไม่
         // return await _validateToken();
@@ -62,9 +65,9 @@ class AuthService {
         final data = LoginResponse.fromJson(jsonDecode(response.body));
 
         // บันทึกข้อมูล login
-        await _saveLoginData(data.accessToken!, data.refreshToken!);
+        await _saveLoginData(data.accessToken!, data.refreshToken!, data.name!);
         _currentToken = data.accessToken;
-        //_currentUser = loginResponse.user;
+        _currentUser = data.name;
 
         return data;
       } else if (response.statusCode == 401) {
@@ -116,11 +119,11 @@ class AuthService {
   }
 
   /// บันทึกข้อมูล login
-  Future<void> _saveLoginData(String token, String refreshToken) async {
+  Future<void> _saveLoginData(String token, String refreshToken, String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', token);
     await prefs.setString('refresh_token', refreshToken);
-    // await prefs.setString('user_data', jsonEncode(user.toJson()));
+    await prefs.setString('user_data', jsonEncode(name));
     await prefs.setInt('login_timestamp', DateTime.now().millisecondsSinceEpoch);
   }
 
@@ -131,6 +134,10 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('token');
       await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.remove('user_data');
+      await prefs.remove('login_timestamp');
+      await prefs.remove('shift_id');
 
       // await prefs.clear();
 

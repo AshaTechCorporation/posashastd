@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
+import 'package:posashastd/D2S/controllers/report_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/constants.dart';
 
@@ -15,27 +16,54 @@ class SummaryReportPage extends StatefulWidget {
 
 class _SummaryReportPageState extends State<SummaryReportPage> {
   late HomeController homeController;
+  late ReportController reportController;
 
   @override
   void initState() {
     super.initState();
-    log('🏠 HomePage initState called');
+    log('📊 SummaryReportPage initState called');
 
     // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
     if (Get.isRegistered<HomeController>()) {
       log('🗑️ Deleting existing HomeController');
       Get.delete<HomeController>();
     }
+    if (Get.isRegistered<ReportController>()) {
+      log('🗑️ Deleting existing ReportController');
+      Get.delete<ReportController>();
+    }
+
     log('🆕 Creating new HomeController');
     homeController = Get.put(HomeController());
+    log('🆕 Creating new ReportController');
+    reportController = Get.put(ReportController());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       log('⏰ PostFrameCallback: loading data');
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
+      log('🔢 Current shift ID: ${homeController.currentShiftId.value}');
 
-      // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
+      // โหลดข้อมูลสรุปรายงานด้วย shift ID ที่ถูกต้อง
+      await _loadSummaryReport();
     });
+  }
+
+  // ✅ โหลดข้อมูลสรุปรายงาน
+  Future<void> _loadSummaryReport() async {
+    final shiftId = homeController.currentShiftId.value;
+    if (shiftId != null && shiftId.isNotEmpty) {
+      log('📊 Loading summary report for shift ID: $shiftId');
+      await reportController.getSummaryReportWithShiftId(shiftId);
+    } else {
+      log('⚠️ No valid shift ID found, cannot load summary report');
+    }
+  }
+
+  // ✅ รีเฟรชข้อมูล
+  Future<void> _refreshData() async {
+    log('🔄 Refreshing summary report data...');
+    await _loadSummaryReport();
   }
 
   // ฟังก์ชันแสดง Dialog ปิดกะ
@@ -183,7 +211,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                       icon: const Icon(Icons.refresh, color: Colors.white),
                       tooltip: 'รีเฟรช',
                       onPressed: () {
-                        // TODO: เพิ่มฟังก์ชันรีเฟรช
+                        _refreshData();
                       },
                     ),
                     // IconButton(
@@ -236,41 +264,76 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
 
                     // 🔢 รายงาน
                     Expanded(
-                      child: ListView(
-                        children: [
-                          Center(
-                            child: Text(
-                              'การสรุปราย รับยอดขาย',
-                              style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold),
+                      child: Obx(() {
+                        if (reportController.isLoading.value) {
+                          return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังโหลดข้อมูลสรุปรายงาน...')],
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildRow('จำนวนรายการทั้งหมด:', '3'),
-                          _buildRow('ปิดแล้ว:', 'unknown unknown'),
-                          Align(alignment: Alignment.centerRight, child: Text('21/3/24 16:42 น.', style: Theme.of(context).textTheme.bodySmall)),
-                          const SizedBox(height: 16),
-                          const Divider(height: 1),
-                          const SizedBox(height: 16),
-                          const Text('ตั้งแต่วันเริ่มต้น ถึงปิดรอบ', style: TextStyle(color: Colors.green)),
-                          const SizedBox(height: 12),
-                          _buildRow('วันเริ่มต้นถึง ปิดรอบ', '฿80.00'),
-                          _buildRow('ชำระเป็นสด', '฿6,347.00'),
-                          _buildRow('ชำระแอพ', '฿80.00'),
-                          _buildRow('ส่วน เงินท้า', '฿80.00'),
-                          _buildRow('เงิน ออก', '฿80.00'),
-                          _buildRowBold('เงินที่ควรได้', '฿6,347.00'),
-                          const SizedBox(height: 24),
-                          const Text('สรุปยอดขาย', style: TextStyle(color: Colors.green)),
-                          const SizedBox(height: 12),
-                          _buildRowBold('ยอดขาย', '฿6,933.00'),
-                          _buildRow('รับแล้ว', '฿80.00'),
-                          _buildRow('เงินสด', '฿6,347.00'),
-                          _buildRow('ชำระด้วยบัตร', '฿65.00'),
-                          _buildRow('โอนชำระ', '฿521.00'),
-                          const Divider(height: 24),
-                          _buildRowBold('รายได้รวม', '฿6,933.00'),
-                        ],
-                      ),
+                          );
+                        }
+
+                        if (reportController.errorMessage.value.isNotEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                                const SizedBox(height: 16),
+                                Text('เกิดข้อผิดพลาด', style: TextStyle(fontSize: 18, color: Colors.red[600])),
+                                const SizedBox(height: 8),
+                                Text(reportController.errorMessage.value, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+                                const SizedBox(height: 16),
+                                ElevatedButton(onPressed: _refreshData, child: const Text('ลองใหม่')),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return ListView(
+                          children: [
+                            Center(
+                              child: Text(
+                                'การสรุปรายรับยอดขาย',
+                                style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // แสดงข้อมูลจาก API
+                            if (reportController.summary.isNotEmpty) ...[
+                              const Text(
+                                'สรุปยอดขายตามประเภทการชำระ',
+                                style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // แสดงข้อมูลแต่ละประเภทการชำระ
+                              ...reportController.summary.map((summary) => _buildSummaryRow(summary)),
+
+                              const SizedBox(height: 16),
+                              const Divider(height: 1),
+                              const SizedBox(height: 16),
+
+                              // คำนวณยอดรวม
+                              _buildRowBold('รายได้รวม', _calculateTotalAmount()),
+                            ] else ...[
+                              const Center(
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+                                    SizedBox(height: 16),
+                                    Text('ไม่มีข้อมูลสรุปรายงาน', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                                    SizedBox(height: 8),
+                                    Text('อาจยังไม่มีการขายในกะนี้', style: TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -280,6 +343,67 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
         ],
       ),
     );
+  }
+
+  // ✅ สร้าง row สำหรับข้อมูล summary จาก API
+  Widget _buildSummaryRow(summary) {
+    final paymentName = summary.payment_name ?? 'ไม่ระบุ';
+    final totalTransactions = summary.total_transactions ?? '0';
+    final totalAmount = summary.total_amount ?? '0';
+
+    // แปลงจำนวนเงินเป็น double เพื่อจัดรูปแบบ
+    double amount = 0.0;
+    try {
+      amount = double.parse(totalAmount);
+    } catch (e) {
+      log('Error parsing amount: $totalAmount');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[200]!)),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(paymentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                Text('฿${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('จำนวนรายการ: $totalTransactions', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                Text(
+                  'เฉลี่ย: ฿${totalTransactions != '0' ? (amount / int.parse(totalTransactions)).toStringAsFixed(2) : '0.00'}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ คำนวณยอดรวมทั้งหมด
+  String _calculateTotalAmount() {
+    double total = 0.0;
+
+    for (var summary in reportController.summary) {
+      try {
+        final amount = double.parse(summary.total_amount ?? '0');
+        total += amount;
+      } catch (e) {
+        log('Error parsing amount for calculation: ${summary.total_amount}');
+      }
+    }
+
+    return '฿${total.toStringAsFixed(2)}';
   }
 
   // 🔹 Helper Widget

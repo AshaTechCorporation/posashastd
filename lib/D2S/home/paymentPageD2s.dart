@@ -1,5 +1,8 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
@@ -25,6 +28,30 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   // ตัวแปรสำหรับจัดการส่วนลด
   double? selectedDiscountAmount;
   double discountAmount = 0;
+  late HomeController homeController;
+
+  @override
+  void initState() {
+    super.initState();
+    log('🏠 HomePage initState called');
+
+    // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
+    if (Get.isRegistered<HomeController>()) {
+      log('🗑️ Deleting existing HomeController');
+      Get.delete<HomeController>();
+    }
+    log('🆕 Creating new HomeController');
+    homeController = Get.put(HomeController());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      log('⏰ PostFrameCallback: loading data');
+      await homeController.checkConnectivityAndLoadData();
+      log('✅ Data loading completed');
+      print(homeController.currentShiftId.value);
+
+      // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
+    });
+  }
 
   // คำนวณยอดรวมหลังหักส่วนลด
   double calculateTotalWithDiscount() {
@@ -176,7 +203,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       final total = calculateTotalWithDiscount();
       final formattedOrder = {
         "deviceId": 1,
-        "shiftId": 1,
+        "shiftId": homeController.currentShiftId.value,
         "branchId": 1,
         "total": total,
         "memberId": null,
