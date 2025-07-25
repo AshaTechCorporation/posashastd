@@ -418,8 +418,8 @@ class _SettingsPageState extends State<SettingsPage> {
           Get.back(); // ปิด dialog
         }
       },
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('เพิ่ม'),
+      icon: Icon(Icons.add, size: 16, color: Colors.white),
+      label: Text('เพิ่ม', style: TextStyle(fontSize: 16, color: Colors.white)),
       style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
     );
   }

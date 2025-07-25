@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
+import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
@@ -29,6 +30,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double? selectedDiscountAmount;
   double discountAmount = 0;
   late HomeController homeController;
+  late PrinterController printerController;
 
   @override
   void initState() {
@@ -42,6 +44,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     }
     log('🆕 Creating new HomeController');
     homeController = Get.put(HomeController());
+
+    // ✅ เพิ่ม PrinterController
+    printerController = Get.put(PrinterController());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       log('⏰ PostFrameCallback: loading data');
@@ -88,24 +93,212 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     });
   }
 
-  // เช็คเครื่องปริ้นและปริ้นใบเสร็จ
+  // ✅ เช็คเครื่องปริ๊นเตอร์และปริ๊นใบเสร็จ
   Future<void> checkPrinterAndPrint() async {
     try {
-      // ลองปริ้นและเช็คว่าสำเร็จหรือไม่
-      await printReceiptFromCartItems(widget.cartItems);
+      log('🖨️ Starting printer check and print process...');
 
-      // ถ้าปริ้นสำเร็จ แสดงข้อความสำเร็จ
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ปริ้นใบเสร็จสำเร็จ'), backgroundColor: Colors.green));
+      // ตรวจสอบว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
+      final defaultPrinter = _getDefaultPrinter();
+
+      if (defaultPrinter == null) {
+        log('⚠️ No default printer found');
+        _showNoPrinterDialog();
+        return;
       }
+
+      log('🖨️ Found default printer: ${defaultPrinter.name}');
+
+      // ทดสอบการเชื่อมต่อกับปริ๊นเตอร์เริ่มต้น
+      final isConnected = await printerController.testPrinterConnection(defaultPrinter);
+
+      if (!isConnected) {
+        log('❌ Cannot connect to default printer');
+        _showPrinterConnectionErrorDialog(defaultPrinter);
+        return;
+      }
+
+      log('✅ Printer connection successful, starting print...');
+
+      // ปริ๊นใบเสร็จ
+      await _printToDefaultPrinter(defaultPrinter);
     } catch (e) {
-      // ถ้าปริ้นไม่สำเร็จ (ไม่เจอเครื่องปริ้นหรือเกิดข้อผิดพลาด)
+      log('❌ Error in checkPrinterAndPrint: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ไม่สามารถปริ้นใบเสร็จได้: ไม่พบเครื่องปริ๊น หรือไม่ได้เชื่อต่อเครื่องปริ๊น'), backgroundColor: Colors.orange),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
       }
     }
+  }
+
+  // ✅ หาปริ๊นเตอร์เริ่มต้น
+  PrinterInfo? _getDefaultPrinter() {
+    try {
+      return printerController.savedPrinters.firstWhere((printer) => printer.isDefault);
+    } catch (e) {
+      log('No default printer found: $e');
+      return null;
+    }
+  }
+
+  // ✅ แสดง dialog เมื่อไม่มีปริ๊นเตอร์
+  void _showNoPrinterDialog() {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.orange), SizedBox(width: 8), Text('ไม่พบเครื่องปริ๊นเตอร์')]),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('ยังไม่มีการตั้งค่าเครื่องปริ๊นเตอร์เริ่มต้น', style: TextStyle(fontSize: 16)),
+            SizedBox(height: 12),
+            Text('กรุณาไปที่หน้าการตั้งค่า > เครื่องพิมพ์ เพื่อ:', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text('• สแกนหาเครื่องปริ๊นเตอร์', style: TextStyle(fontSize: 14)),
+            Text('• เพิ่มเครื่องปริ๊นเตอร์', style: TextStyle(fontSize: 14)),
+            Text('• ตั้งค่าเป็นเครื่องปริ๊นเตอร์เริ่มต้น', style: TextStyle(fontSize: 14)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              // นำทางไปหน้าการตั้งค่า
+              _navigateToSettings();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+            child: const Text('ไปตั้งค่า', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  // ✅ แสดง dialog เมื่อเชื่อมต่อปริ๊นเตอร์ไม่ได้
+  void _showPrinterConnectionErrorDialog(PrinterInfo printer) {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.error_outline, color: Colors.red), SizedBox(width: 8), Text('เชื่อมต่อปริ๊นเตอร์ไม่ได้')]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('ไม่สามารถเชื่อมต่อกับเครื่องปริ๊นเตอร์ "${printer.name}" ได้', style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ประเภท: ${printer.type}', style: const TextStyle(fontSize: 14)),
+                  Text('ที่อยู่: ${printer.address}', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('กรุณาตรวจสอบ:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('• เครื่องปริ๊นเตอร์เปิดอยู่', style: TextStyle(fontSize: 14)),
+            const Text('• สายเชื่อมต่อหรือ WiFi ทำงานปกติ', style: TextStyle(fontSize: 14)),
+            const Text('• เครื่องปริ๊นเตอร์อยู่ในเครือข่ายเดียวกัน', style: TextStyle(fontSize: 14)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              // ลองทดสอบการเชื่อมต่อใหม่
+              await printerController.testPrinterConnection(printer);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('ทดสอบใหม่', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ ปริ๊นไปยังปริ๊นเตอร์เริ่มต้น
+  Future<void> _printToDefaultPrinter(PrinterInfo printer) async {
+    try {
+      log('🖨️ Printing to ${printer.name} (${printer.type})...');
+
+      // ในการใช้งานจริง จะต้องใช้ library ที่เหมาะสมกับประเภทปริ๊นเตอร์
+      // ตอนนี้ใช้ฟังก์ชันเดิมก่อน
+      await printReceiptFromCartItems(widget.cartItems);
+
+      log('✅ Print completed successfully');
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จไปยัง ${printer.name} สำเร็จ'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      log('❌ Print failed: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จล้มเหลว: $e'), backgroundColor: Colors.red));
+      }
+
+      // แสดง dialog แนะนำให้ตรวจสอบปริ๊นเตอร์
+      _showPrintFailedDialog(printer, e.toString());
+    }
+  }
+
+  // ✅ แสดง dialog เมื่อปริ๊นล้มเหลว
+  void _showPrintFailedDialog(PrinterInfo printer, String error) {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.red), SizedBox(width: 8), Text('ปริ๊นล้มเหลว')]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('ไม่สามารถปริ๊นใบเสร็จไปยัง "${printer.name}" ได้'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(4)),
+              child: Text('ข้อผิดพลาด: $error', style: TextStyle(fontSize: 12, color: Colors.red[700])),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              // ลองปริ๊นใหม่
+              checkPrinterAndPrint();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('ลองใหม่', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ นำทางไปหน้าการตั้งค่า
+  void _navigateToSettings() {
+    // ปิดหน้าปัจจุบันและกลับไปหน้าหลัก แล้วไปหน้าการตั้งค่า
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    // ใช้ Navigator.pushNamed หรือวิธีอื่นตามโครงสร้างของแอป
+    // ตัวอย่าง: ถ้ามี SettingsPage
+    // Navigator.pushNamed(context, '/settings');
+
+    // หรือถ้าใช้ GetX
+    // Get.offAllNamed('/settings');
+
+    // สำหรับตอนนี้ให้แสดงข้อความแทน
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
   }
 
   // ✅ แสดง Dialog ยืนยันการชำระเงิน
