@@ -22,7 +22,7 @@ class LoginPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.card_giftcard, size: 64, color: Colors.white),
+                  Icon(Icons.point_of_sale, size: 64, color: Colors.white),
                   SizedBox(height: 12),
                   Text('POSASHA', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
                   Text('POINT OF SALE', style: TextStyle(fontSize: 18, letterSpacing: 1.5, color: Colors.white)),

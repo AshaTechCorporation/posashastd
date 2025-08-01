@@ -6,6 +6,7 @@ import 'package:posashastd/D2S/report/summaryReportPage.dart';
 import 'package:posashastd/D2S/setting/settingsPage.dart';
 import 'package:posashastd/D2S/stock/stockPage.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/services/auth_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -98,7 +99,7 @@ class AppDrawer extends StatelessWidget {
                     );
                   },
                 ),
-                _DrawerItem(icon: Icons.bar_chart, label: 'รายงานการขาย', onTap: () {}),
+                //_DrawerItem(icon: Icons.bar_chart, label: 'รายงานการขาย', onTap: () {}),
                 _DrawerItem(
                   icon: Icons.inventory,
                   label: 'สต็อก',
@@ -109,7 +110,8 @@ class AppDrawer extends StatelessWidget {
                     //   MaterialPageRoute(builder: (_) => StockPage()),
                     //   (route) => false, // ลบ route ทั้งหมด
                     // );
-                    final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/inventory');
+                    final _authService = AuthService();
+                    final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/inventory?token=${_authService.currentToken}');
 
                     if (await canLaunchUrl(youtubeUrl)) {
                       await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);
@@ -118,7 +120,7 @@ class AppDrawer extends StatelessWidget {
                     }
                   },
                 ),
-                _DrawerItem(icon: Icons.info_outline, label: 'รายละเอียดบัญชี', onTap: () {}),
+                //_DrawerItem(icon: Icons.info_outline, label: 'รายละเอียดบัญชี', onTap: () {}),
               ],
             ),
           ),
