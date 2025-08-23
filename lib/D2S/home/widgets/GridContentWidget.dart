@@ -1,0 +1,174 @@
+import 'dart:developer';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
+import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
+import 'package:posashastd/constants.dart';
+import 'package:posashastd/utils/color_utils.dart';
+
+class GridContentWidget extends StatelessWidget {
+  final double width;
+  final double height;
+  final TabController tabController;
+  final HomeController homeController;
+
+  const GridContentWidget({super.key, required this.width, required this.height, required this.tabController, required this.homeController});
+
+  @override
+  Widget build(BuildContext context) {
+    // แท็บแรก (สินค้าทั้งหมด) แสดงสินค้าจาก products, แท็บอื่นๆ แสดงจาก panels
+    if (tabController.index == 0) {
+      // แท็บแรก: แสดงสินค้าทั้งหมดจาก API
+      return Obx(() {
+        return GridView.builder(
+          key: const ValueKey("grid_main_products"),
+          padding: const EdgeInsets.all(8),
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: (width * 0.7) / 5,
+            mainAxisExtent: (height - 50 - 48 - 34) / 4,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
+          itemCount: homeController.products.length,
+          itemBuilder: (context, index) {
+            final product = homeController.products[index];
+            final String name = product.name ?? 'ไม่ระบุชื่อ';
+            final String? showType = product.showType;
+            final String? colorHex = product.color;
+            final String? imageUrl = product.imageUrl;
+
+            // สร้างส่วนแสดงผลสินค้าตาม showType
+            final Widget productVisual = _buildProductVisual(showType, colorHex, imageUrl);
+
+            final content = Column(
+              children: [
+                Expanded(child: productVisual),
+                Container(
+                  decoration: const BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.vertical(bottom: Radius.circular(6))),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(4),
+                  child: Column(
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '฿${product.price ?? 0}',
+                        style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+
+            return GestureDetector(
+              onTap: () {
+                homeController.addToCart(product);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                ),
+                child: ClipRRect(borderRadius: BorderRadius.circular(6), child: content),
+              ),
+            );
+          },
+        );
+      });
+    } else {
+      // แท็บอื่นๆ: แสดงจาก panels (index - 1 เพราะแท็บแรกเป็นสินค้าทั้งหมด)
+      final panelIndex = tabController.index - 1;
+      return GetX<HomeController>(
+        builder: (controller) {
+          // ตรวจสอบว่ามีพาเนลในตำแหน่งนี้หรือไม่
+          if (panelIndex < 0 || panelIndex >= controller.panels.length) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.dashboard_outlined, size: 60, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('ไม่มีข้อมูลพาเนล', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
+          }
+
+          return ProductGrid(
+            itemCount: controller.panels[panelIndex].panelProducts?.length ?? 0,
+            panelProduct: controller.panels[panelIndex].panelProducts ?? [],
+            isMainTab: false,
+            width: width,
+            height: height,
+            onTap: (index, product) {
+              // เมื่อกดสินค้าในพาเนล ให้เพิ่มลงตะกร้าเหมือนกับแท็บสินค้าทั้งหมด
+              if (product != null) {
+                log("🛒 Adding product to cart from panel ${panelIndex + 1}: ${product.name}");
+                homeController.addToCart(product);
+              } else {
+                log("📝 Empty slot clicked at index: $index ของพาเนล ${panelIndex + 1}");
+                // TODO: เพิ่มฟังก์ชันเลือกสินค้าเพื่อเพิ่มลงพาเนล
+              }
+            },
+            onLongPress: (index) {
+              log("🔧 Long press at index: $index ของพาเนล ${panelIndex + 1}");
+              // TODO: เพิ่มฟังก์ชันแก้ไขหรือลบสินค้าจากพาเนล
+            },
+          );
+        },
+      );
+    }
+  }
+
+  // ✅ สร้างส่วนแสดงผลสินค้าตาม showType
+  Widget _buildProductVisual(String? showType, String? colorHex, String? imageUrl) {
+    if (showType == 'color' && colorHex != null) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(color: hexToColor(colorHex), borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+      );
+    } else if (showType == 'image' && imageUrl != null) {
+      return ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          placeholder:
+              (context, url) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.grey)),
+                  ),
+                ),
+              ),
+          errorWidget:
+              (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
+          memCacheWidth: 300, // ✅ จำกัดขนาด cache ใน memory
+          memCacheHeight: 300, // ✅ จำกัดขนาด cache ใน memory
+          maxWidthDiskCache: 600, // ✅ จำกัดขนาด cache ใน disk
+          maxHeightDiskCache: 600, // ✅ จำกัดขนาด cache ใน disk
+        ),
+      );
+    } else {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(color: Colors.grey[300], borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+        child: const Icon(Icons.shopping_bag, size: 40, color: Colors.grey),
+      );
+    }
+  }
+}

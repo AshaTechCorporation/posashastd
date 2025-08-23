@@ -119,7 +119,7 @@ class HomeController extends GetxController {
       if (response != null) {
         // ลบ shift_id จาก SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        //await prefs.remove('shift_id');
+        await prefs.remove('shift_id');
 
         //currentShiftId.value = '';
         isShiftOpen.value = false;

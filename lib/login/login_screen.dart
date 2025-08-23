@@ -24,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _databaseService = DatebaseService();
 
   bool _isLoading = false;
+  bool _isCheckingLogin = true; // ✅ สำหรับ loading ตอน check existing login
   bool _obscurePassword = true;
 
   @override
@@ -41,10 +42,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ตรวจสอบว่ามีการ login อยู่แล้วหรือไม่
   Future<void> _checkExistingLogin() async {
-    final isLoggedIn = await _authService.checkLoginStatus();
-    if (isLoggedIn && mounted) {
-      await _databaseService.loadDataSync();
-      Get.offAll(HomePage());
+    try {
+      setState(() {
+        _isCheckingLogin = true;
+      });
+
+      final isLoggedIn = await _authService.checkLoginStatus();
+      if (isLoggedIn && mounted) {
+        await _databaseService.loadDataSync();
+        Get.offAll(HomePage());
+      }
+    } catch (e) {
+      log('❌ Error checking existing login: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingLogin = false;
+        });
+      }
     }
   }
 
@@ -107,6 +122,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ แสดง loading screen ขณะตรวจสอบ existing login
+    if (_isCheckingLogin) {
+      return Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
+              const SizedBox(height: 24),
+              const Text('POS System', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
+              const SizedBox(height: 32),
+              const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blue), strokeWidth: 3),
+              const SizedBox(height: 16),
+              const Text('กำลังตรวจสอบการเข้าสู่ระบบ...', style: TextStyle(fontSize: 16, color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('ลงชื่อเข้าใช้', style: TextStyle(color: Colors.white)),
