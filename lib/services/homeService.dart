@@ -109,4 +109,19 @@ class Homeservice {
       rethrow;
     }
   }
+
+  //เช็คยูสเซอร์ที่ล็อกอินอยู่
+  static Future checkLogin() async {
+    final _authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/auth/me');
+    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final response = await http.get(headers: headers, url);
+    if (response.statusCode == 200) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
 }

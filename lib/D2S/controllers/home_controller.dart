@@ -32,6 +32,18 @@ class HomeController extends GetxController {
     fetchProducts();
   }
 
+  //เช็คล็อกอิน
+  Future<Map<String, dynamic>?> checkLogin() async {
+    try {
+      final data = await Homeservice.checkLogin();
+      log('✅ Login successful, data: ${data}');
+      return data;
+    } catch (e) {
+      log('❌ Error checking login: $e');
+      return null;
+    }
+  }
+
   // เช็คสถานะ shift
   Future<void> checkShiftStatus() async {
     try {

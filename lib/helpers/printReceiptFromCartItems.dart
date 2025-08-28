@@ -1,7 +1,14 @@
 import 'package:sunmi_printer_plus/core/enums/enums.dart';
 import 'package:sunmi_printer_plus/core/sunmi/sunmi_printer.dart';
 
-Future<void> printReceiptFromCartItems(List<Map<String, dynamic>> cartItems) async {
+Future<void> printReceiptFromCartItems(
+  List<Map<String, dynamic>> cartItems, {
+  double? receivedAmount,
+  double? changeAmount,
+  double? discountAmount,
+  String? paymentMethod,
+  String? staffName,
+}) async {
   double total = 0;
 
   // 🏪 Header
@@ -19,7 +26,8 @@ Future<void> printReceiptFromCartItems(List<Map<String, dynamic>> cartItems) asy
 
   // 👨‍💼 Staff
   await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-  await SunmiPrinter.printText('พนักงาน: unknown unknown\n');
+  final staffDisplayName = staffName ?? 'unknown unknown';
+  await SunmiPrinter.printText('พนักงาน: $staffDisplayName\n');
   await SunmiPrinter.printText('ระบบขายหน้าร้าน: POS 4\n');
   await SunmiPrinter.printText('-' * 42 + '\n');
 
@@ -43,17 +51,38 @@ Future<void> printReceiptFromCartItems(List<Map<String, dynamic>> cartItems) asy
 
   await SunmiPrinter.printText('-' * 42 + '\n');
 
-  // 💵 Total
+  // ✅ แสดงส่วนลด (ถ้ามี)
+  if (discountAmount != null && discountAmount > 0) {
+    await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
+    final discountLeft = 'ส่วนลด';
+    final discountRight = '-฿${discountAmount.toStringAsFixed(2)}';
+    final discountSpace = 42 - discountLeft.length - discountRight.length;
+    await SunmiPrinter.printText('${discountLeft.padRight(discountLeft.length + discountSpace)}$discountRight\n');
+  }
+
+  // 💵 Total (หลังหักส่วนลด)
+  final finalTotal = total - (discountAmount ?? 0);
   await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
   await SunmiPrinter.setFontSize(2);
-  await SunmiPrinter.printText('รวมทั้งหมด ฿${total.toStringAsFixed(2)}\n');
+  await SunmiPrinter.printText('รวมทั้งหมด ฿${finalTotal.toStringAsFixed(2)}\n');
   await SunmiPrinter.setFontSize(1);
 
   await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
-  final cashLeft = 'เงินสด';
-  final cashRight = '฿${total.toStringAsFixed(2)}';
-  final space = 42 - cashLeft.length - cashRight.length;
-  await SunmiPrinter.printText('${cashLeft.padRight(cashLeft.length + space)}$cashRight\n');
+
+  // ✅ แสดงวิธีการชำระเงิน
+  final paymentMethodText = paymentMethod ?? 'เงินสด';
+  final paymentLeft = paymentMethodText;
+  final paymentRight = '฿${(receivedAmount ?? finalTotal).toStringAsFixed(2)}';
+  final paymentSpace = 42 - paymentLeft.length - paymentRight.length;
+  await SunmiPrinter.printText('${paymentLeft.padRight(paymentLeft.length + paymentSpace)}$paymentRight\n');
+
+  // ✅ แสดงเงินทอน (ถ้ามี)
+  if (changeAmount != null && changeAmount > 0) {
+    final changeLeft = 'เงินทอน';
+    final changeRight = '฿${changeAmount.toStringAsFixed(2)}';
+    final changeSpace = 42 - changeLeft.length - changeRight.length;
+    await SunmiPrinter.printText('${changeLeft.padRight(changeLeft.length + changeSpace)}$changeRight\n');
+  }
 
   // 🙏 Thank you
   await SunmiPrinter.lineWrap(1);
@@ -65,7 +94,7 @@ Future<void> printReceiptFromCartItems(List<Map<String, dynamic>> cartItems) asy
   await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
   final now = DateTime.now();
   final time = '${now.day}/${now.month}/${now.year + 543} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
-  final receiptNo = '#4-1013';
+  final receiptNo = '';
   final footerSpace = 42 - time.length - receiptNo.length;
   await SunmiPrinter.printText('${time.padRight(time.length + footerSpace)}$receiptNo\n');
 

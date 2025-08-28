@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/D2S/home/widgets/CartSummaryWidget.dart';
+import 'package:posashastd/D2S/home/widgets/PaymentConfirmDialog.dart';
 import 'package:posashastd/D2S/home/widgets/PaymentDisplayWidget.dart';
 import 'package:posashastd/D2S/home/widgets/ProductHeader.dart';
 import 'package:posashastd/constants.dart';
@@ -33,6 +34,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double? selectedDiscountAmount;
   double discountAmount = 0;
   double totalDiscountApplied = 0; // ✅ เก็บยอดส่วนลดรวมที่ใช้ไปแล้ว
+  int currentPaymentMethodId = 1; // ✅ เก็บ paymentMethodId ปัจจุบัน (default: เงินสด)
+  String staffName = 'unknown unknown'; // ✅ เก็บชื่อพนักงานจาก API
   late HomeController homeController;
   late PrinterController printerController;
 
@@ -57,6 +60,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
       print(homeController.currentShiftId.value);
+
+      // ✅ เรียก checkLogin เพื่อดึงข้อมูลพนักงาน
+      await _loadStaffInfo();
 
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
     });
@@ -253,6 +259,46 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     );
   }
 
+  // ✅ โหลดข้อมูลพนักงานจาก API
+  Future<void> _loadStaffInfo() async {
+    try {
+      final staffData = await homeController.checkLogin();
+      if (staffData != null && mounted) {
+        setState(() {
+          final firstName = staffData['firstName'] ?? '';
+          final lastName = staffData['lastName'] ?? '';
+          staffName = '$firstName $lastName'.trim();
+          if (staffName.isEmpty) {
+            staffName = 'unknown unknown';
+          }
+        });
+        log('✅ Staff info loaded: $staffName');
+      }
+    } catch (e) {
+      log('❌ Error loading staff info: $e');
+      // ใช้ค่า default ถ้าเกิด error
+      if (mounted) {
+        setState(() {
+          staffName = 'unknown unknown';
+        });
+      }
+    }
+  }
+
+  // ✅ ได้ชื่อวิธีการชำระเงินจาก paymentMethodId ปัจจุบัน
+  String _getPaymentMethodName() {
+    switch (currentPaymentMethodId) {
+      case 1:
+        return 'เงินสด';
+      case 2:
+        return 'โอน';
+      case 3:
+        return 'เครดิต';
+      default:
+        return 'เงินสด';
+    }
+  }
+
   // ✅ ปริ๊นไปยังปริ๊นเตอร์เริ่มต้น
   Future<void> _printToDefaultPrinter(PrinterInfo printer) async {
     try {
@@ -260,7 +306,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ในการใช้งานจริง จะต้องใช้ library ที่เหมาะสมกับประเภทปริ๊นเตอร์
       // ตอนนี้ใช้ฟังก์ชันเดิมก่อน
-      await printReceiptFromCartItems(widget.cartItems);
+      final total = calculateTotalWithDiscount();
+      final changeAmount = receivedAmount >= total ? (receivedAmount - total).toDouble() : 0.0;
+
+      // ✅ ส่งข้อมูลเพิ่มเติมไปยังฟังก์ชันปริ๊น
+      await printReceiptFromCartItems(
+        widget.cartItems,
+        receivedAmount: receivedAmount,
+        changeAmount: changeAmount,
+        discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
+        paymentMethod: _getPaymentMethodName(),
+        staffName: staffName,
+      );
 
       log('✅ Print completed successfully');
 
@@ -331,96 +388,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
-  }
-
-  // ✅ แสดง Dialog ยืนยันการชำระเงิน
-  void _showPaymentConfirmDialog(BuildContext context, String paymentMethod, IconData icon, int paymentMethodId, bool autoSetAmount) {
-    final total = calculateTotalWithDiscount();
-
-    Get.dialog(
-      AlertDialog(
-        title: Row(children: [Icon(icon, color: Colors.green), const SizedBox(width: 8), Text('ยืนยันการชำระเงิน')]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ต้องการชำระเงินด้วย$paymentMethod หรือไม่?', style: const TextStyle(fontSize: 18)),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('ยอดรวม:', style: TextStyle(fontSize: 16)),
-                      Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  if (!autoSetAmount) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('จำนวนรับ:', style: TextStyle(fontSize: 16)),
-                        Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('เงินทอน:', style: TextStyle(fontSize: 16)),
-                        Text(
-                          '฿${(receivedAmount >= total ? receivedAmount - total : 0).toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: receivedAmount >= total ? Colors.green : Colors.red),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก', style: TextStyle(fontSize: 18))),
-          ElevatedButton(
-            onPressed: () async {
-              Get.back(); // ปิด dialog
-
-              // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
-              if (autoSetAmount) {
-                setState(() {
-                  receivedAmount = total;
-                });
-              }
-
-              // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-              if (!autoSetAmount && receivedAmount < total) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
-                return;
-              }
-
-              // ✅ ดำเนินการชำระเงิน
-              setState(() {
-                isPaid = true;
-              });
-
-              await createOrders(paymentMethodId: paymentMethodId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
-            child: const Text('ยืนยัน', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
   }
 
   Future<void> createOrders({required int paymentMethodId}) async {
@@ -583,12 +550,43 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเงินสด
                                         if (receivedAmount >= total) {
-                                          _showPaymentConfirmDialog(
-                                            context,
-                                            'เงินสด',
-                                            Icons.payments,
-                                            1, // paymentMethodId สำหรับเงินสด
-                                            false, // ไม่ auto set receivedAmount
+                                          PaymentConfirmDialog.show(
+                                            context: context,
+                                            paymentMethod: 'เงินสด',
+                                            icon: Icons.payments,
+                                            paymentMethodId: 1, // paymentMethodId สำหรับเงินสด
+                                            autoSetAmount: false, // ไม่ auto set receivedAmount
+                                            total: total,
+                                            receivedAmount: receivedAmount,
+                                            onCancel: () => Get.back(),
+                                            onConfirm: (paymentMethodId, autoSetAmount) async {
+                                              // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
+                                              setState(() {
+                                                currentPaymentMethodId = paymentMethodId;
+                                              });
+
+                                              // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
+                                              if (autoSetAmount) {
+                                                setState(() {
+                                                  receivedAmount = total;
+                                                });
+                                              }
+
+                                              // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
+                                              if (!autoSetAmount && receivedAmount < total) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red),
+                                                );
+                                                return;
+                                              }
+
+                                              // ✅ ดำเนินการชำระเงิน
+                                              setState(() {
+                                                isPaid = true;
+                                              });
+
+                                              await createOrders(paymentMethodId: paymentMethodId);
+                                            },
                                           );
                                         } else {
                                           ScaffoldMessenger.of(
@@ -621,12 +619,43 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     child: InkWell(
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยโอน
-                                        _showPaymentConfirmDialog(
-                                          context,
-                                          'โอน',
-                                          Icons.account_balance,
-                                          2, // paymentMethodId สำหรับโอน
-                                          true, // auto set receivedAmount = total
+                                        PaymentConfirmDialog.show(
+                                          context: context,
+                                          paymentMethod: 'โอน',
+                                          icon: Icons.account_balance,
+                                          paymentMethodId: 2, // paymentMethodId สำหรับโอน
+                                          autoSetAmount: true, // auto set receivedAmount = total
+                                          total: total,
+                                          receivedAmount: receivedAmount,
+                                          onCancel: () => Get.back(),
+                                          onConfirm: (paymentMethodId, autoSetAmount) async {
+                                            // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
+                                            setState(() {
+                                              currentPaymentMethodId = paymentMethodId;
+                                            });
+
+                                            // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
+                                            if (autoSetAmount) {
+                                              setState(() {
+                                                receivedAmount = total;
+                                              });
+                                            }
+
+                                            // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
+                                            if (!autoSetAmount && receivedAmount < total) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              return;
+                                            }
+
+                                            // ✅ ดำเนินการชำระเงิน
+                                            setState(() {
+                                              isPaid = true;
+                                            });
+
+                                            await createOrders(paymentMethodId: paymentMethodId);
+                                          },
                                         );
                                       },
                                       borderRadius: BorderRadius.circular(12),
@@ -654,12 +683,43 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     child: InkWell(
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเครดิต
-                                        _showPaymentConfirmDialog(
-                                          context,
-                                          'เครดิต',
-                                          Icons.add_card,
-                                          3, // paymentMethodId สำหรับเครดิต
-                                          true, // auto set receivedAmount = total
+                                        PaymentConfirmDialog.show(
+                                          context: context,
+                                          paymentMethod: 'เครดิต',
+                                          icon: Icons.add_card,
+                                          paymentMethodId: 3, // paymentMethodId สำหรับเครดิต
+                                          autoSetAmount: true, // auto set receivedAmount = total
+                                          total: total,
+                                          receivedAmount: receivedAmount,
+                                          onCancel: () => Get.back(),
+                                          onConfirm: (paymentMethodId, autoSetAmount) async {
+                                            // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
+                                            setState(() {
+                                              currentPaymentMethodId = paymentMethodId;
+                                            });
+
+                                            // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
+                                            if (autoSetAmount) {
+                                              setState(() {
+                                                receivedAmount = total;
+                                              });
+                                            }
+
+                                            // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
+                                            if (!autoSetAmount && receivedAmount < total) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              return;
+                                            }
+
+                                            // ✅ ดำเนินการชำระเงิน
+                                            setState(() {
+                                              isPaid = true;
+                                            });
+
+                                            await createOrders(paymentMethodId: paymentMethodId);
+                                          },
                                         );
                                       },
                                       borderRadius: BorderRadius.circular(12),
