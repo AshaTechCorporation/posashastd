@@ -145,18 +145,11 @@ class GridContentWidget extends StatelessWidget {
           width: double.infinity,
           fit: BoxFit.cover,
           placeholder:
-              (context, url) => Container(
-                color: Colors.grey[200],
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.grey)),
-                  ),
-                ),
-              ),
+              (context, url) =>
+                  Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.image_outlined, size: 40, color: Colors.grey))),
           errorWidget:
-              (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
+              (context, url, error) =>
+                  Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey))),
           memCacheWidth: 300, // ✅ จำกัดขนาด cache ใน memory
           memCacheHeight: 300, // ✅ จำกัดขนาด cache ใน memory
           maxWidthDiskCache: 600, // ✅ จำกัดขนาด cache ใน disk

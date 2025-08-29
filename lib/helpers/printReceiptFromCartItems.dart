@@ -12,16 +12,15 @@ Future<void> printReceiptFromCartItems(
   double total = 0;
 
   // 🏪 Header
-  await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT); // ปิดการจัดกลางอัตโนมัติ
+  await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
   await SunmiPrinter.setFontSize(2);
-  const storeName = 'พิซากพ';
-  final storeCentered = storeName.padLeft(((42 + storeName.length) ~/ 2)).padRight(42);
-  await SunmiPrinter.printText('$storeCentered\n');
+  await SunmiPrinter.printText('พิชาภพ สินค้าแปรรูป\n');
 
   await SunmiPrinter.setFontSize(1);
-  const openText = 'เปิด 24 ชั่วโมง';
-  final openCentered = openText.padLeft(((42 + openText.length) ~/ 2)).padRight(42);
-  await SunmiPrinter.printText('$openCentered\n');
+  await SunmiPrinter.printText('ตลาดสี่มุมเมือง (ตลาดสด)\n');
+  await SunmiPrinter.printText('355/115-116 หมู่ 15 ถ. พหลโยธิน\n');
+  await SunmiPrinter.printText('ต. คูคต อ. ลำลูกกา จ. ปทุมธานี 12130\n');
+  await SunmiPrinter.printText('โทร. 099-746-2846\n');
   await SunmiPrinter.lineWrap(1);
 
   // 👨‍💼 Staff

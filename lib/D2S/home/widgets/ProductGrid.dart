@@ -61,9 +61,18 @@ class ProductGrid extends StatelessWidget {
                         imageUrl,
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            color: Colors.grey[200],
+                            child: const Center(child: Icon(Icons.image_outlined, size: 40, color: Colors.grey)),
+                          );
+                        },
                         errorBuilder:
-                            (_, __, ___) =>
-                                Container(color: Colors.grey[300], child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey)),
+                            (context, error, stackTrace) => Container(
+                              color: Colors.grey[300],
+                              child: const Center(child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey)),
+                            ),
                       ),
                     )
                     : Container(
