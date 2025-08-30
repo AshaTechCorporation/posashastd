@@ -3,7 +3,6 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
-import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/D2S/home/widgets/CartSummaryWidget.dart';
 import 'package:posashastd/D2S/home/widgets/PaymentConfirmDialog.dart';
@@ -12,7 +11,6 @@ import 'package:posashastd/D2S/home/widgets/ProductHeader.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/helpers/ReceiptWidget.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
-import 'package:posashastd/helpers/mix_match_multi_units.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/cart_utils.dart';
 import 'package:screenshot/screenshot.dart';
@@ -40,7 +38,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   String staffName = 'unknown unknown'; // ✅ เก็บชื่อพนักงานจาก API
   late HomeController homeController;
   late PrinterController printerController;
-  late OrderController orderController; // ✅ เพื่อเข้าถึงข้อมูลส่วนลด
 
   @override
   void initState() {
@@ -58,15 +55,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     // ✅ เพิ่ม PrinterController
     printerController = Get.put(PrinterController());
 
-    // ✅ เชื่อมต่อ OrderController ที่สร้างไว้แล้วใน HomePage
-    try {
-      orderController = Get.find<OrderController>();
-      log('✅ Found existing OrderController with ${orderController.discounts.length} discounts');
-    } catch (e) {
-      log('❌ OrderController not found, creating new one');
-      orderController = Get.put(OrderController());
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       log('⏰ PostFrameCallback: loading data');
       await homeController.checkConnectivityAndLoadData();
@@ -75,9 +63,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ✅ เรียก checkLogin เพื่อดึงข้อมูลพนักงาน
       await _loadStaffInfo();
-
-      // ✅ คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
-      _calculateAutoDiscount();
 
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
     });
@@ -98,43 +83,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     return total < 0 ? 0 : total; // ไม่ให้ติดลบ
   }
 
-  // ✅ คำนวณส่วนลดจาก mix_match_multi_units
-  double calculateDiscountFromMixMatch() {
-    if (orderController.discounts.isEmpty) {
-      log('⚠️ No discounts available in orderController');
-      return 0.0;
-    }
-
-    try {
-      log('📦 Sending to mix_match_multi_units:');
-      log('   cartItems: ${widget.cartItems}');
-      log('   discounts: ${orderController.discounts}');
-
-      final calculatedDiscount = calculateDiscountFromRules(cartItems: widget.cartItems, discounts: orderController.discounts);
-
-      log('🎯 Calculated discount from rules: ฿$calculatedDiscount');
-      return calculatedDiscount;
-    } catch (e) {
-      log('❌ Error calculating discount from rules: $e');
-      return 0.0;
-    }
-  }
-
-  // ✅ คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
-  void _calculateAutoDiscount() {
-    if (orderController.discounts.isNotEmpty) {
-      final autoDiscount = calculateDiscountFromMixMatch();
-      if (autoDiscount > 0) {
-        setState(() {
-          totalDiscountApplied = autoDiscount;
-          discountAmount = totalDiscountApplied;
-        });
-        log('💰 Auto applied discount on page load: ฿$autoDiscount');
-      }
-    }
-  }
-
-  // ✅ จัดการการลดราคาเพิ่มเติม (Manual Additional Discount)
+  // ✅ จัดการการลดราคา (ทุกปุ่มทำงานเหมือนกัน - ลดราคาลงเรื่อยๆ)
   void handleDiscountSelection(double amount) {
     setState(() {
       final currentTotal = calculateTotalWithDiscount();
@@ -144,30 +93,30 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         // คำนวณจำนวนที่จะลด (ไม่เกินยอดที่เหลือ)
         final discountToApply = amount > currentTotal ? currentTotal : amount;
 
-        // เพิ่มส่วนลดสะสม (รวมกับส่วนลดอัตโนมัติที่มีอยู่แล้ว)
+        // เพิ่มส่วนลดสะสม
         totalDiscountApplied += discountToApply;
         discountAmount = totalDiscountApplied;
 
-        log('💰 Applied additional manual discount: ฿$discountToApply, Total discount: ฿$totalDiscountApplied');
+        log('💰 Applied discount: ฿$discountToApply, Total discount: ฿$totalDiscountApplied');
 
         // แสดงข้อความยืนยัน
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ลดเพิ่ม ฿${discountToApply.toStringAsFixed(0)} (รวมลดแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)})'),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text('ลดราคา ฿${discountToApply.toStringAsFixed(0)} (รวมลดแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)})'),
+        //     backgroundColor: Colors.blue,
+        //     duration: const Duration(seconds: 1),
+        //   ),
+        // );
       } else {
-        log('⚠️ Cannot apply more discount, total is already 0');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
-        );
+        // ถ้ายอดเป็น 0 แล้ว แสดงข้อความ
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+        // );
       }
     });
   }
 
-  // ✅ เคลียร์ส่วนลดทั้งหมด และคำนวณส่วนลดอัตโนมัติใหม่
+  // ✅ เคลียร์ส่วนลดทั้งหมด
   void clearAllDiscounts() {
     setState(() {
       selectedDiscountAmount = null;
@@ -180,9 +129,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         context,
       ).showSnackBar(const SnackBar(content: Text('เคลียร์ส่วนลดแล้ว'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     });
-
-    // คำนวณส่วนลดอัตโนมัติใหม่หลังจากเคลียร์
-    _calculateAutoDiscount();
   }
 
   // ✅ เช็คเครื่องปริ๊นเตอร์และปริ๊นใบเสร็จ

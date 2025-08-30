@@ -30,4 +30,19 @@ class OrderService {
       throw Exception(data['message']);
     }
   }
+
+  //เช็คสินค้าส่วนลด
+  static Future checkDiscount() async {
+    final authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/mix-and-match-rule');
+    var headers = {'Authorization': 'Bearer ${authService.currentToken}', 'Content-Type': 'application/json'};
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
 }

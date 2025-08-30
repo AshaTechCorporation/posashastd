@@ -8,6 +8,7 @@ class OrderController extends GetxController {
   Rx<Order?> selectedOrder = Rx<Order?>(null);
   RxBool isLoading = false.obs;
   RxString searchQuery = ''.obs;
+  RxList<Map<String, dynamic>> discounts = <Map<String, dynamic>>[].obs;
 
   @override
   void onInit() {
@@ -94,6 +95,24 @@ class OrderController extends GetxController {
     final months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
     return 'วันที่ ${date.day} ${months[date.month]} พ.ศ. ${date.year + 543}';
+  }
+
+  //ดึงข้อมูลส่วนลด
+  Future<void> checkDiscount() async {
+    try {
+      final rawData = await OrderService.checkDiscount();
+      log('🔍 Raw discount data from API: $rawData');
+
+      final List<Map<String, dynamic>> parsedDiscounts = List<Map<String, dynamic>>.from(rawData);
+      discounts.assignAll(parsedDiscounts);
+
+      log('✅ Parsed discounts: ${discounts.length} items');
+      for (int i = 0; i < discounts.length; i++) {
+        log('   Discount $i: ${discounts[i]}');
+      }
+    } catch (e) {
+      log('❌ Error checking discount: $e');
+    }
   }
 
   // รีเฟรชข้อมูล

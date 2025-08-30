@@ -12,22 +12,44 @@ Future<void> printReceiptFromCartItems(
   double total = 0;
 
   // 🏪 Header
-  await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
+  await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
   await SunmiPrinter.setFontSize(2);
-  await SunmiPrinter.printText('พิชาภพ สินค้าแปรรูป\n');
+  const storeName = 'พิชาภพ สินค้าแปรรูป';
+  final storeNameCentered = storeName.padLeft(((42 + storeName.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$storeNameCentered\n');
 
   await SunmiPrinter.setFontSize(1);
-  await SunmiPrinter.printText('ตลาดสี่มุมเมือง (ตลาดสด)\n');
-  await SunmiPrinter.printText('355/115-116 หมู่ 15 ถ. พหลโยธิน\n');
-  await SunmiPrinter.printText('ต. คูคต อ. ลำลูกกา จ. ปทุมธานี 12130\n');
-  await SunmiPrinter.printText('โทร. 099-746-2846\n');
-  await SunmiPrinter.lineWrap(1);
+  const marketText = 'ตลาดสี่มุมเมือง (ตลาดสด)';
+  final marketCentered = marketText.padLeft(((42 + marketText.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$marketCentered\n');
+
+  const addressText1 = '355/115-116 หมู่ 15 ถ. พหลโยธิน';
+  final address1Centered = addressText1.padLeft(((42 + addressText1.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$address1Centered\n');
+
+  const addressText2 = 'ต. คูคต อ. ลำลูกกา จ. ปทุมธานี 12130';
+  final address2Centered = addressText2.padLeft(((42 + addressText2.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$address2Centered\n');
+
+  await SunmiPrinter.printText('\n'); // เว้นบรรทัดระหว่างที่อยู่และเบอร์โทร
+
+  const phoneText = 'โทร. 099-746-2846';
+  final phoneCentered = phoneText.padLeft(((42 + phoneText.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$phoneCentered\n');
+
+  await SunmiPrinter.lineWrap(3);
 
   // 👨‍💼 Staff
   await SunmiPrinter.setAlignment(SunmiPrintAlign.LEFT);
   final staffDisplayName = staffName ?? 'unknown unknown';
-  await SunmiPrinter.printText('พนักงาน: $staffDisplayName\n');
-  await SunmiPrinter.printText('ระบบขายหน้าร้าน: POS 4\n');
+  final staffText = 'พนักงาน: $staffDisplayName';
+  final staffCentered = staffText.padLeft(((42 + staffText.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$staffCentered\n');
+
+  const posText = 'ระบบขายหน้าร้าน: POS';
+  final posCentered = posText.padLeft(((42 + posText.length) ~/ 2)).padRight(42);
+  await SunmiPrinter.printText('$posCentered\n');
+
   await SunmiPrinter.printText('-' * 42 + '\n');
 
   // 🧾 Items

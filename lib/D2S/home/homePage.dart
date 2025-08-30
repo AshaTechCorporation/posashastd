@@ -10,6 +10,7 @@ import 'package:posashastd/D2S/home/widgets/ShiftClosedWidget.dart';
 import 'package:posashastd/constants.dart';
 
 import '../controllers/home_controller.dart';
+import '../controllers/order_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,6 +23,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late TabController _tabController;
   List<String> tabs = ['สินค้าทั้งหมด'];
   late HomeController homeController;
+  late OrderController orderController;
 
   @override
   void initState() {
@@ -38,10 +40,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     log('🆕 Creating new HomeController');
     homeController = Get.put(HomeController());
 
+    // ✅ สร้าง OrderController เพื่อจัดการข้อมูลส่วนลด
+    if (Get.isRegistered<OrderController>()) {
+      log('🗑️ Deleting existing OrderController');
+      Get.delete<OrderController>();
+    }
+    log('🆕 Creating new OrderController');
+    orderController = Get.put(OrderController());
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       log('⏰ PostFrameCallback: loading data');
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
+
+      // ✅ เรียก checkDiscount เพื่อดึงข้อมูลส่วนลด
+      log('🎯 Loading discount data...');
+      await orderController.checkDiscount();
+      log('✅ Discount data loaded: ${orderController.discounts.length} discounts');
 
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
       _updateTabsFromPanels();
