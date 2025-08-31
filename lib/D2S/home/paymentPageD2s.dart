@@ -191,7 +191,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('🖨️ Starting printer check and print process...');
 
       // ตรวจสอบว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = _getDefaultPrinter();
+      final defaultPrinter = printerController.getDefaultPrinter();
 
       if (defaultPrinter == null) {
         log('⚠️ No default printer found');
@@ -201,16 +201,30 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       log('🖨️ Found default printer: ${defaultPrinter.name}');
 
-      // ทดสอบการเชื่อมต่อกับปริ๊นเตอร์เริ่มต้น
-      final isConnected = await printerController.testPrinterConnection(defaultPrinter);
+      // ✅ เช็คสถานะการเชื่อมต่อปัจจุบัน
+      if (!printerController.isDefaultPrinterConnected.value) {
+        log('⚠️ Default printer not connected, testing connection...');
 
-      if (!isConnected) {
-        log('❌ Cannot connect to default printer');
-        _showPrinterConnectionErrorDialog(defaultPrinter);
-        return;
+        // แสดง loading dialog
+        Get.dialog(
+          const AlertDialog(content: Row(children: [CircularProgressIndicator(), SizedBox(width: 16), Text('กำลังเช็คการเชื่อมต่อปริ๊นเตอร์...')])),
+          barrierDismissible: false,
+        );
+
+        // ทดสอบการเชื่อมต่อ
+        final isConnected = await printerController.testPrinterConnection(defaultPrinter, showSnackbar: false);
+
+        // ปิด loading dialog
+        Get.back();
+
+        if (!isConnected) {
+          log('❌ Cannot connect to default printer');
+          _showPrinterConnectionErrorDialog(defaultPrinter);
+          return;
+        }
       }
 
-      log('✅ Printer connection successful, starting print...');
+      log('✅ Printer connection confirmed, starting print...');
 
       // ปริ๊นใบเสร็จ
       await _printToDefaultPrinter(defaultPrinter);
@@ -219,16 +233,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
       }
-    }
-  }
-
-  // ✅ หาปริ๊นเตอร์เริ่มต้น
-  PrinterInfo? _getDefaultPrinter() {
-    try {
-      return printerController.savedPrinters.firstWhere((printer) => printer.isDefault);
-    } catch (e) {
-      log('No default printer found: $e');
-      return null;
     }
   }
 
@@ -882,26 +886,74 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               ),
                             ),
                             const SizedBox(height: 25),
-                            GestureDetector(
-                              onTap: () async {
-                                await checkPrinterAndPrint();
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
-                                child: const Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.print, color: Colors.black),
-                                      SizedBox(width: 8),
-                                      Text('พิมพ์ใบเสร็จ', style: TextStyle(color: Colors.black)),
-                                    ],
+                            // ✅ ปุ่มปริ๊นพร้อมสถานะการเชื่อมต่อ
+                            Obx(() {
+                              final isConnected = printerController.isDefaultPrinterConnected.value;
+                              final connectionStatus = printerController.connectionStatus.value;
+
+                              return Column(
+                                children: [
+                                  // แสดงสถานะการเชื่อมต่อ
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isConnected ? Colors.green.shade50 : Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: isConnected ? Colors.green.shade200 : Colors.orange.shade200, width: 1),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isConnected ? Icons.check_circle : Icons.warning,
+                                          color: isConnected ? Colors.green.shade600 : Colors.orange.shade600,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            connectionStatus,
+                                            style: TextStyle(fontSize: 12, color: isConnected ? Colors.green.shade700 : Colors.orange.shade700),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
+                                  const SizedBox(height: 8),
+                                  // ปุ่มปริ๊น
+                                  GestureDetector(
+                                    onTap: () async {
+                                      await checkPrinterAndPrint();
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: isConnected ? Colors.blue.shade100 : Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: isConnected ? Border.all(color: Colors.blue.shade300) : null,
+                                      ),
+                                      child: Center(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.print, color: isConnected ? Colors.blue.shade700 : Colors.black),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'พิมพ์ใบเสร็จ',
+                                              style: TextStyle(
+                                                color: isConnected ? Colors.blue.shade700 : Colors.black,
+                                                fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
 
                             const Spacer(),
                             SizedBox(

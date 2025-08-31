@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'package:get/get.dart';
@@ -10,21 +11,9 @@ class PrinterInfo {
   final bool isConnected;
   final bool isDefault;
 
-  PrinterInfo({
-    required this.name,
-    required this.address,
-    required this.type,
-    this.isConnected = false,
-    this.isDefault = false,
-  });
+  PrinterInfo({required this.name, required this.address, required this.type, this.isConnected = false, this.isDefault = false});
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'address': address,
-    'type': type,
-    'isConnected': isConnected,
-    'isDefault': isDefault,
-  };
+  Map<String, dynamic> toJson() => {'name': name, 'address': address, 'type': type, 'isConnected': isConnected, 'isDefault': isDefault};
 
   factory PrinterInfo.fromJson(Map<String, dynamic> json) => PrinterInfo(
     name: json['name'] ?? '',
@@ -42,10 +31,52 @@ class PrinterController extends GetxController {
   RxString scanStatus = ''.obs;
   Rx<PrinterInfo?> selectedPrinter = Rx<PrinterInfo?>(null);
 
+  // ✅ เพิ่มการเช็คการเชื่อมต่อแบบต่อเนื่อง
+  Timer? _connectionCheckTimer;
+  RxBool isDefaultPrinterConnected = false.obs;
+  RxString connectionStatus = 'ไม่ได้เชื่อมต่อ'.obs;
+
   @override
   void onInit() {
     super.onInit();
     loadSavedPrinters();
+    // ✅ เริ่มการเช็คการเชื่อมต่อแบบต่อเนื่อง
+    startPeriodicConnectionCheck();
+  }
+
+  @override
+  void onClose() {
+    // ✅ หยุด timer เมื่อ controller ถูกทำลาย
+    _connectionCheckTimer?.cancel();
+    super.onClose();
+  }
+
+  // ✅ เพิ่มปริ๊นเตอร์เริ่มต้นสำหรับการทดสอบ
+  void _addDefaultPrinters() {
+    log('📝 Adding default printers for testing...');
+
+    final defaultPrinters = [
+      PrinterInfo(name: 'Thermal Printer WiFi', address: '192.168.1.100', type: 'WiFi', isDefault: true, isConnected: false),
+      PrinterInfo(name: 'POS Printer USB', address: 'VID_04B8&PID_0202', type: 'USB', isDefault: false, isConnected: false),
+      PrinterInfo(name: 'Mobile Printer BT', address: '00:11:22:33:44:55', type: 'Bluetooth', isDefault: false, isConnected: false),
+    ];
+
+    savedPrinters.addAll(defaultPrinters);
+    _savePrintersToPrefs(); // บันทึกลง SharedPreferences
+
+    log('✅ Added ${defaultPrinters.length} default printers');
+  }
+
+  // ✅ บันทึกปริ๊นเตอร์ทั้งหมดลง SharedPreferences
+  Future<void> _savePrintersToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final printersJson = savedPrinters.map((p) => '${p.name}|${p.address}|${p.type}|${p.isDefault}').toList();
+      await prefs.setStringList('saved_printers', printersJson);
+      log('✅ Saved ${savedPrinters.length} printers to preferences');
+    } catch (e) {
+      log('❌ Error saving printers to preferences: $e');
+    }
   }
 
   // โหลดปริ๊นเตอร์ที่บันทึกไว้
@@ -53,8 +84,15 @@ class PrinterController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final printersJson = prefs.getStringList('saved_printers') ?? [];
-      
+
       savedPrinters.clear();
+
+      // ✅ ถ้าไม่มีปริ๊นเตอร์ที่บันทึกไว้ ให้เพิ่มปริ๊นเตอร์ตัวอย่าง
+      if (printersJson.isEmpty) {
+        _addDefaultPrinters();
+        return;
+      }
+
       for (String printerStr in printersJson) {
         try {
           final Map<String, dynamic> printerMap = {};
@@ -70,7 +108,7 @@ class PrinterController extends GetxController {
           log('Error parsing saved printer: $e');
         }
       }
-      
+
       log('✅ Loaded ${savedPrinters.length} saved printers');
     } catch (e) {
       log('❌ Error loading saved printers: $e');
@@ -81,20 +119,18 @@ class PrinterController extends GetxController {
   Future<void> savePrinter(PrinterInfo printer) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // ลบปริ๊นเตอร์เดิมถ้ามี
       savedPrinters.removeWhere((p) => p.address == printer.address);
-      
+
       // เพิ่มปริ๊นเตอร์ใหม่
       savedPrinters.add(printer);
-      
+
       // บันทึกลง SharedPreferences
-      final printersJson = savedPrinters.map((p) => 
-        '${p.name}|${p.address}|${p.type}|${p.isDefault}'
-      ).toList();
-      
+      final printersJson = savedPrinters.map((p) => '${p.name}|${p.address}|${p.type}|${p.isDefault}').toList();
+
       await prefs.setStringList('saved_printers', printersJson);
-      
+
       log('✅ Saved printer: ${printer.name}');
       Get.snackbar(
         'บันทึกสำเร็จ',
@@ -117,14 +153,12 @@ class PrinterController extends GetxController {
   Future<void> removeSavedPrinter(PrinterInfo printer) async {
     try {
       savedPrinters.removeWhere((p) => p.address == printer.address);
-      
+
       final prefs = await SharedPreferences.getInstance();
-      final printersJson = savedPrinters.map((p) => 
-        '${p.name}|${p.address}|${p.type}|${p.isDefault}'
-      ).toList();
-      
+      final printersJson = savedPrinters.map((p) => '${p.name}|${p.address}|${p.type}|${p.isDefault}').toList();
+
       await prefs.setStringList('saved_printers', printersJson);
-      
+
       log('✅ Removed printer: ${printer.name}');
       Get.snackbar(
         'ลบสำเร็จ',
@@ -146,16 +180,16 @@ class PrinterController extends GetxController {
 
       // สแกนปริ๊นเตอร์ในเครือข่าย LAN/WiFi
       await _scanNetworkPrinters();
-      
+
       // สแกนปริ๊นเตอร์ USB (สำหรับ Android)
       await _scanUSBPrinters();
-      
+
       // สแกนปริ๊นเตอร์ Bluetooth
       await _scanBluetoothPrinters();
 
       isScanning.value = false;
       scanStatus.value = 'พบปริ๊นเตอร์ ${availablePrinters.length} เครื่อง';
-      
+
       log('✅ Scan completed. Found ${availablePrinters.length} printers');
     } catch (e) {
       isScanning.value = false;
@@ -168,28 +202,16 @@ class PrinterController extends GetxController {
   Future<void> _scanNetworkPrinters() async {
     try {
       scanStatus.value = 'กำลังสแกนปริ๊นเตอร์ในเครือข่าย...';
-      
+
       // จำลองการสแกนปริ๊นเตอร์ในเครือข่าย
       // ในการใช้งานจริงจะต้องใช้ library เช่น network_info_plus และ ping
       await Future.delayed(const Duration(seconds: 2));
-      
+
       // เพิ่มปริ๊นเตอร์ตัวอย่าง
       availablePrinters.addAll([
-        PrinterInfo(
-          name: 'HP LaserJet Pro',
-          address: '192.168.1.100',
-          type: 'WiFi',
-        ),
-        PrinterInfo(
-          name: 'Canon PIXMA',
-          address: '192.168.1.101',
-          type: 'LAN',
-        ),
-        PrinterInfo(
-          name: 'Epson L3150',
-          address: '192.168.1.102',
-          type: 'WiFi',
-        ),
+        PrinterInfo(name: 'HP LaserJet Pro', address: '192.168.1.100', type: 'WiFi'),
+        PrinterInfo(name: 'Canon PIXMA', address: '192.168.1.101', type: 'LAN'),
+        PrinterInfo(name: 'Epson L3150', address: '192.168.1.102', type: 'WiFi'),
       ]);
     } catch (e) {
       log('❌ Error scanning network printers: $e');
@@ -201,16 +223,10 @@ class PrinterController extends GetxController {
     try {
       scanStatus.value = 'กำลังสแกนปริ๊นเตอร์ USB...';
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // เพิ่มปริ๊นเตอร์ USB ตัวอย่าง (สำหรับ Android)
       if (Platform.isAndroid) {
-        availablePrinters.add(
-          PrinterInfo(
-            name: 'Sunmi V2 Pro',
-            address: '/dev/usb/lp0',
-            type: 'USB',
-          ),
-        );
+        availablePrinters.add(PrinterInfo(name: 'Sunmi V2 Pro', address: '/dev/usb/lp0', type: 'USB'));
       }
     } catch (e) {
       log('❌ Error scanning USB printers: $e');
@@ -222,63 +238,200 @@ class PrinterController extends GetxController {
     try {
       scanStatus.value = 'กำลังสแกนปริ๊นเตอร์ Bluetooth...';
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // เพิ่มปริ๊นเตอร์ Bluetooth ตัวอย่าง
       availablePrinters.addAll([
-        PrinterInfo(
-          name: 'Thermal Printer BT',
-          address: '00:11:22:33:44:55',
-          type: 'Bluetooth',
-        ),
-        PrinterInfo(
-          name: 'Mobile Printer',
-          address: '00:11:22:33:44:66',
-          type: 'Bluetooth',
-        ),
+        PrinterInfo(name: 'Thermal Printer BT', address: '00:11:22:33:44:55', type: 'Bluetooth'),
+        PrinterInfo(name: 'Mobile Printer', address: '00:11:22:33:44:66', type: 'Bluetooth'),
       ]);
     } catch (e) {
       log('❌ Error scanning Bluetooth printers: $e');
     }
   }
 
+  // ✅ เริ่มการเช็คการเชื่อมต่อแบบต่อเนื่อง
+  void startPeriodicConnectionCheck() {
+    // เช็คทุก 30 วินาที
+    _connectionCheckTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _checkDefaultPrinterConnection();
+    });
+
+    // เช็คครั้งแรกทันที
+    _checkDefaultPrinterConnection();
+  }
+
+  // ✅ เช็คการเชื่อมต่อปริ๊นเตอร์เริ่มต้น
+  Future<void> _checkDefaultPrinterConnection() async {
+    try {
+      final defaultPrinter = getDefaultPrinter();
+      if (defaultPrinter == null) {
+        isDefaultPrinterConnected.value = false;
+        connectionStatus.value = 'ไม่มีปริ๊นเตอร์เริ่มต้น';
+        return;
+      }
+
+      connectionStatus.value = 'กำลังเช็คการเชื่อมต่อ...';
+      final isConnected = await testPrinterConnection(defaultPrinter, showSnackbar: false);
+
+      isDefaultPrinterConnected.value = isConnected;
+      connectionStatus.value = isConnected ? 'เชื่อมต่อแล้ว: ${defaultPrinter.name}' : 'ไม่สามารถเชื่อมต่อ: ${defaultPrinter.name}';
+
+      log('🖨️ Default printer connection status: $isConnected');
+    } catch (e) {
+      log('❌ Error checking default printer connection: $e');
+      isDefaultPrinterConnected.value = false;
+      connectionStatus.value = 'เกิดข้อผิดพลาด';
+    }
+  }
+
+  // ✅ หาปริ๊นเตอร์เริ่มต้น
+  PrinterInfo? getDefaultPrinter() {
+    try {
+      return savedPrinters.firstWhere((printer) => printer.isDefault);
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ทดสอบการเชื่อมต่อปริ๊นเตอร์
-  Future<bool> testPrinterConnection(PrinterInfo printer) async {
+  Future<bool> testPrinterConnection(PrinterInfo printer, {bool showSnackbar = true}) async {
     try {
       log('🔄 Testing connection to ${printer.name}...');
-      
-      // จำลองการทดสอบการเชื่อมต่อ
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // สุ่มผลลัพธ์สำหรับการทดสอบ
-      final isConnected = DateTime.now().millisecond % 2 == 0;
-      
-      if (isConnected) {
-        log('✅ Successfully connected to ${printer.name}');
+
+      // ทดสอบการเชื่อมต่อตามประเภทปริ๊นเตอร์
+      bool isConnected = false;
+
+      switch (printer.type.toLowerCase()) {
+        case 'wifi':
+        case 'lan':
+          isConnected = await _testNetworkPrinter(printer);
+          break;
+        case 'bluetooth':
+          isConnected = await _testBluetoothPrinter(printer);
+          break;
+        case 'usb':
+          isConnected = await _testUSBPrinter(printer);
+          break;
+        default:
+          // ถ้าไม่ระบุประเภท ให้ทดสอบแบบทั่วไป
+          isConnected = await _testGenericPrinter(printer);
+      }
+
+      if (showSnackbar) {
+        if (isConnected) {
+          log('✅ Successfully connected to ${printer.name}');
+          Get.snackbar(
+            'เชื่อมต่อสำเร็จ',
+            'เชื่อมต่อกับ ${printer.name} สำเร็จ',
+            backgroundColor: Get.theme.primaryColor,
+            colorText: Get.theme.colorScheme.onPrimary,
+          );
+        } else {
+          log('❌ Failed to connect to ${printer.name}');
+          Get.snackbar(
+            'เชื่อมต่อล้มเหลว',
+            'ไม่สามารถเชื่อมต่อกับ ${printer.name} ได้',
+            backgroundColor: Get.theme.colorScheme.error,
+            colorText: Get.theme.colorScheme.onError,
+          );
+        }
+      }
+
+      return isConnected;
+    } catch (e) {
+      log('❌ Error testing printer connection: $e');
+      if (showSnackbar) {
         Get.snackbar(
-          'เชื่อมต่อสำเร็จ',
-          'เชื่อมต่อกับ ${printer.name} สำเร็จ',
-          backgroundColor: Get.theme.primaryColor,
-          colorText: Get.theme.colorScheme.onPrimary,
-        );
-      } else {
-        log('❌ Failed to connect to ${printer.name}');
-        Get.snackbar(
-          'เชื่อมต่อล้มเหลว',
-          'ไม่สามารถเชื่อมต่อกับ ${printer.name} ได้',
+          'ข้อผิดพลาด',
+          'เกิดข้อผิดพลาดในการทดสอบการเชื่อมต่อ: $e',
           backgroundColor: Get.theme.colorScheme.error,
           colorText: Get.theme.colorScheme.onError,
         );
       }
-      
-      return isConnected;
+      return false;
+    }
+  }
+
+  // ✅ ทดสอบปริ๊นเตอร์เครือข่าย (WiFi/LAN)
+  Future<bool> _testNetworkPrinter(PrinterInfo printer) async {
+    try {
+      log('🔄 Testing network printer: ${printer.name} at ${printer.address}');
+
+      // ในการพัฒนา: จำลองการทดสอบ (สำเร็จ 80% ของเวลา)
+      await Future.delayed(const Duration(milliseconds: 500));
+      final success = DateTime.now().millisecond % 5 != 0; // 80% success rate
+
+      // TODO: ในการใช้งานจริง ให้ใช้ ping command
+      // final result = await Process.run('ping', ['-c', '1', '-W', '3000', printer.address]);
+      // return result.exitCode == 0;
+
+      log(success ? '✅ Network printer connected' : '❌ Network printer failed');
+      return success;
     } catch (e) {
-      log('❌ Error testing printer connection: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'เกิดข้อผิดพลาดในการทดสอบการเชื่อมต่อ: $e',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      log('❌ Network printer test failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ทดสอบปริ๊นเตอร์ Bluetooth
+  Future<bool> _testBluetoothPrinter(PrinterInfo printer) async {
+    try {
+      log('🔄 Testing Bluetooth printer: ${printer.name} at ${printer.address}');
+
+      // ในการพัฒนา: จำลองการทดสอบ (สำเร็จ 90% ของเวลา)
+      await Future.delayed(const Duration(milliseconds: 800));
+      final success = DateTime.now().millisecond % 10 != 0; // 90% success rate
+
+      // TODO: ในการใช้งานจริง ให้ใช้ bluetooth library
+      // เช่น flutter_bluetooth_serial หรือ blue_thermal
+
+      log(success ? '✅ Bluetooth printer connected' : '❌ Bluetooth printer failed');
+      return success;
+    } catch (e) {
+      log('❌ Bluetooth printer test failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ทดสอบปริ๊นเตอร์ USB
+  Future<bool> _testUSBPrinter(PrinterInfo printer) async {
+    try {
+      log('🔄 Testing USB printer: ${printer.name} at ${printer.address}');
+
+      // ในการพัฒนา: จำลองการทดสอบ (สำเร็จ 95% ของเวลา)
+      await Future.delayed(const Duration(milliseconds: 300));
+      final success = DateTime.now().millisecond % 20 != 0; // 95% success rate
+
+      // TODO: ในการใช้งานจริง ให้ใช้ system commands
+      // if (Platform.isLinux || Platform.isMacOS) {
+      //   final result = await Process.run('lsusb', []);
+      //   return result.stdout.toString().contains(printer.address);
+      // } else if (Platform.isWindows) {
+      //   final result = await Process.run('wmic', ['path', 'win32_usbdevice', 'get', 'deviceid']);
+      //   return result.stdout.toString().contains(printer.address);
+      // }
+
+      log(success ? '✅ USB printer connected' : '❌ USB printer failed');
+      return success;
+    } catch (e) {
+      log('❌ USB printer test failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ทดสอบปริ๊นเตอร์แบบทั่วไป
+  Future<bool> _testGenericPrinter(PrinterInfo printer) async {
+    try {
+      log('🔄 Testing generic printer: ${printer.name}');
+
+      // ในการพัฒนา: จำลองการทดสอบ (สำเร็จ 85% ของเวลา)
+      await Future.delayed(const Duration(milliseconds: 600));
+      final success = DateTime.now().millisecond % 7 != 0; // 85% success rate
+
+      log(success ? '✅ Generic printer connected' : '❌ Generic printer failed');
+      return success;
+    } catch (e) {
+      log('❌ Generic printer test failed: $e');
       return false;
     }
   }
@@ -298,7 +451,7 @@ class PrinterController extends GetxController {
           );
         }
       }
-      
+
       // ตั้งค่าปริ๊นเตอร์ที่เลือกเป็นค่าเริ่มต้น
       final index = savedPrinters.indexWhere((p) => p.address == printer.address);
       if (index != -1) {
@@ -310,15 +463,13 @@ class PrinterController extends GetxController {
           isDefault: true,
         );
       }
-      
+
       // บันทึกการเปลี่ยนแปลง
       final prefs = await SharedPreferences.getInstance();
-      final printersJson = savedPrinters.map((p) => 
-        '${p.name}|${p.address}|${p.type}|${p.isDefault}'
-      ).toList();
-      
+      final printersJson = savedPrinters.map((p) => '${p.name}|${p.address}|${p.type}|${p.isDefault}').toList();
+
       await prefs.setStringList('saved_printers', printersJson);
-      
+
       log('✅ Set ${printer.name} as default printer');
       Get.snackbar(
         'ตั้งค่าสำเร็จ',
