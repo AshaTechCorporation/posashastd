@@ -25,11 +25,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late HomeController homeController;
   late OrderController orderController;
 
+  // ✅ เพิ่ม ScrollController สำหรับตะกร้า
+  late ScrollController _cartScrollController;
+
   @override
   void initState() {
     super.initState();
     log('🏠 HomePage initState called');
     _tabController = TabController(length: tabs.length, vsync: this);
+    _cartScrollController = ScrollController(); // ✅ เริ่มต้น ScrollController
     SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
 
     // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
@@ -60,12 +64,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
       _updateTabsFromPanels();
+
+      // ✅ ฟังการเปลี่ยนแปลงของตะกร้าและเลื่อนลงด้านล่าง
+      _setupCartScrollListener();
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _cartScrollController.dispose(); // ✅ ทำลาย ScrollController
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -73,6 +81,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       DeviceOrientation.landscapeLeft,
     ]);
     super.dispose();
+  }
+
+  // ✅ ฟังก์ชันเลื่อนตะกร้าลงด้านล่างสุด
+  void _scrollCartToBottom() {
+    if (_cartScrollController.hasClients) {
+      _cartScrollController.animateTo(
+        _cartScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // ✅ ตั้งค่าการฟังการเปลี่ยนแปลงของตะกร้า
+  void _setupCartScrollListener() {
+    int previousCartLength = homeController.cartItems.length;
+    int previousTotalQuantity = _getTotalQuantity();
+
+    // ฟังการเปลี่ยนแปลงของ cartItems
+    homeController.cartItems.listen((cartItems) {
+      final currentTotalQuantity = _getTotalQuantity();
+
+      // ถ้ามีการเพิ่มสินค้าใหม่หรือเพิ่มจำนวน
+      if (cartItems.length > previousCartLength || currentTotalQuantity > previousTotalQuantity) {
+        // รอให้ UI อัปเดตแล้วค่อยเลื่อน
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollCartToBottom();
+        });
+      }
+
+      previousCartLength = cartItems.length;
+      previousTotalQuantity = currentTotalQuantity;
+    });
+  }
+
+  // ✅ คำนวณจำนวนสินค้าทั้งหมดในตะกร้า
+  int _getTotalQuantity() {
+    return homeController.cartItems.fold<int>(0, (sum, item) => sum + (item['qty'] as int? ?? 0));
   }
 
   // อัพเดทแท็บตามจำนวนพาเนลที่มี
@@ -532,6 +578,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 // ✅ รายการสินค้า
                                 Expanded(
                                   child: ListView.builder(
+                                    controller: _cartScrollController, // ✅ เพิ่ม ScrollController
                                     itemCount: homeController.cartItems.length,
                                     itemBuilder: (context, index) {
                                       final item = homeController.cartItems[index];
@@ -640,6 +687,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                         padding: EdgeInsets.zero,
                                                         onPressed: () {
                                                           homeController.updateCartItemQuantity(index, qty + 1);
+                                                          // ✅ เลื่อนลงด้านล่างเมื่อเพิ่มจำนวน
+                                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                            _scrollCartToBottom();
+                                                          });
                                                         },
                                                         icon: const Icon(Icons.add, color: Colors.green, size: 16),
                                                       ),

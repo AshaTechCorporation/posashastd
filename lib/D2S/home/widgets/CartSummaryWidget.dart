@@ -5,12 +5,7 @@ class CartSummaryWidget extends StatelessWidget {
   final double? selectedDiscountAmount;
   final double discountAmount;
 
-  const CartSummaryWidget({
-    super.key,
-    required this.cartItems,
-    this.selectedDiscountAmount,
-    required this.discountAmount,
-  });
+  const CartSummaryWidget({super.key, required this.cartItems, this.selectedDiscountAmount, required this.discountAmount});
 
   // คำนวณยอดรวมเดิม (ก่อนหักส่วนลด)
   double get originalTotal {
@@ -29,9 +24,7 @@ class CartSummaryWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey)),
-      ),
+      decoration: const BoxDecoration(border: Border(right: BorderSide(color: Colors.grey))),
       child: Column(
         children: [
           // ✅ รายการสินค้าในตะกร้า
@@ -45,7 +38,7 @@ class CartSummaryWidget extends StatelessWidget {
                 final qty = item['qty'] ?? 1;
                 final price = item['price'] ?? 0;
                 final totalItem = qty * price;
-                
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -53,22 +46,19 @@ class CartSummaryWidget extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          '$name x $qty',
+                          '$name x $qty (฿${price.toStringAsFixed(2)})',
                           style: const TextStyle(fontSize: 18),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Text(
-                        '฿${totalItem.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 18),
-                      ),
+                      Text('฿${totalItem.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
                     ],
                   ),
                 );
               },
             ),
           ),
-          
+
           const Divider(height: 1),
 
           // ✅ แสดงยอดรวมก่อนส่วนลด
@@ -77,14 +67,8 @@ class CartSummaryWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'ยอดรวม',
-                  style: TextStyle(fontSize: 18),
-                ),
-                Text(
-                  '฿${originalTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 18),
-                ),
+                const Text('ยอดรวม', style: TextStyle(fontSize: 18)),
+                Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
               ],
             ),
           ),
@@ -96,14 +80,8 @@ class CartSummaryWidget extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'ส่วนลด',
-                    style: TextStyle(fontSize: 18, color: Colors.red),
-                  ),
-                  Text(
-                    '-฿${discountAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 18, color: Colors.red),
-                  ),
+                  const Text('ส่วนลด', style: TextStyle(fontSize: 18, color: Colors.red)),
+                  Text('-฿${discountAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, color: Colors.red)),
                 ],
               ),
             ),
@@ -115,20 +93,10 @@ class CartSummaryWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'รวมทั้งหมด',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                ),
+                const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
                 Text(
                   '฿${totalWithDiscount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: Colors.green,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green),
                 ),
               ],
             ),

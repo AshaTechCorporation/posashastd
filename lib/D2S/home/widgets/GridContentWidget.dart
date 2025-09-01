@@ -2,10 +2,11 @@ import 'dart:developer';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
-import 'package:posashastd/constants.dart';
+import 'package:posashastd/models/product.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
 class GridContentWidget extends StatelessWidget {
@@ -73,6 +74,10 @@ class GridContentWidget extends StatelessWidget {
             return GestureDetector(
               onTap: () {
                 homeController.addToCart(product);
+              },
+              onLongPress: () {
+                // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+                _showQuantityDialog(product, homeController);
               },
               child: Container(
                 decoration: BoxDecoration(
@@ -163,5 +168,70 @@ class GridContentWidget extends StatelessWidget {
         child: const Icon(Icons.shopping_bag, size: 40, color: Colors.grey),
       );
     }
+  }
+
+  // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+  void _showQuantityDialog(Product product, HomeController homeController) {
+    final TextEditingController quantityController = TextEditingController(text: '1');
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('เพิ่มสินค้า', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // แสดงชื่อสินค้า
+            Text(product.name ?? 'ไม่มีชื่อ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[700])),
+            SizedBox(height: 16),
+
+            // ช่องใส่จำนวน
+            Text('จำนวน:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            SizedBox(height: 8),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'ใส่จำนวน',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              autofocus: true,
+              onTap: () {
+                // เลือกข้อความทั้งหมดเมื่อกดที่ TextField
+                quantityController.selection = TextSelection(baseOffset: 0, extentOffset: quantityController.text.length);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () {
+              final finalQuantity = int.tryParse(quantityController.text) ?? 1;
+              if (finalQuantity > 0) {
+                // เพิ่มสินค้าลงตะกร้าตามจำนวนที่ระบุ
+                for (int i = 0; i < finalQuantity; i++) {
+                  homeController.addToCart(product);
+                }
+                Get.back();
+
+                // แสดงข้อความยืนยัน
+                Get.snackbar(
+                  'เพิ่มสินค้าสำเร็จ',
+                  'เพิ่ม ${product.name} จำนวน $finalQuantity ชิ้น',
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white,
+                  duration: Duration(seconds: 2),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: Text('เพิ่ม', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

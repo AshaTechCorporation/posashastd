@@ -8,6 +8,7 @@ Future<void> printReceiptFromCartItems(
   double? discountAmount,
   String? paymentMethod,
   String? staffName,
+  String? receiptNumber, // ✅ เพิ่ม parameter สำหรับเลขที่ใบเสร็จ
 }) async {
   double total = 0;
 
@@ -49,6 +50,13 @@ Future<void> printReceiptFromCartItems(
   const posText = 'ระบบขายหน้าร้าน: POS';
   final posCentered = posText.padLeft(((42 + posText.length) ~/ 2)).padRight(42);
   await SunmiPrinter.printText('$posCentered\n');
+
+  // ✅ แสดงเลขที่ใบเสร็จ (ถ้ามี)
+  if (receiptNumber != null && receiptNumber.isNotEmpty) {
+    final receiptText = 'เลขที่ใบเสร็จ: $receiptNumber';
+    final receiptCentered = receiptText.padLeft(((42 + receiptText.length) ~/ 2)).padRight(42);
+    await SunmiPrinter.printText('$receiptCentered\n');
+  }
 
   await SunmiPrinter.printText('-' * 42 + '\n');
 

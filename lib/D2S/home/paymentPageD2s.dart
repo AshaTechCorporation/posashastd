@@ -31,6 +31,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   bool isPaid = false;
   final ScreenshotController screenshotController = ScreenshotController();
   final GlobalKey receiptKey = GlobalKey();
+  String? orderReceiptNumber; // ✅ เก็บเลขที่ใบเสร็จจาก API
 
   // ตัวแปรสำหรับจัดการส่วนลด
   double? selectedDiscountAmount;
@@ -365,7 +366,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // ในการใช้งานจริง จะต้องใช้ library ที่เหมาะสมกับประเภทปริ๊นเตอร์
       // ตอนนี้ใช้ฟังก์ชันเดิมก่อน
       final total = calculateTotalWithDiscount();
-      final changeAmount = receivedAmount >= total ? (receivedAmount - total).toDouble() : 0.0;
+      // ✅ ใช้ค่าเงินทอนจริงที่คำนวณจากการกดปุ่ม
+      final changeAmount = receivedAmount - total;
 
       // ✅ ส่งข้อมูลเพิ่มเติมไปยังฟังก์ชันปริ๊น
       await printReceiptFromCartItems(
@@ -375,6 +377,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
         paymentMethod: _getPaymentMethodName(),
         staffName: staffName,
+        receiptNumber: orderReceiptNumber, // ✅ ส่งเลขที่ใบเสร็จไปด้วย
       );
 
       log('✅ Print completed successfully');
@@ -469,7 +472,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             }).toList(),
         "paymentMethodId": paymentMethodId,
         "paid": receivedAmount,
-        "change": receivedAmount >= total ? receivedAmount - total : 0,
+        "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
         "discount": totalDiscountApplied,
         "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
       };
@@ -477,6 +480,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       print("📦 JSON ที่จะส่ง: $formattedOrder");
       final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
       if (!mounted) return;
+
+      // ✅ เก็บเลขที่ใบเสร็จจาก response
+      if (order != null && order['id'] != null) {
+        orderReceiptNumber = order['orderNo'].toString();
+        log('✅ Order created with receipt number: $orderReceiptNumber');
+      }
 
       setState(() {});
     } catch (e) {
@@ -575,6 +584,21 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   spacing: 12,
                                   runSpacing: 12,
                                   children: [
+                                    // ✅ ปุ่มรับเงินพอดี
+                                    OutlinedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          receivedAmount = calculateTotalWithDiscount();
+                                        });
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(color: Colors.green),
+                                        backgroundColor: Colors.green[50],
+                                        fixedSize: Size(130, 48),
+                                      ),
+                                      child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                    ),
+                                    // ปุ่มจำนวนเงินต่างๆ
                                     for (final amount in [100, 200, 500, 1000])
                                       OutlinedButton(
                                         onPressed: () {
