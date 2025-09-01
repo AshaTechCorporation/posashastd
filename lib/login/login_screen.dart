@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // ช่องกรอกอีเมล
                           TextFormField(
                             controller: _usernameController,
-                            decoration: InputDecoration(labelText: 'อีเมล'),
+                            decoration: InputDecoration(labelText: 'ชื่อผู้ใช้'),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'กรุณาระบุชื่อผู้ใช้';
