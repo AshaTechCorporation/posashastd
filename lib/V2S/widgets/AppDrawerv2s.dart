@@ -1,9 +1,12 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:posashastd/V2S/home/homeV2S.dart';
 import 'package:posashastd/V2S/product/productListV2s.dart';
 import 'package:posashastd/V2S/receipt/receiptHistoryV2s.dart';
 import 'package:posashastd/V2S/report/shiftV2s.dart';
 import 'package:posashastd/V2S/setting/settingsV2s.dart';
+import 'package:posashastd/services/auth_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppDrawerv2s extends StatefulWidget {
   const AppDrawerv2s({super.key});
@@ -21,12 +24,11 @@ class _AppDrawerv2sState extends State<AppDrawerv2s> {
     _DrawerItemData(Icons.access_time, 'กะ', const ShiftV2s()),
     _DrawerItemData(Icons.list_alt, 'รายการสินค้า', const ProductListV2s()),
     _DrawerItemData(Icons.settings, 'การตั้งค่า', const SettingsV2s()),
-    _DrawerItemData(Icons.bar_chart, 'รายงานการขาย', null),
     _DrawerItemData(Icons.inventory, 'สต็อก', null),
     _DrawerItemData(Icons.info_outline, 'รายละเอียดบัญชี', null),
   ];
 
-  void _onItemTap(int index) {
+  void _onItemTap(int index) async {
     setState(() {
       selectedIndex = index;
     });
@@ -34,10 +36,61 @@ class _AppDrawerv2sState extends State<AppDrawerv2s> {
     Navigator.pop(context);
 
     final targetPage = menuItems[index].targetPage;
+    final label = menuItems[index].label;
+
+    // จัดการปุ่มสต๊อกแยกต่างหาก
+    if (label == 'สต็อก') {
+      await _handleStockTap();
+      return;
+    }
+
     if (targetPage != null) {
       Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => targetPage), (route) => false);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ฟีเจอร์ "${menuItems[index].label}" ยังไม่พร้อมใช้งาน')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ฟีเจอร์ "$label" ยังไม่พร้อมใช้งาน')));
+    }
+  }
+
+  // จัดการการกดปุ่มสต๊อก
+  Future<void> _handleStockTap() async {
+    try {
+      final authService = AuthService();
+      final token = authService.currentToken;
+
+      log('🔍 Debug: Current token = $token');
+
+      if (token == null || token.isEmpty) {
+        log('❌ Token is null or empty');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่พบ token การเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่')));
+        }
+        return;
+      }
+
+      final stockUrlString = 'https://pos-asha.dev-asha.com/inventory?token=$token';
+      log('🔍 Debug: Stock URL = $stockUrlString');
+
+      final stockUrl = Uri.parse(stockUrlString);
+      log('🔍 Debug: Parsed URI = $stockUrl');
+
+      final canLaunch = await canLaunchUrl(stockUrl);
+      log('🔍 Debug: Can launch URL = $canLaunch');
+
+      if (canLaunch) {
+        log('🚀 Launching stock URL...');
+        await launchUrl(stockUrl, mode: LaunchMode.externalApplication);
+        log('✅ Stock URL launched successfully');
+      } else {
+        log('❌ Cannot launch stock URL');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถเปิดหน้าสต๊อกได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')));
+        }
+      }
+    } catch (e) {
+      log('❌ Error in _handleStockTap: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: ${e.toString()}')));
+      }
     }
   }
 
