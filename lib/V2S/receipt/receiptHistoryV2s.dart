@@ -73,11 +73,20 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
           Expanded(
             child: Obx(() {
               if (orderController.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(color: Colors.green),
+                      const SizedBox(height: 16),
+                      Text('กำลังโหลดข้อมูล...', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                    ],
+                  ),
+                );
               }
 
-              final groupedOrders = orderController.groupedOrders;
-              if (groupedOrders.isEmpty) {
+              final orders = orderController.filteredOrders;
+              if (orders.isEmpty) {
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -93,15 +102,11 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
               return RefreshIndicator(
                 onRefresh: orderController.refreshOrders,
                 child: ListView.builder(
-                  itemCount: groupedOrders.length,
+                  padding: const EdgeInsets.only(top: 8, bottom: 16),
+                  itemCount: orders.length,
                   itemBuilder: (context, index) {
-                    final dateKey = groupedOrders.keys.elementAt(index);
-                    final orders = groupedOrders[dateKey]!;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [_buildDateHeader(dateKey), ...orders.map((order) => _buildReceiptItemFromAPI(order))],
-                    );
+                    final order = orders[index];
+                    return _buildReceiptItemFromAPI(order);
                   },
                 ),
               );
@@ -109,13 +114,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDateHeader(String date) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Text(date, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -140,14 +138,16 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
-        leading: Icon(Icons.receipt_long, color: Colors.green),
-        title: Text('฿${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(timeString),
-        trailing: Text(order.orderNo ?? '#-', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-        onTap: () {
-          // แสดงรายละเอียดออเดอร์
-          _showOrderDetail(order);
-        },
+        leading: const Icon(Icons.receipt_long, color: Colors.green, size: 40),
+        title: Text(order.orderNo ?? '#-', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('฿${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            if (timeString.isNotEmpty) Text(timeString, style: TextStyle(color: Colors.grey[600])),
+          ],
+        ),
+        onTap: () => _showOrderDetail(order),
       ),
     );
   }
