@@ -22,12 +22,19 @@ class HomeController extends GetxController {
   RxBool isShiftOpen = false.obs;
   RxString currentShiftId = ''.obs;
 
+  // ตัวแปรสำหรับจัดการ device info
+  RxMap<String, dynamic> deviceInfo = <String, dynamic>{}.obs;
+
   final _databaseService = DatebaseService();
 
   @override
   void onInit() {
     super.onInit();
     log('🚀 HomeController onInit called');
+
+    // ✅ โหลดข้อมูล device ตั้งแต่เริ่มต้น
+    loadDeviceInfo();
+
     checkShiftStatus();
     fetchProducts();
   }
@@ -40,6 +47,30 @@ class HomeController extends GetxController {
       return data;
     } catch (e) {
       log('❌ Error checking login: $e');
+      return null;
+    }
+  }
+
+  //เช็ค device id
+  Future checkDevice({required String deviceId}) async {
+    try {
+      final data = await Homeservice.checkDevice(deviceId: deviceId);
+      log('✅ Device checked, data: ${data}');
+      return data;
+    } catch (e) {
+      log('❌ Error checking device: $e');
+      return null;
+    }
+  }
+
+  // เพิ่ม device id
+  Future registerDevice({required String deviceId, required String name, required String description}) async {
+    try {
+      final data = await Homeservice.registerDevice(deviceId: deviceId, name: name, description: description);
+      log('✅ Device registered, data: ${data}');
+      return data;
+    } catch (e) {
+      log('❌ Error registering device: $e');
       return null;
     }
   }
@@ -71,7 +102,18 @@ class HomeController extends GetxController {
     try {
       log('🔄 Opening shift...');
 
-      final shiftData = {"deviceId": 1, "change": change, "cash": cash, "remark": remark};
+      // ✅ โหลดข้อมูล device ก่อนเพื่อให้แน่ใจว่ามี deviceId
+      await loadDeviceInfo();
+
+      // ✅ ใช้ device internal ID ที่บันทึกไว้แทนเลข 1
+      final currentDeviceInternalId = getCurrentDeviceInternalId();
+      final deviceIdToUse = currentDeviceInternalId ?? 1; // ใช้ 1 เป็น fallback
+
+      log('📱 Device info loaded: ${deviceInfo.isNotEmpty}');
+      log('📱 Current device internal ID: $currentDeviceInternalId');
+      log('📱 Using device ID for shift: $deviceIdToUse');
+
+      final shiftData = {"deviceId": deviceIdToUse, "change": change, "cash": cash, "remark": remark};
 
       final response = await Homeservice.openShift(formattedShift: shiftData);
 
@@ -296,5 +338,108 @@ class HomeController extends GetxController {
   // เคลียร์ตะกร้า
   void clearCart() {
     cartItems.clear();
+  }
+
+  // ✅ เก็บข้อมูล device ลง SharedPreferences
+  Future<void> saveDeviceInfo(Map<String, dynamic> deviceData) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // เก็บข้อมูล device แต่ละฟิลด์
+      await prefs.setString('device_id', deviceData['deviceId'] ?? '');
+      await prefs.setString('device_name', deviceData['name'] ?? '');
+      await prefs.setString('device_description', deviceData['description'] ?? '');
+      await prefs.setBool('device_active', deviceData['active'] ?? true);
+      await prefs.setInt('device_store_id', deviceData['store']?['id'] ?? 1);
+      await prefs.setInt('device_internal_id', deviceData['id'] ?? 0);
+      await prefs.setString('device_created_at', deviceData['createdAt'] ?? '');
+      await prefs.setString('device_updated_at', deviceData['updatedAt'] ?? '');
+
+      // อัปเดต observable
+      deviceInfo.value = deviceData;
+
+      log('💾 Device info saved successfully: ${deviceData['deviceId']}');
+    } catch (e) {
+      log('❌ Error saving device info: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ โหลดข้อมูล device จาก SharedPreferences
+  Future<Map<String, dynamic>?> loadDeviceInfo() async {
+    try {
+      log('🔄 Loading device info from SharedPreferences...');
+      final prefs = await SharedPreferences.getInstance();
+
+      final deviceId = prefs.getString('unique_device_id');
+      log('📱 Found deviceId in SharedPreferences: $deviceId');
+
+      if (deviceId == null || deviceId.isEmpty) {
+        log('⚠️ No device info found in SharedPreferences');
+        return null;
+      }
+
+      final deviceData = {
+        'deviceId': deviceId,
+        'name': prefs.getString('device_name') ?? '',
+        'description': prefs.getString('device_description') ?? '',
+        'active': prefs.getBool('device_active') ?? true,
+        'store': {'id': prefs.getInt('device_store_id') ?? 1},
+        'id': prefs.getInt('device_internal_id') ?? 0,
+        'createdAt': prefs.getString('device_created_at') ?? '',
+        'updatedAt': prefs.getString('device_updated_at') ?? '',
+      };
+
+      // อัปเดต observable
+      deviceInfo.value = deviceData;
+
+      log('📱 Device info loaded: ${deviceData['deviceId']}');
+      return deviceData;
+    } catch (e) {
+      log('❌ Error loading device info: $e');
+      return null;
+    }
+  }
+
+  // ✅ ลบข้อมูล device (สำหรับ logout หรือ reset)
+  Future<void> clearDeviceInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.remove('device_id');
+      await prefs.remove('device_name');
+      await prefs.remove('device_description');
+      await prefs.remove('device_active');
+      await prefs.remove('device_store_id');
+      await prefs.remove('device_internal_id');
+      await prefs.remove('device_created_at');
+      await prefs.remove('device_updated_at');
+
+      // เคลียร์ observable
+      deviceInfo.clear();
+
+      log('🗑️ Device info cleared');
+    } catch (e) {
+      log('❌ Error clearing device info: $e');
+    }
+  }
+
+  // ✅ ดึงข้อมูล device ปัจจุบัน
+  Map<String, dynamic>? getCurrentDeviceInfo() {
+    return deviceInfo.isNotEmpty ? Map<String, dynamic>.from(deviceInfo) : null;
+  }
+
+  // ✅ ดึง deviceId ปัจจุบัน
+  String? getCurrentDeviceId() {
+    final deviceId = deviceInfo['deviceId'];
+    log('🔍 getCurrentDeviceId() called - deviceInfo.length: ${deviceInfo.length}, deviceId: $deviceId');
+    return deviceId;
+  }
+
+  // ✅ ดึง device internal ID ปัจจุบัน (สำหรับส่ง API)
+  int? getCurrentDeviceInternalId() {
+    final deviceId = deviceInfo['id'];
+    log('🔍 getCurrentDeviceInternalId() called - deviceInfo.length: ${deviceInfo.length}, id: $deviceId');
+    return deviceId;
   }
 }

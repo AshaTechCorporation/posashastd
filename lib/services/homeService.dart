@@ -124,4 +124,38 @@ class Homeservice {
       throw Exception(data['message']);
     }
   }
+
+  //เช็ค device id เครื่องที่ลงทะเบียน
+  static Future checkDevice({required String deviceId}) async {
+    final _authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/device/check-device', {"deviceId": deviceId});
+    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final response = await http.get(headers: headers, url);
+    if (response.statusCode == 200) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
+
+  //เพิ่ม device id
+  static Future registerDevice({required String deviceId, required String name, required String description}) async {
+    final _authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/device');
+    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: convert.jsonEncode({"deviceId": deviceId, "name": name, "description": description, "active": true}),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
 }

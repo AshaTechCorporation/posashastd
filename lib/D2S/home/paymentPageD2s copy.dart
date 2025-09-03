@@ -393,8 +393,20 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   Future<void> createOrders({required int paymentMethodId}) async {
     try {
       final total = calculateTotalWithDiscount();
+
+      // ✅ โหลดข้อมูล device ก่อนเพื่อให้แน่ใจว่ามี deviceId
+      await homeController.loadDeviceInfo();
+
+      // ✅ ใช้ device internal ID ที่บันทึกไว้แทนเลข 1
+      final currentDeviceInternalId = homeController.getCurrentDeviceInternalId();
+      final deviceIdToUse = currentDeviceInternalId ?? 1; // ใช้ 1 เป็น fallback
+
+      print('📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}');
+      print('📱 Current device internal ID: $currentDeviceInternalId');
+      print('📱 Using device ID for order: $deviceIdToUse');
+
       final formattedOrder = {
-        "deviceId": 1,
+        "deviceId": deviceIdToUse,
         "shiftId": homeController.currentShiftId.value,
         "branchId": 1,
         "total": total,
