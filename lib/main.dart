@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
+import 'package:posashastd/V2S/login/loginPageV2s.dart';
 import 'package:posashastd/login/loginPage.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -77,7 +78,10 @@ class MyApp extends StatelessWidget {
         final authService = AuthService();
         if (constraints.maxWidth < 720) {
           // 👉 ถ้าจอเล็ก เช่น Sunmi V2s
-          return const Homev2s();
+          if (authService.currentToken != null) {
+            return const Homev2s();
+          }
+          return const LoginPageV2s();
         } else {
           // 👉 จอใหญ่ เช่น D2S
           if (authService.currentToken != null) {
