@@ -262,6 +262,7 @@ List<MixMatchRule> _convertDiscountsToRules(List<Map<String, dynamic>> discounts
 
   for (final discount in discounts) {
     try {
+      log('🔧 Converting discount: ${discount['name']}');
       final id = discount['id'].toString();
       final priority = discount['priority'] ?? 999;
       final stepQty = (discount['stepQty'] ?? 1).toDouble();
@@ -270,7 +271,13 @@ List<MixMatchRule> _convertDiscountsToRules(List<Map<String, dynamic>> discounts
       final maxSets = discount['maxSetsPerTxn'];
       final isActive = discount['isActive'] ?? true;
 
-      if (!isActive) continue;
+      log('   Raw data: stepQty=${discount['stepQty']}, benefitValue=${discount['benefitValue']}, benefitType=${discount['benefitType']}');
+      log('   Converted: stepQty=$stepQty, benefitValue=$benefitValue, isActive=$isActive');
+
+      if (!isActive) {
+        log('   ❌ Skipping inactive discount');
+        continue;
+      }
 
       // แปลง benefitType
       MmBenefitType benefitType;
@@ -295,31 +302,38 @@ List<MixMatchRule> _convertDiscountsToRules(List<Map<String, dynamic>> discounts
       // กำหนดสินค้าที่ใช้ได้
       Set<String> productIds = {};
       final items = discount['items'] as List<dynamic>?;
+      log('   Items in discount: $items');
+
       if (items == null || items.isEmpty) {
         // ไม่ระบุสินค้า = ใช้ได้กับทุกสินค้า
         productIds = cartItems.map((item) => (item['id'] ?? item['productId']).toString()).toSet();
+        log('   ✅ No specific items, applying to all cart items: $productIds');
       } else {
         // ระบุสินค้าเฉพาะ
+        log('   📋 Specific items found, extracting product IDs...');
         for (final item in items) {
           final productId = item['product']?['id']?.toString();
+          log('     Item: $item -> productId: $productId');
           if (productId != null) {
             productIds.add(productId);
           }
         }
+        log('   ✅ Extracted product IDs: $productIds');
       }
 
-      rules.add(
-        MixMatchRule(
-          id: id,
-          priority: priority,
-          stepQty: stepQty,
-          benefitType: benefitType,
-          benefitValue: benefitValue,
-          combinable: combinable,
-          maxSetsPerTxn: maxSets,
-          productIds: productIds,
-        ),
+      final rule = MixMatchRule(
+        id: id,
+        priority: priority,
+        stepQty: stepQty,
+        benefitType: benefitType,
+        benefitValue: benefitValue,
+        combinable: combinable,
+        maxSetsPerTxn: maxSets,
+        productIds: productIds,
       );
+
+      log('   ✅ Created rule: id=$id, stepQty=$stepQty, benefitType=$benefitType, benefitValue=$benefitValue');
+      rules.add(rule);
     } catch (e) {
       log('❌ Error converting discount to rule: $e');
       continue;
@@ -338,8 +352,18 @@ double calculateDiscountFromRules({required List<Map<String, dynamic>> cartItems
   try {
     // แปลง discounts เป็น MixMatchRule
     final rules = _convertDiscountsToRules(discounts, cartItems);
+    log('🔧 Converted ${discounts.length} discounts to ${rules.length} rules');
+
     if (rules.isEmpty) {
+      log('⚠️ No valid rules after conversion, returning 0');
       return 0.0;
+    }
+
+    // แสดงรายละเอียด rules ที่แปลงแล้ว
+    for (int i = 0; i < rules.length; i++) {
+      final rule = rules[i];
+      log('   Rule $i: id=${rule.id}, stepQty=${rule.stepQty}, benefitType=${rule.benefitType}, benefitValue=${rule.benefitValue}');
+      log('     productIds=${rule.productIds}');
     }
 
     // ปริมาณคงเหลือ ต่อรายการเพื่อ "กัน" ให้โปรที่ห้ามซ้อน
@@ -356,18 +380,25 @@ double calculateDiscountFromRules({required List<Map<String, dynamic>> cartItems
     double totalDiscount = 0.0;
 
     for (final rule in sortedRules) {
+      log('🎯 Processing rule: ${rule.id} (stepQty=${rule.stepQty}, benefitValue=${rule.benefitValue})');
       final availableQty = rule.combinable ? null : Map<int, double>.from(remaining);
 
       final result = _applySingleRule(cartItems: cartItems, rule: rule, availableQty: availableQty);
 
       final discountAmount = result['discountTotal'] as double;
-      if (discountAmount <= 0) continue;
+      log('   💰 Rule ${rule.id} calculated discount: ฿$discountAmount');
+
+      if (discountAmount <= 0) {
+        log('   ❌ Rule ${rule.id} discount is 0 or negative, skipping');
+        continue;
+      }
 
       final allocations = result['allocations'] as List<DiscountAllocation>;
       final usedQtyPerItem = result['usedQtyPerItem'] as Map<int, double>;
 
       allAllocations.addAll(allocations);
       totalDiscount = _round2(totalDiscount + discountAmount);
+      log('   ✅ Rule ${rule.id} applied! Added ฿$discountAmount, total now: ฿$totalDiscount');
 
       if (!rule.combinable) {
         // หักปริมาณที่ถูกใช้ไปจริงจาก remaining
@@ -379,9 +410,11 @@ double calculateDiscountFromRules({required List<Map<String, dynamic>> cartItems
       }
     }
 
+    log('🎉 Final total discount: ฿${_round2(totalDiscount)}');
     return _round2(totalDiscount);
   } catch (e) {
     log('❌ Error calculating discount: $e');
+    log('❌ Stack trace: ${StackTrace.current}');
     return 0.0;
   }
 }

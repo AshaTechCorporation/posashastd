@@ -22,26 +22,6 @@ class _OrderPagev2sState extends State<OrderPagev2s> {
     Get.snackbar('ลบสำเร็จ', 'ลบรายการออกจากตะกร้าแล้ว', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 2));
   }
 
-  // ฟังก์ชันเพิ่มจำนวน
-  void _increaseQuantity(int index) {
-    setState(() {
-      widget.items[index]['qty'] = (widget.items[index]['qty'] ?? 1) + 1;
-    });
-  }
-
-  // ฟังก์ชันลดจำนวน
-  void _decreaseQuantity(int index) {
-    setState(() {
-      final currentQty = widget.items[index]['qty'] ?? 1;
-      if (currentQty > 1) {
-        widget.items[index]['qty'] = currentQty - 1;
-      } else {
-        // ถ้าจำนวนเหลือ 1 ให้แสดง dialog ยืนยันการลบ
-        _showDeleteConfirmDialog(index);
-      }
-    });
-  }
-
   // Dialog ยืนยันการลบ
   void _showDeleteConfirmDialog(int index) {
     final item = widget.items[index];
@@ -71,66 +51,81 @@ class _OrderPagev2sState extends State<OrderPagev2s> {
   // Dialog จัดการรายการ
   void _showItemManageDialog(int index) {
     final item = widget.items[index];
-    final currentQty = item['qty'] ?? 1;
 
     Get.dialog(
       AlertDialog(
         title: Text('${item['name']}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('ราคา: ฿${item['price'].toStringAsFixed(2)}'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            final currentQty = item['qty'] ?? 1;
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // ปุ่มลด
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red[200]!),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {
-                      Get.back();
-                      _decreaseQuantity(index);
-                    },
-                    icon: Icon(currentQty > 1 ? Icons.remove : Icons.delete, color: Colors.red, size: 20),
-                  ),
-                ),
+                Text('ราคา: ฿${item['price'].toStringAsFixed(2)}'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ปุ่มลด
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red[200]!),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          if (currentQty > 1) {
+                            setState(() {
+                              widget.items[index]['qty'] = currentQty - 1;
+                            });
+                            setDialogState(() {}); // อัปเดท dialog
+                          } else {
+                            // ถ้าจำนวนเหลือ 1 ให้ปิด dialog และแสดง dialog ยืนยันการลบ
+                            Get.back();
+                            _showDeleteConfirmDialog(index);
+                          }
+                        },
+                        icon: Icon(currentQty > 1 ? Icons.remove : Icons.delete, color: Colors.red, size: 20),
+                      ),
+                    ),
 
-                // แสดงจำนวน
-                Container(
-                  width: 60,
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text('$currentQty', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                ),
+                    // แสดงจำนวน
+                    Container(
+                      width: 60,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('$currentQty', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    ),
 
-                // ปุ่มเพิ่ม
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green[200]!),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {
-                      Get.back();
-                      _increaseQuantity(index);
-                    },
-                    icon: const Icon(Icons.add, color: Colors.green, size: 20),
-                  ),
+                    // ปุ่มเพิ่ม
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          setState(() {
+                            widget.items[index]['qty'] = currentQty + 1;
+                          });
+                          setDialogState(() {}); // อัปเดท dialog
+                        },
+                        icon: const Icon(Icons.add, color: Colors.green, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),

@@ -1,12 +1,16 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:posashastd/V2S/home/orderPagev2s.dart';
 import 'package:posashastd/V2S/home/widgets/PaymentSummaryBar.dart';
 import 'package:posashastd/V2S/home/widgets/ProductNameOverlay.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 import 'package:posashastd/constants.dart';
-import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/color_utils.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
+import 'package:posashastd/D2S/controllers/order_controller.dart';
+import 'package:posashastd/V2S/home/widgets/ShiftClosedWidgetv2s.dart';
 
 class Homev2s extends StatefulWidget {
   const Homev2s({super.key});
@@ -16,71 +20,160 @@ class Homev2s extends StatefulWidget {
 }
 
 class _Homev2sState extends State<Homev2s> {
-  List<Map<String, dynamic>> categories = []; // เก็บ category ทั้งหมด
-  String? selectedCategoryCode; // ใช้รหัสแทน
-  List<Map<String, dynamic>> products = [];
-  List<Map<String, dynamic>> cartItems = [];
+  late HomeController homeController;
+  late OrderController orderController;
 
   @override
   void initState() {
     super.initState();
+    log('🏠 Homev2s initState called');
+
+    // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
+    if (Get.isRegistered<HomeController>()) {
+      log('🗑️ Deleting existing HomeController');
+      Get.delete<HomeController>();
+    }
+    log('🆕 Creating new HomeController');
+    homeController = Get.put(HomeController());
+
+    // สร้าง OrderController เพื่อจัดการข้อมูลส่วนลด
+    if (Get.isRegistered<OrderController>()) {
+      log('🗑️ Deleting existing OrderController');
+      Get.delete<OrderController>();
+    }
+    log('🆕 Creating new OrderController');
+    orderController = Get.put(OrderController());
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await getlistCategory();
+      log('⏰ PostFrameCallback: loading data');
+
+      // เช็คสถานะ shift ก่อน
+      await homeController.checkShiftStatus();
+      log('✅ Shift status checked - currentShiftId: ${homeController.currentShiftId.value}');
+
+      await homeController.checkConnectivityAndLoadData();
+      log('✅ Data loading completed');
+
+      // เรียก checkDiscount เพื่อดึงข้อมูลส่วนลด
+      log('🎯 Loading discount data...');
+      await orderController.checkDiscount();
+      log('✅ Discount data loaded: ${orderController.discounts.length} discounts');
+
+      // ข้อมูลจะถูกโหลดผ่าน homeController แล้ว
     });
   }
 
-  //ดึงข้อมูล Category
-  Future<void> getlistCategory() async {
-    try {
-      final rawData = await Homeservice.getCategory();
-      if (!mounted) return;
-      // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
-      setState(() {
-        categories = [
-          {'code': 'ALL', 'name': 'ทั้งหมด'},
-          ...parsedCategories,
-        ];
-        selectedCategoryCode = categories.first['code'];
-      });
-      final int categoryId = categories.first['id'] ?? 0;
-      await getProductByCategory(categoryId: categoryId, branchId: 0);
-    } catch (e) {
-      // handle error
-    }
-  }
+  // แสดง Dialog เปิดกะ
+  void _showOpenShiftDialog() {
+    final changeController = TextEditingController();
+    final cashController = TextEditingController();
+    final remarkController = TextEditingController();
 
-  Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
-    try {
-      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
-      if (!mounted) return;
-      // ✅ แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
-      setState(() {
-        products = parsedProducts;
-      });
-    } catch (e) {
-      // handle error
-    }
-  }
+    final formKey = GlobalKey<FormState>();
 
-  void addToCart(Map<String, dynamic> product, {int quantity = 1}) {
-    setState(() {
-      final existingIndex = cartItems.indexWhere((item) => item['id'] == product['id']);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(children: [Icon(Icons.play_arrow, color: Colors.green), SizedBox(width: 8), Text('เปิดกะ')]),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: changeController,
+                  decoration: const InputDecoration(labelText: 'เงินทอน', hintText: 'ใส่จำนวนเงินทอน', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'กรุณาใส่จำนวนเงินทอน';
+                    }
+                    if (double.tryParse(value) == null) {
+                      return 'กรุณาใส่ตัวเลขที่ถูกต้อง';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: cashController,
+                  decoration: const InputDecoration(labelText: 'เงินสด', hintText: 'ใส่จำนวนเงินสด', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'กรุณาใส่จำนวนเงินสด';
+                    }
+                    if (double.tryParse(value) == null) {
+                      return 'กรุณาใส่ตัวเลขที่ถูกต้อง';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: remarkController,
+                  decoration: const InputDecoration(labelText: 'หมายเหตุ', hintText: 'ใส่หมายเหตุ (ถ้ามี)', border: OutlineInputBorder()),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('ยกเลิก')),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(context).pop();
 
-      if (existingIndex >= 0) {
-        final currentQty = cartItems[existingIndex]['qty'] ?? 1;
-        cartItems[existingIndex]['qty'] = currentQty + quantity;
-      } else {
-        final newItem = Map<String, dynamic>.from(product);
-        newItem['qty'] = quantity;
-        cartItems.add(newItem);
-      }
-    });
+                  final change = double.parse(changeController.text);
+                  final cash = double.parse(cashController.text);
+                  final remark = remarkController.text.isEmpty ? 'เปิดกะ' : remarkController.text;
+
+                  try {
+                    final success = await homeController.openShift(change: change, cash: cash, remark: remark);
+
+                    if (success) {
+                      Get.snackbar(
+                        'สำเร็จ',
+                        'เปิดกะเรียบร้อยแล้ว',
+                        backgroundColor: kTabColor,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 3),
+                      );
+                    } else {
+                      Get.snackbar(
+                        'ไม่สำเร็จ',
+                        'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 4),
+                      );
+                    }
+                  } catch (e) {
+                    Get.snackbar(
+                      'เกิดข้อผิดพลาด',
+                      'ไม่สามารถเปิดกะได้: ${e.toString()}',
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 5),
+                    );
+                    log('❌ Error opening shift: $e');
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
-  void _showQuantityDialog(Map<String, dynamic> product) {
+  void _showQuantityDialog(product) {
     final TextEditingController quantityController = TextEditingController(text: '1');
 
     Get.dialog(
@@ -116,7 +209,9 @@ class _Homev2sState extends State<Homev2s> {
               final finalQuantity = int.tryParse(quantityController.text) ?? 1;
               if (finalQuantity > 0) {
                 // เพิ่มสินค้าลงตะกร้าตามจำนวนที่ระบุ
-                addToCart(product, quantity: finalQuantity);
+                for (int i = 0; i < finalQuantity; i++) {
+                  homeController.addToCart(product);
+                }
                 Get.back();
 
                 // แสดงข้อความยืนยัน
@@ -138,7 +233,7 @@ class _Homev2sState extends State<Homev2s> {
   }
 
   double getTotalAmount() {
-    return cartItems.fold(0.0, (sum, item) {
+    return homeController.cartItems.fold(0.0, (sum, item) {
       final price = (item['price'] ?? 0).toDouble();
       final qty = item['qty'] ?? 1;
       return sum + (price * qty);
@@ -167,9 +262,17 @@ class _Homev2sState extends State<Homev2s> {
 
                   // “ตัวออเดอร์”
                   GestureDetector(
-                    onTap: () {
-                      if (cartItems.isNotEmpty) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => OrderPagev2s(items: cartItems)));
+                    onTap: () async {
+                      if (homeController.cartItems.isNotEmpty) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => OrderPagev2s(items: homeController.cartItems)),
+                        );
+
+                        // ถ้าได้ค่า true กลับมา ให้เคลียร์ออเดอร์ทั้งหมด
+                        if (result == true) {
+                          homeController.clearCart();
+                        }
                       }
                     },
                     child: const Text('ตัวออเดอร์', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -178,10 +281,12 @@ class _Homev2sState extends State<Homev2s> {
                   const SizedBox(width: 8),
 
                   // 🔢 กล่องตัวเลข
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-                    child: Text('${cartItems.length}', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                  Obx(
+                    () => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+                      child: Text('${homeController.cartItems.length}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    ),
                   ),
 
                   const Spacer(),
@@ -206,122 +311,155 @@ class _Homev2sState extends State<Homev2s> {
         ),
       ),
 
-      body: Column(
-        children: [
-          // ปุ่มชำระเงิน
-          // ✅ ปุ่มชำระเงิน (ขยายให้สูงขึ้น + ขีดเส้นล่าง)
-          PaymentSummaryBar(totalAmount: getTotalAmount()),
+      body: Obx(() {
+        // ถ้ากะปิดอยู่ แสดง UI เปิดกะ
+        if (!homeController.isShiftOpen.value) {
+          return ShiftClosedWidgetv2s(onOpenShift: _showOpenShiftDialog);
+        }
 
-          // Dropdown และค้นหา
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                // ครอบ Row ด้วย Expanded เพื่อให้กินพื้นที่ด้านซ้าย
-                Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Colors.grey, width: 0.5)), // เส้นแบ่งล่าง
-                    ),
-                    padding: const EdgeInsets.only(bottom: 4), // ระยะห่างจากข้อความถึงเส้น
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: selectedCategoryCode,
-                        onChanged: (value) async {
-                          setState(() {
-                            selectedCategoryCode = value;
-                          });
-                          // ✅ หา categoryId จาก code
-                          final selectedCategory = categories.firstWhere(
-                            (cat) => cat['code'] == value,
-                            orElse: () => {'id': 0}, // fallback ป้องกัน error
-                          );
-                          final int categoryId = selectedCategory['id'] ?? 0;
-                          // ✅ เรียก API สินค้า โดยใช้ branchId = 0
-                          await getProductByCategory(categoryId: categoryId, branchId: 0);
-                        },
+        // ถ้ากะเปิดแล้ว แสดง UI ปกติ
+        return Column(
+          children: [
+            // ปุ่มชำระเงิน
+            // ✅ ปุ่มชำระเงิน (ขยายให้สูงขึ้น + ขีดเส้นล่าง)
+            Obx(() => PaymentSummaryBar(totalAmount: getTotalAmount())),
 
-                        icon: const Icon(Icons.arrow_drop_down),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
-                        items:
-                            categories.map((category) {
-                              return DropdownMenuItem<String>(value: category['code'], child: Text(category['name']));
-                            }).toList(),
+            // Dropdown และค้นหา
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  // ครอบ Row ด้วย Expanded เพื่อให้กินพื้นที่ด้านซ้าย
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Colors.grey, width: 0.5)), // เส้นแบ่งล่าง
                       ),
+                      padding: const EdgeInsets.only(bottom: 4), // ระยะห่างจากข้อความถึงเส้น
+                      child: Obx(() {
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: homeController.selectedCategoryCode.value.isEmpty ? null : homeController.selectedCategoryCode.value,
+                            onChanged: (value) async {
+                              if (value != null) {
+                                homeController.selectedCategoryCode.value = value;
+                                // หา categoryId จาก code
+                                final selectedCategory = homeController.categories.firstWhere(
+                                  (cat) => cat['code'] == value,
+                                  orElse: () => {'id': 0}, // fallback ป้องกัน error
+                                );
+                                final int categoryId = selectedCategory['id'] ?? 0;
+                                // เรียก API สินค้า โดยใช้ branchId = 0
+                                await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                              }
+                            },
+
+                            icon: const Icon(Icons.arrow_drop_down),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                            items:
+                                homeController.categories.map((category) {
+                                  return DropdownMenuItem<String>(value: category['code'], child: Text(category['name']));
+                                }).toList(),
+                          ),
+                        );
+                      }),
                     ),
                   ),
-                ),
 
-                const SizedBox(width: 8), // ระยะห่างระหว่าง dropdown กับปุ่มค้นหา
-                // ไอคอนค้นหา
-                IconButton(
-                  onPressed: () {
-                    // โค้ดค้นหา
-                  },
-                  icon: const Icon(Icons.search),
-                ),
-              ],
-            ),
-          ),
-
-          // GridView แสดงสินค้า
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: GridView.builder(
-                padding: const EdgeInsets.only(top: 8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 0.75,
-                ),
-                itemCount: products.length,
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  final name = product['name'] ?? 'ไม่ระบุชื่อ';
-                  final showType = product['showType'];
-                  final colorHex = product['color'];
-                  final imageUrl = product['imageUrl'];
-
-                  return GestureDetector(
-                    onTap: () {
-                      addToCart(product);
+                  const SizedBox(width: 8), // ระยะห่างระหว่าง dropdown กับปุ่มค้นหา
+                  // ไอคอนค้นหา
+                  IconButton(
+                    onPressed: () {
+                      // โค้ดค้นหา
                     },
-                    onLongPress: () {
-                      // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
-                      _showQuantityDialog(product);
-                    },
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // ✅ พื้นหลังสินค้า
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child:
-                              showType == 'color'
-                                  ? Container(color: hexToColor(colorHex))
-                                  : imageUrl != null && showType == 'image'
-                                  ? Image.network(
-                                    imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[300]),
-                                  )
-                                  : Container(color: Colors.grey[300]), // fallback
-                        ),
-
-                        // ✅ ชื่อสินค้า
-                        ProductNameOverlay(name: name),
-                      ],
-                    ),
-                  );
-                },
+                    icon: const Icon(Icons.search),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
+
+            // GridView แสดงสินค้า
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Obx(() {
+                  return GridView.builder(
+                    padding: const EdgeInsets.only(top: 8),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 0.75,
+                    ),
+                    itemCount: homeController.products.length,
+                    itemBuilder: (context, index) {
+                      final product = homeController.products[index];
+                      final name = product.name ?? 'ไม่ระบุชื่อ';
+                      final showType = product.showType;
+                      final colorHex = product.color;
+                      final imageUrl = product.imageUrl;
+
+                      return GestureDetector(
+                        onTap: () {
+                          homeController.addToCart(product);
+                        },
+                        onLongPress: () {
+                          // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+                          _showQuantityDialog(product);
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // ✅ พื้นหลังสินค้า
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child:
+                                  showType == 'color'
+                                      ? Container(color: hexToColor(colorHex ?? '#FFFFFF'))
+                                      : imageUrl != null && showType == 'image'
+                                      ? CachedNetworkImage(
+                                        imageUrl: imageUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder:
+                                            (context, url) => Container(
+                                              color: Colors.grey[200],
+                                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                            ),
+                                        errorWidget:
+                                            (context, url, error) =>
+                                                Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                                      )
+                                      : Container(color: Colors.grey[300]), // fallback
+                            ),
+
+                            // ✅ ราคาสินค้า (มุมซ้ายบน)
+                            Positioned(
+                              top: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
+                                child: Text(
+                                  '฿${(product.price ?? 0).toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+
+                            // ✅ ชื่อสินค้า
+                            ProductNameOverlay(name: name),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 }
