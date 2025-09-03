@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:posashastd/V2S/home/orderPagev2s.dart';
 import 'package:posashastd/V2S/home/widgets/PaymentSummaryBar.dart';
 import 'package:posashastd/V2S/home/widgets/ProductNameOverlay.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
@@ -62,18 +64,84 @@ class _Homev2sState extends State<Homev2s> {
     }
   }
 
-  void addToCart(Map<String, dynamic> product) {
+  void addToCart(Map<String, dynamic> product, {int quantity = 1}) {
     setState(() {
       final existingIndex = cartItems.indexWhere((item) => item['id'] == product['id']);
 
       if (existingIndex >= 0) {
         final currentQty = cartItems[existingIndex]['qty'] ?? 1;
-        cartItems[existingIndex]['qty'] = currentQty + 1;
+        cartItems[existingIndex]['qty'] = currentQty + quantity;
       } else {
         final newItem = Map<String, dynamic>.from(product);
-        newItem['qty'] = 1;
+        newItem['qty'] = quantity;
         cartItems.add(newItem);
       }
+    });
+  }
+
+  // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+  void _showQuantityDialog(Map<String, dynamic> product) {
+    final TextEditingController quantityController = TextEditingController(text: '1');
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('เพิ่มสินค้า', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // แสดงชื่อสินค้า
+            Text(product['name'] ?? 'ไม่มีชื่อ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[700])),
+            const SizedBox(height: 16),
+
+            // ช่องกรอกจำนวน
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'จำนวน', border: OutlineInputBorder(), suffixText: 'ชิ้น'),
+              onChanged: (value) {
+                // ตรวจสอบว่าเป็นตัวเลขหรือไม่
+                if (int.tryParse(value) == null && value.isNotEmpty) {
+                  quantityController.text = '1';
+                  quantityController.selection = TextSelection.fromPosition(TextPosition(offset: quantityController.text.length));
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () {
+              final finalQuantity = int.tryParse(quantityController.text) ?? 1;
+              if (finalQuantity > 0) {
+                // เพิ่มสินค้าลงตะกร้าตามจำนวนที่ระบุ
+                addToCart(product, quantity: finalQuantity);
+                Get.back();
+
+                // แสดงข้อความยืนยัน
+                Get.snackbar(
+                  'เพิ่มสินค้าสำเร็จ',
+                  'เพิ่ม ${product['name']} จำนวน $finalQuantity ชิ้น',
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white,
+                  duration: const Duration(seconds: 2),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('เพิ่ม', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double getTotalAmount() {
+    return cartItems.fold(0.0, (sum, item) {
+      final price = (item['price'] ?? 0).toDouble();
+      final qty = item['qty'] ?? 1;
+      return sum + (price * qty);
     });
   }
 
@@ -82,7 +150,7 @@ class _Homev2sState extends State<Homev2s> {
     return Scaffold(
       drawer: const AppDrawerv2s(),
       appBar: AppBar(
-        backgroundColor: Colors.green,
+        backgroundColor: kTabColor,
         automaticallyImplyLeading: false,
         titleSpacing: 0,
         title: Builder(
@@ -142,7 +210,7 @@ class _Homev2sState extends State<Homev2s> {
         children: [
           // ปุ่มชำระเงิน
           // ✅ ปุ่มชำระเงิน (ขยายให้สูงขึ้น + ขีดเส้นล่าง)
-          PaymentSummaryBar(totalAmount: 80.00),
+          PaymentSummaryBar(totalAmount: getTotalAmount()),
 
           // Dropdown และค้นหา
           Padding(
@@ -162,7 +230,7 @@ class _Homev2sState extends State<Homev2s> {
                         value: selectedCategoryCode,
                         onChanged: (value) async {
                           setState(() {
-                            selectedCategoryCode = value!;
+                            selectedCategoryCode = value;
                           });
                           // ✅ หา categoryId จาก code
                           final selectedCategory = categories.firstWhere(
@@ -220,6 +288,10 @@ class _Homev2sState extends State<Homev2s> {
                   return GestureDetector(
                     onTap: () {
                       addToCart(product);
+                    },
+                    onLongPress: () {
+                      // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+                      _showQuantityDialog(product);
                     },
                     child: Stack(
                       fit: StackFit.expand,

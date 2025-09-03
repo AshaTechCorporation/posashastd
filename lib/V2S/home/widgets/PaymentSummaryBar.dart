@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:posashastd/constants.dart';
 
 class PaymentSummaryBar extends StatelessWidget {
   final double totalAmount;
@@ -12,7 +13,7 @@ class PaymentSummaryBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.green.shade400,
+        color: kTabColor,
         borderRadius: BorderRadius.circular(4),
         border: const Border(bottom: BorderSide(color: Colors.grey, width: 0.5)),
       ),
