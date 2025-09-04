@@ -113,7 +113,7 @@ class _ShiftV2sState extends State<ShiftV2s> {
       appBar: AppBar(
         title: const Text('กะ'),
         iconTheme: const IconThemeData(color: Colors.white),
-        backgroundColor: Colors.green,
+        backgroundColor: ktextColr,
         foregroundColor: Colors.white,
         //actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.print, color: Colors.white))],
       ),

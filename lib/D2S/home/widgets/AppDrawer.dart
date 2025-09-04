@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/D2S/product/productListPage.dart';
@@ -7,10 +8,51 @@ import 'package:posashastd/D2S/setting/settingsPage.dart';
 import 'package:posashastd/D2S/stock/stockPage.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  String staffName = 'ธวัชชัย มุ้งภูเขียว';
+  String branchName = 'ตะวันตก';
+  String deviceName = 'POS 1';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStaffInfo();
+  }
+
+  // โหลดข้อมูลพนักงาน
+  Future<void> _loadStaffInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // ดึงข้อมูลพนักงาน
+      final firstName = prefs.getString('user_data') ?? 'unknown';
+      final lastName = prefs.getString('currentLastName') ?? '';
+      final branch = prefs.getString('currentBranchName') ?? 'POS 1';
+      final device = prefs.getString('device_name') ?? 'POS 1';
+
+      log('📋 Staff info loaded: $firstName $lastName, Branch: $branch, Device: $device');
+
+      if (mounted) {
+        setState(() {
+          staffName = '$firstName $lastName'.trim();
+          branchName = branch;
+          deviceName = device;
+        });
+      }
+    } catch (e) {
+      log('❌ Error loading staff info: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +68,11 @@ class AppDrawer extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('ธวัชชัย มุ้งภูเขียว', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('POS 1', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                Text('ตะวันตก', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              children: [
+                Text(staffName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(deviceName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                Text(branchName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
               ],
             ),
           ),
@@ -110,13 +152,15 @@ class AppDrawer extends StatelessWidget {
                     //   MaterialPageRoute(builder: (_) => StockPage()),
                     //   (route) => false, // ลบ route ทั้งหมด
                     // );
-                    final _authService = AuthService();
-                    final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/inventory?token=${_authService.currentToken}');
+                    final authService = AuthService();
+                    final Uri youtubeUrl = Uri.parse('https://pos-asha.dev-asha.com/inventory?token=${authService.currentToken}');
 
                     if (await canLaunchUrl(youtubeUrl)) {
                       await launchUrl(youtubeUrl, mode: LaunchMode.externalApplication);
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นอยุ่ระหว่างพัฒนา')));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ฟังก์ชั่นอยุ่ระหว่างพัฒนา')));
+                      }
                     }
                   },
                 ),

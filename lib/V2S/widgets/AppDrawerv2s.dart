@@ -1,11 +1,15 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:posashastd/V2S/home/homeV2S.dart';
 import 'package:posashastd/V2S/product/productListV2s.dart';
 import 'package:posashastd/V2S/receipt/receiptHistoryV2s.dart';
 import 'package:posashastd/V2S/report/shiftV2s.dart';
 import 'package:posashastd/V2S/setting/settingsV2s.dart';
+import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/auth_service.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppDrawerv2s extends StatefulWidget {
@@ -17,16 +21,48 @@ class AppDrawerv2s extends StatefulWidget {
 
 class _AppDrawerv2sState extends State<AppDrawerv2s> {
   int selectedIndex = 0;
+  String staffName = 'unknown unknown';
+  String branchName = 'ตะวันตก';
+  String deviceName = 'POS 1';
 
   final List<_DrawerItemData> menuItems = [
     _DrawerItemData(Icons.shopping_basket, 'ขาย', const Homev2s()),
     _DrawerItemData(Icons.receipt_long, 'ใบเสร็จรับเงิน', const ReceiptHistoryV2s()),
     _DrawerItemData(Icons.access_time, 'กะ', const ShiftV2s()),
-    _DrawerItemData(Icons.list_alt, 'รายการสินค้า', const ProductListV2s()),
     _DrawerItemData(Icons.settings, 'การตั้งค่า', const SettingsV2s()),
     _DrawerItemData(Icons.inventory, 'สต็อก', null),
-    _DrawerItemData(Icons.info_outline, 'รายละเอียดบัญชี', null),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStaffInfo();
+  }
+
+  // โหลดข้อมูลพนักงาน
+  Future<void> _loadStaffInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // ดึงข้อมูลพนักงาน
+      final firstName = prefs.getString('user_data') ?? 'unknown';
+      final lastName = prefs.getString('currentLastName') ?? '';
+      final branch = prefs.getString('currentBranchName') ?? 'POS 1';
+      final device = prefs.getString('device_name') ?? 'POS 1';
+
+      log('📋 Staff info loaded: $firstName $lastName, Branch: $branch, Device: $device');
+
+      if (mounted) {
+        setState(() {
+          staffName = '$firstName $lastName';
+          branchName = branch;
+          deviceName = device;
+        });
+      }
+    } catch (e) {
+      log('❌ Error loading staff info: $e');
+    }
+  }
 
   void _onItemTap(int index) async {
     setState(() {
@@ -102,16 +138,16 @@ class _AppDrawerv2sState extends State<AppDrawerv2s> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            color: Colors.green,
+            color: ktextColr,
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            padding: EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('unknown unknown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('POS 1', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                Text('ตะวันตก', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              children: [
+                Text(staffName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(deviceName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                Text(branchName, style: const TextStyle(color: Colors.white70, fontSize: 14)),
               ],
             ),
           ),
