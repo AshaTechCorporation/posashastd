@@ -14,6 +14,18 @@ class SettingsV2s extends StatefulWidget {
 }
 
 class _SettingsV2sState extends State<SettingsV2s> {
+  // ฟังก์ชันแสดงข้อความฟีเจอร์ยังไม่พร้อม
+  void _showFeatureNotReady(String featureName) {
+    Get.snackbar(
+      'ฟีเจอร์ยังไม่พร้อม',
+      'ฟังก์ชั่น "$featureName" ยังไม่พร้อมใช้งาน',
+      backgroundColor: Colors.orange,
+      colorText: Colors.white,
+      icon: const Icon(Icons.info_outline, color: Colors.white),
+      duration: const Duration(seconds: 3),
+    );
+  }
+
   // ฟังก์ชันออกจากระบบ
   Future<void> _logout() async {
     // แสดง Dialog ยืนยัน
@@ -70,9 +82,9 @@ class _SettingsV2sState extends State<SettingsV2s> {
       ),
       body: Column(
         children: [
-          ListTile(leading: Icon(Icons.print), title: Text('เครื่องพิมพ์'), onTap: () => Get.to(() => PrinterSetting())),
-          ListTile(leading: Icon(Icons.percent), title: Text('ภาษี')),
-          ListTile(leading: Icon(Icons.settings), title: Text('ทั่วไป')),
+          ListTile(leading: const Icon(Icons.print), title: const Text('เครื่องพิมพ์'), onTap: () => Get.to(() => const PrinterSetting())),
+          ListTile(leading: const Icon(Icons.percent), title: const Text('ภาษี'), onTap: () => _showFeatureNotReady('ภาษี')),
+          ListTile(leading: const Icon(Icons.settings), title: const Text('ทั่วไป'), onTap: () => _showFeatureNotReady('ทั่วไป')),
           Spacer(),
           Padding(padding: EdgeInsets.only(bottom: 4), child: Text('jumpoil2107@hotmail.com', style: TextStyle(color: Colors.grey))),
           Padding(
