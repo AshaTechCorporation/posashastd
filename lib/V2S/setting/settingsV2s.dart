@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/V2S/setting/printerSetting.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/auth_service.dart';
@@ -64,12 +65,12 @@ class _SettingsV2sState extends State<SettingsV2s> {
       drawer: const AppDrawerv2s(),
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        backgroundColor: Colors.green,
+        backgroundColor: ktextColr,
         title: const Text('การตั้งค่า', style: TextStyle(color: Colors.white)),
       ),
       body: Column(
         children: [
-          ListTile(leading: Icon(Icons.print), title: Text('เครื่องพิมพ์')),
+          ListTile(leading: Icon(Icons.print), title: Text('เครื่องพิมพ์'), onTap: () => Get.to(() => PrinterSetting())),
           ListTile(leading: Icon(Icons.percent), title: Text('ภาษี')),
           ListTile(leading: Icon(Icons.settings), title: Text('ทั่วไป')),
           Spacer(),
