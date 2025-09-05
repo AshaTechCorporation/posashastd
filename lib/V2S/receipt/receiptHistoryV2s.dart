@@ -102,22 +102,105 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
                 );
               }
 
-              return RefreshIndicator(
-                onRefresh: orderController.refreshOrders,
-                child: ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
-                    return _buildReceiptItemFromAPI(order);
-                  },
-                ),
-              );
+              return RefreshIndicator(onRefresh: orderController.refreshOrders, child: _buildGroupedOrdersList(orders));
             }),
           ),
         ],
       ),
     );
+  }
+
+  // สร้างรายการที่แบ่งตามวันที่
+  Widget _buildGroupedOrdersList(List orders) {
+    // จัดกลุ่มออเดอร์ตามวันที่
+    final Map<String, List> groupedOrders = {};
+
+    for (final order in orders) {
+      final dateKey = _getDateKey(order.orderDate);
+      if (groupedOrders[dateKey] == null) {
+        groupedOrders[dateKey] = [];
+      }
+      groupedOrders[dateKey]!.add(order);
+    }
+
+    // เรียงลำดับวันที่จากใหม่ไปเก่า
+    final sortedKeys = groupedOrders.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      itemCount: sortedKeys.length,
+      itemBuilder: (context, index) {
+        final dateKey = sortedKeys[index];
+        final ordersForDate = groupedOrders[dateKey]!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header วันที่
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: ktextColr.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: ktextColr.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, color: ktextColr, size: 20),
+                  const SizedBox(width: 8),
+                  Text(_formatDateHeader(dateKey), style: TextStyle(color: ktextColr, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: ktextColr, borderRadius: BorderRadius.circular(12)),
+                    child: Text(
+                      '${ordersForDate.length} รายการ',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // รายการออเดอร์ในวันนั้น
+            ...ordersForDate.map((order) => _buildReceiptItemFromAPI(order)),
+          ],
+        );
+      },
+    );
+  }
+
+  // สร้าง key สำหรับจัดกลุ่มตามวันที่
+  String _getDateKey(DateTime? dateTime) {
+    if (dateTime == null) return 'unknown';
+
+    final adjustedDate = dateTime.add(const Duration(hours: 7));
+    return DateFormat('yyyy-MM-dd').format(adjustedDate);
+  }
+
+  // จัดรูปแบบ header วันที่
+  String _formatDateHeader(String dateKey) {
+    if (dateKey == 'unknown') return 'ไม่ระบุวันที่';
+
+    try {
+      final date = DateTime.parse(dateKey);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final targetDate = DateTime(date.year, date.month, date.day);
+
+      if (targetDate == today) {
+        return 'วันนี้ (${DateFormat('d MMM yyyy', 'th').format(date)})';
+      } else if (targetDate == yesterday) {
+        return 'เมื่อวาน (${DateFormat('d MMM yyyy', 'th').format(date)})';
+      } else {
+        return DateFormat('d MMM yyyy', 'th').format(date);
+      }
+    } catch (e) {
+      return dateKey;
+    }
   }
 
   Widget _buildReceiptItemFromAPI(order) {
