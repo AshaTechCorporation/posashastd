@@ -137,7 +137,6 @@ class AuthService {
       await prefs.remove('refresh_token');
       await prefs.remove('user_data');
       await prefs.remove('login_timestamp');
-      await prefs.remove('shift_id');
 
       // await prefs.clear();
 

@@ -82,7 +82,16 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       await orderController.checkDiscount();
       log('✅ Discount data loaded: ${orderController.discounts.length} discounts');
 
+      // แสดงรายละเอียดส่วนลดที่โหลดมา
+      for (int i = 0; i < orderController.discounts.length; i++) {
+        final discount = orderController.discounts[i];
+        log('   Loaded Discount $i: ${discount.toString()}');
+      }
+
       await _loadStaffInfo();
+
+      // เพิ่ม delay เล็กน้อยเพื่อให้แน่ใจว่าข้อมูลโหลดเสร็จ
+      await Future.delayed(const Duration(milliseconds: 100));
       _calculateAutoDiscount();
     });
   }
@@ -134,8 +143,44 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
           '   Discount $i: id=${discount['id']}, name=${discount['name']}, stepQty=${discount['stepQty']}, benefitType=${discount['benefitType']}, benefitValue=${discount['benefitValue']}',
         );
         log('     isActive=${discount['isActive']}, items=${discount['items']}');
+
+        // ตรวจสอบว่าสินค้าในตะกร้าตรงกับ discount rule หรือไม่
+        if (discount['items'] != null) {
+          final discountItems = discount['items'] as List;
+          log('     Discount items count: ${discountItems.length}');
+          for (int j = 0; j < discountItems.length; j++) {
+            final discountItem = discountItems[j];
+            log('       Discount item $j: productId=${discountItem['product']?['id']}, name=${discountItem['product']?['name']}');
+          }
+
+          // เช็คว่าสินค้าในตะกร้าตรงกับ discount items หรือไม่
+          for (final cartItem in widget.items) {
+            final cartProductId = cartItem['id'];
+            Map<String, dynamic>? matchingDiscountItem;
+            try {
+              matchingDiscountItem = discountItems.firstWhere((item) => item['product']?['id'] == cartProductId);
+            } catch (e) {
+              matchingDiscountItem = null;
+            }
+
+            if (matchingDiscountItem != null) {
+              log('       ✅ Found matching product: cartId=$cartProductId, qty=${cartItem['qty']}');
+            } else {
+              log('       ❌ No match for cartId=$cartProductId');
+
+              // ลองเปรียบเทียบแบบ string
+              try {
+                matchingDiscountItem = discountItems.firstWhere((item) => item['product']?['id'].toString() == cartProductId.toString());
+                log('       ✅ Found matching product (string comparison): cartId=$cartProductId');
+              } catch (e) {
+                log('       ❌ Still no match even with string comparison');
+              }
+            }
+          }
+        }
       }
 
+      log('🔧 Calling calculateDiscountFromRules...');
       final calculatedDiscount = calculateDiscountFromRules(cartItems: widget.items, discounts: orderController.discounts);
 
       log('🎯 Calculated discount from rules: ฿$calculatedDiscount');
@@ -152,6 +197,14 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
     log('🔍 _calculateAutoDiscount called');
     log('   orderController.discounts.length: ${orderController.discounts.length}');
     log('   widget.items.length: ${widget.items.length}');
+    log('   originalTotal: ฿$originalTotal');
+
+    // แสดงรายละเอียดสินค้าในตะกร้า
+    log('📦 Cart items details:');
+    for (int i = 0; i < widget.items.length; i++) {
+      final item = widget.items[i];
+      log('   Item $i: id=${item['id']}, name=${item['name']}, qty=${item['qty']}, price=฿${item['price']}');
+    }
 
     if (orderController.discounts.isEmpty) {
       log('⚠️ No discounts available, skipping auto discount calculation');
@@ -173,8 +226,14 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
         discountAmount = totalDiscountApplied;
       });
       log('💰 Auto applied discount on page load: ฿$autoDiscount');
+      log('💰 totalDiscountApplied is now: ฿$totalDiscountApplied');
+      log('💰 Final total after discount: ฿${calculateTotalWithDiscount()}');
     } else {
       log('ℹ️ No auto discount applied (discount = 0)');
+      log('ℹ️ Possible reasons:');
+      log('   - No matching products in discount rules');
+      log('   - Quantity not enough for discount');
+      log('   - Discount rules not active');
     }
   }
 
