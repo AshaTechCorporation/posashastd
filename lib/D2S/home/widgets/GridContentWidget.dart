@@ -14,8 +14,16 @@ class GridContentWidget extends StatelessWidget {
   final double height;
   final TabController tabController;
   final HomeController homeController;
+  final ScrollController? scrollController;
 
-  const GridContentWidget({super.key, required this.width, required this.height, required this.tabController, required this.homeController});
+  const GridContentWidget({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.tabController,
+    required this.homeController,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +33,7 @@ class GridContentWidget extends StatelessWidget {
       return Obx(() {
         return GridView.builder(
           key: const ValueKey("grid_main_products"),
+          controller: scrollController, // ✅ เพิ่ม ScrollController
           padding: const EdgeInsets.all(8),
           physics: const BouncingScrollPhysics(),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(

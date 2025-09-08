@@ -25,15 +25,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late HomeController homeController;
   late OrderController orderController;
 
-  // ✅ เพิ่ม ScrollController สำหรับตะกร้า
+  // ✅ เพิ่ม ScrollController สำหรับตะกร้าและ GridView
   late ScrollController _cartScrollController;
+  late ScrollController _gridScrollController;
 
   @override
   void initState() {
     super.initState();
     log('🏠 HomePage initState called');
     _tabController = TabController(length: tabs.length, vsync: this);
-    _cartScrollController = ScrollController(); // ✅ เริ่มต้น ScrollController
+    _cartScrollController = ScrollController(); // ✅ เริ่มต้น ScrollController สำหรับตะกร้า
+    _gridScrollController = ScrollController(); // ✅ เริ่มต้น ScrollController สำหรับ GridView
     SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
 
     // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
@@ -73,7 +75,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
-    _cartScrollController.dispose(); // ✅ ทำลาย ScrollController
+    _cartScrollController.dispose(); // ✅ ทำลาย ScrollController สำหรับตะกร้า
+    _gridScrollController.dispose(); // ✅ ทำลาย ScrollController สำหรับ GridView
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -91,6 +94,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
+    }
+  }
+
+  // ✅ ฟังก์ชันเลื่อน GridView กลับไปด้านบน
+  void _scrollGridToTop() {
+    if (_gridScrollController.hasClients) {
+      _gridScrollController.animateTo(0, duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
     }
   }
 
@@ -139,15 +149,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       log('📋 Updated tabs: ${tabs.length} tabs total');
       log('🎯 Tabs: ${tabs.join(", ")}');
-    });
-  }
-
-  void _addTab() {
-    setState(() {
-      homeController.addPanel();
-      tabs.add("พาเนล ${homeController.panels.length}");
-      _tabController.dispose();
-      _tabController = TabController(length: tabs.length, vsync: this);
     });
   }
 
@@ -421,6 +422,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                     );
                                                     final int categoryId = selectedCategory['id'] ?? 0;
                                                     await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+
+                                                    // ✅ เลื่อน GridView กลับไปด้านบนหลังจากโหลดข้อมูลใหม่
+                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                      _scrollGridToTop();
+                                                    });
                                                   }
                                                 }
                                                 : null,
@@ -471,8 +477,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         return AnimatedBuilder(
                           animation: _tabController,
                           builder:
-                              (_, __) =>
-                                  GridContentWidget(width: width, height: height, tabController: _tabController, homeController: homeController),
+                              (_, __) => GridContentWidget(
+                                width: width,
+                                height: height,
+                                tabController: _tabController,
+                                homeController: homeController,
+                                scrollController: _gridScrollController, // ✅ ส่ง ScrollController
+                              ),
                         );
                       }),
                     ),
