@@ -189,9 +189,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
               return const Center(child: Text('เลือกออเดอร์เพื่อดูรายละเอียด', style: TextStyle(color: Colors.grey)));
             }
 
-            return Container(
+            return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              alignment: Alignment.topCenter,
               child: Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -212,7 +211,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   Widget _buildOrderDetails(Order order) {
     final grandTotal = order.total ?? 0;
     final change = order.change ?? 0;
-    final orderDate = order.orderDate != null ? order.orderDate!.add(Duration(hours: 7)) : null;
+    final orderDate = order.orderDate?.add(Duration(hours: 7));
     final deviceName = order.device?.name ?? 'POS 1';
 
     return Column(
@@ -229,16 +228,26 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
         // แสดงรายการสินค้า
         if (order.orderItems != null && order.orderItems!.isNotEmpty) ...[
-          ...order.orderItems!.map(
-            (item) => Column(
+          ...order.orderItems!.map((item) {
+            final quantity = item.quantity ?? 0;
+            final unitPrice = item.price ?? 0;
+            final totalPrice = quantity * unitPrice;
+
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18)),
-                Text('${item.quantity ?? 0} x ฿${(item.price ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
-                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18))),
+                    Text('฿${totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Text('$quantity x ฿${unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                const SizedBox(height: 8),
               ],
-            ),
-          ),
+            );
+          }),
         ],
 
         const Divider(height: 24),
@@ -267,7 +276,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
   Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
     final grandTotal = order.total ?? 0;
-    final orderDate = order.orderDate != null ? order.orderDate!.add(Duration(hours: 7)) : null;
+    final orderDate = order.orderDate?.add(Duration(hours: 7));
     final timeString = orderDate != null ? DateFormat('HH:mm น.').format(orderDate) : 'ไม่ระบุเวลา';
 
     return Container(
