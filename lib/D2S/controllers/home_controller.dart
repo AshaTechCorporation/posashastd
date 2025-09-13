@@ -25,6 +25,10 @@ class HomeController extends GetxController {
   // ตัวแปรสำหรับจัดการ device info
   RxMap<String, dynamic> deviceInfo = <String, dynamic>{}.obs;
 
+  // ✅ ตัวแปรสำหรับเก็บข้อมูลออเดอร์ที่แก้ไข
+  int? editOrderId;
+  String? editOrderNumber;
+
   final _databaseService = DatebaseService();
 
   @override

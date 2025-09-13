@@ -19,8 +19,10 @@ import 'package:screenshot/screenshot.dart';
 
 class PaymentPageD2s extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
+  final int? editOrderId;
+  final String? editOrderNumber;
 
-  const PaymentPageD2s({super.key, required this.cartItems});
+  const PaymentPageD2s({super.key, required this.cartItems, this.editOrderId, this.editOrderNumber});
 
   @override
   State<PaymentPageD2s> createState() => _PaymentPageD2sState();
@@ -76,6 +78,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ✅ เรียก checkLogin เพื่อดึงข้อมูลพนักงาน
       await _loadStaffInfo();
+
+      // ✅ ตรวจสอบโหมดแก้ไขออเดอร์
+      if (widget.editOrderId != null) {
+        log('📝 Edit mode - Order ID: ${widget.editOrderId}, Number: ${widget.editOrderNumber}');
+      }
 
       // ✅ คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
       _calculateAutoDiscount();
@@ -455,6 +462,41 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     try {
       final total = calculateTotalWithDiscount();
 
+      // ✅ ตรวจสอบและ void ออเดอร์เดิมก่อน (ถ้าเป็นโหมดแก้ไข)
+      if (widget.editOrderId != null) {
+        log('🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}');
+
+        try {
+          final voidResult = await Homeservice.voidOrder(orderId: widget.editOrderId!);
+          log('📋 Void order result: $voidResult');
+
+          if (voidResult != null && voidResult is Map<String, dynamic>) {
+            final orderStatus = voidResult['orderStatus'] as String?;
+
+            if (orderStatus == 'void') {
+              log('✅ Original order voided successfully');
+              // แสดงข้อความแจ้งเตือน
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            } else {
+              throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus');
+            }
+          } else {
+            throw Exception('ไม่ได้รับข้อมูลการยกเลิกออเดอร์');
+          }
+        } catch (e) {
+          log('❌ Error voiding original order: $e');
+          throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้: $e');
+        }
+      }
+
       // ✅ โหลดข้อมูล device ก่อนเพื่อให้แน่ใจว่ามี deviceId
       await homeController.loadDeviceInfo();
 
@@ -518,6 +560,25 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         child: Column(
           children: [
             ProductHeader(),
+
+            // ✅ แสดงข้อมูลออเดอร์ที่แก้ไข
+            if (widget.editOrderId != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.orange[50],
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'กำลังแก้ไขออเดอร์: ${widget.editOrderNumber ?? widget.editOrderId}',
+                      style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             Expanded(
               child: Row(

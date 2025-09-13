@@ -69,6 +69,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // ✅ ฟังการเปลี่ยนแปลงของตะกร้าและเลื่อนลงด้านล่าง
       _setupCartScrollListener();
+
+      // ✅ ตรวจสอบว่ามีข้อมูลออเดอร์ส่งมาจากหน้าแก้ไขหรือไม่
+      _checkEditModeArguments();
     });
   }
 
@@ -129,6 +132,45 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   // ✅ คำนวณจำนวนสินค้าทั้งหมดในตะกร้า
   int _getTotalQuantity() {
     return homeController.cartItems.fold<int>(0, (sum, item) => sum + (item['qty'] as int? ?? 0));
+  }
+
+  // ✅ ตรวจสอบข้อมูลที่ส่งมาจากหน้าแก้ไขออเดอร์
+  void _checkEditModeArguments() {
+    final arguments = Get.arguments;
+    if (arguments != null && arguments is Map<String, dynamic>) {
+      final editMode = arguments['editMode'] as bool? ?? false;
+      final orderId = arguments['orderId'] as int?;
+      final orderNumber = arguments['orderNumber'] as String?;
+      final cartItems = arguments['cartItems'] as List<Map<String, dynamic>>?;
+
+      if (editMode && cartItems != null && cartItems.isNotEmpty) {
+        log('📝 Edit mode detected - Order ID: $orderId, Number: $orderNumber');
+        log('📦 Loading ${cartItems.length} items to cart');
+
+        // เคลียร์ตะกร้าเดิมก่อน
+        homeController.clearCart();
+
+        // เพิ่มสินค้าจากออเดอร์เข้าตะกร้า
+        for (final item in cartItems) {
+          homeController.cartItems.add(item);
+        }
+
+        // ✅ เก็บข้อมูลออเดอร์สำหรับส่งไปหน้า Payment
+        homeController.editOrderId = orderId;
+        homeController.editOrderNumber = orderNumber;
+
+        // แสดงข้อความแจ้งเตือน
+        Get.snackbar(
+          'โหลดออเดอร์สำเร็จ',
+          'โหลดออเดอร์ $orderNumber เข้าตะกร้าแล้ว (${cartItems.length} รายการ)',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+
+        log('✅ Cart loaded with ${homeController.cartItems.length} items');
+      }
+    }
   }
 
   // อัพเดทแท็บตามจำนวนพาเนลที่มี
@@ -536,16 +578,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Column(
                   children: [
                     // ✅ หัวตาราง + ปุ่มเคลียร์
-                    ListTile(
-                      title: const Text('ตะกร้า', style: TextStyle(fontWeight: FontWeight.bold)),
-                      trailing: TextButton.icon(
-                        onPressed: () {
-                          homeController.clearCart();
-                        },
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        label: const Text('เคลียร์', style: TextStyle(color: Colors.red)),
-                      ),
-                    ),
+                    Obx(() {
+                      final totalItems = homeController.cartItems.length;
+                      return ListTile(
+                        title: Text('ตะกร้า ($totalItems)', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        trailing: TextButton.icon(
+                          onPressed: () {
+                            homeController.clearCart();
+                          },
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          label: const Text('เคลียร์', style: TextStyle(color: Colors.red)),
+                        ),
+                      );
+                    }),
 
                     // ✅ แสดงรายการสินค้าในตะกร้า
                     Expanded(
@@ -754,10 +799,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           if (homeController.cartItems.isNotEmpty) {
                             final success = await Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => PaymentPageD2s(cartItems: homeController.cartItems)),
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => PaymentPageD2s(
+                                      cartItems: homeController.cartItems,
+                                      // ✅ ส่งข้อมูลออเดอร์ถ้าอยู่ในโหมดแก้ไข
+                                      editOrderId: homeController.editOrderId,
+                                      editOrderNumber: homeController.editOrderNumber,
+                                    ),
+                              ),
                             );
                             if (success == true) {
                               homeController.clearCart();
+                              // ✅ เคลียร์ข้อมูลออเดอร์หลังชำระเงินสำเร็จ
+                              homeController.editOrderId = null;
+                              homeController.editOrderNumber = null;
                             }
                           }
                         },

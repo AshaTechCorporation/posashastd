@@ -161,9 +161,26 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 const Spacer(),
                 Text(selectedOrder?.orderStatus ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 18)),
                 const SizedBox(width: 8),
+                // ✅ ปุ่มแก้ไข
+                GestureDetector(
+                  onTap: selectedOrder != null ? () => _editOrder(selectedOrder) : null,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.edit, color: Colors.white, size: 18),
+                        SizedBox(width: 4),
+                        Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 // ✅ ปุ่มปริ๊นแทนไอคอน more_vert
                 GestureDetector(
-                  onTap: () => _printOrderReceipt(selectedOrder!),
+                  onTap: selectedOrder != null ? () => _printOrderReceipt(selectedOrder) : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
@@ -302,6 +319,38 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
           orderController.selectOrder(order);
         },
       ),
+    );
+  }
+
+  // ✅ ฟังก์ชันแก้ไขออเดอร์ - นำทางไปหน้าโฮมเพจพร้อมข้อมูลออเดอร์
+  void _editOrder(Order order) {
+    // เตรียมข้อมูลสินค้าสำหรับส่งไปหน้าโฮมเพจ
+    final cartItems = <Map<String, dynamic>>[];
+
+    if (order.orderItems != null && order.orderItems!.isNotEmpty) {
+      for (final orderItem in order.orderItems!) {
+        cartItems.add({
+          'id': orderItem.product?.id ?? 0,
+          'name': orderItem.product?.name ?? 'ไม่มีชื่อ',
+          'price': (orderItem.price ?? 0).toDouble(),
+          'qty': orderItem.quantity ?? 1,
+        });
+      }
+    }
+
+    log('📦 Prepared cart items for edit: ${cartItems.length} items');
+    log('🆔 Order ID: ${order.id}');
+    log('🔢 Order number: ${order.orderNo}');
+
+    // นำทางไปหน้าโฮมเพจพร้อมข้อมูล
+    Get.offAllNamed(
+      '/home',
+      arguments: {
+        'editMode': true,
+        'orderId': order.id, // ✅ เพิ่ม orderId
+        'orderNumber': order.orderNo,
+        'cartItems': cartItems,
+      },
     );
   }
 

@@ -63,6 +63,21 @@ class Homeservice {
     }
   }
 
+  //แก้ไขออเดอร์ วอย ออเดอร์
+  static Future voidOrder({required int orderId}) async {
+    final _authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/order/$orderId/void');
+    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final response = await http.post(url, headers: headers);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
+
   //เปิดกะงาน
   static Future openShift({required Map<String, dynamic> formattedShift}) async {
     final _authService = AuthService();
