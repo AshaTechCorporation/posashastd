@@ -159,12 +159,12 @@ class _OrderPagev2sState extends State<OrderPagev2s> {
             ),
           ],
         ),
-        actions: const [
-          Icon(Icons.person_add_alt_1, color: Colors.white),
-          SizedBox(width: 12),
-          Icon(Icons.more_vert, color: Colors.white),
-          SizedBox(width: 8),
-        ],
+        // actions: const [
+        //   Icon(Icons.person_add_alt_1, color: Colors.white),
+        //   SizedBox(width: 12),
+        //   Icon(Icons.more_vert, color: Colors.white),
+        //   SizedBox(width: 8),
+        // ],
       ),
 
       body: ListView(

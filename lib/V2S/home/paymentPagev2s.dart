@@ -376,6 +376,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       context: context,
       builder:
           (context) => AlertDialog(
+            backgroundColor: Colors.white,
             title: const Text('ไม่พบปริ๊นเตอร์'),
             content: const Text('กรุณาตั้งค่าปริ๊นเตอร์เริ่มต้นในหน้าการตั้งค่า'),
             actions: [TextButton(onPressed: () => Get.back(), child: const Text('ปิด'))],
@@ -391,6 +392,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       context: context,
       builder:
           (context) => AlertDialog(
+            backgroundColor: Colors.white,
             title: const Text('เชื่อมต่อปริ๊นเตอร์ไม่ได้'),
             content: Text('ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${printer.name} ได้\nกรุณาตรวจสอบการเชื่อมต่อ'),
             actions: [
@@ -455,6 +457,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       context: context,
       builder:
           (context) => AlertDialog(
+            backgroundColor: Colors.white,
             title: const Text('ปริ๊นล้มเหลว'),
             content: Text(
               'ไม่สามารถปริ๊นใบเสร็จไปยัง ${printer.name} ได้\n\nข้อผิดพลาด: $error\n\nกรุณาตรวจสอบ:\n• การเชื่อมต่อปริ๊นเตอร์\n• กระดาษในเครื่องปริ๊น\n• สถานะเครื่องปริ๊น',
@@ -658,6 +661,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
                         builder: (context) {
                           double tempAmount = 0;
                           return AlertDialog(
+                            backgroundColor: Colors.white,
                             title: Text("ใส่จำนวนเงิน"),
                             content: TextField(
                               keyboardType: TextInputType.number,

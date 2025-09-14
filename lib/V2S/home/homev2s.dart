@@ -292,20 +292,20 @@ class _Homev2sState extends State<Homev2s> {
                   const Spacer(),
 
                   // 👤 ไอคอนรูปคน
-                  IconButton(
-                    onPressed: () {
-                      // เปิดโปรไฟล์ หรือหน้า setting
-                    },
-                    icon: const Icon(Icons.person, color: Colors.white),
-                  ),
+                  // IconButton(
+                  //   onPressed: () {
+                  //     // เปิดโปรไฟล์ หรือหน้า setting
+                  //   },
+                  //   icon: const Icon(Icons.person, color: Colors.white),
+                  // ),
 
                   // ⋮ เมนูเพิ่มเติม
-                  IconButton(
-                    onPressed: () {
-                      // ตัวเลือกเพิ่มเติม
-                    },
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                  ),
+                  // IconButton(
+                  //   onPressed: () {
+                  //     // ตัวเลือกเพิ่มเติม
+                  //   },
+                  //   icon: const Icon(Icons.more_vert, color: Colors.white),
+                  // ),
                 ],
               ),
         ),
@@ -356,10 +356,13 @@ class _Homev2sState extends State<Homev2s> {
                             },
 
                             icon: const Icon(Icons.arrow_drop_down),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'IBMPlexSansThai'),
                             items:
                                 homeController.categories.map((category) {
-                                  return DropdownMenuItem<String>(value: category['code'], child: Text(category['name']));
+                                  return DropdownMenuItem<String>(
+                                    value: category['code'],
+                                    child: Text(category['name'], style: const TextStyle(fontFamily: 'IBMPlexSansThai')),
+                                  );
                                 }).toList(),
                           ),
                         );

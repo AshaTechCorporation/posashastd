@@ -44,7 +44,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     return Scaffold(
       drawer: const AppDrawerv2s(),
       appBar: AppBar(
-        title: const Text('ใบเสร็จรับเงิน'),
+        title: const Text('ใบเสร็จรับเงิน', style: TextStyle(fontFamily: 'IBMPlexSansThai')),
         backgroundColor: ktextColr,
         iconTheme: const IconThemeData(color: Colors.white), // 🔸 เปลี่ยนสีไอคอน
         titleTextStyle: const TextStyle(

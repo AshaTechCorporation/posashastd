@@ -22,6 +22,7 @@ class Order {
   int? discount;
   int? grandTotal;
   String? remark;
+  bool? canVoid;
   Shift? shift;
   List<OrderItems>? orderItems;
   Device? device;
@@ -45,6 +46,7 @@ class Order {
     this.shift,
     this.orderItems,
     this.device,
+    this.canVoid,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);

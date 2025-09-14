@@ -1062,6 +1062,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                                 onPressed: () {
+                                  // ✅ เคลียร์ข้อมูลออเดอร์ที่แก้ไขใน HomeController
+                                  final homeController = Get.find<HomeController>();
+                                  homeController.editOrderId = null;
+                                  homeController.editOrderNumber = null;
+
                                   Navigator.pop(context, true);
                                 },
                                 icon: const Icon(Icons.check, color: Colors.white),

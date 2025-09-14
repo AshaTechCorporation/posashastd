@@ -27,29 +27,17 @@ class PaymentConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
-        children: [
-          Icon(icon, color: Colors.green),
-          const SizedBox(width: 8),
-          const Text('ยืนยันการชำระเงิน'),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      title: Row(children: [Icon(icon, color: Colors.green), const SizedBox(width: 8), const Text('ยืนยันการชำระเงิน')]),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'ต้องการชำระเงินด้วย$paymentMethod หรือไม่?',
-            style: const TextStyle(fontSize: 18),
-          ),
+          Text('ต้องการชำระเงินด้วย$paymentMethod หรือไม่?', style: const TextStyle(fontSize: 18)),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
+            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)),
             child: Column(
               children: [
                 // ยอดรวม
@@ -57,13 +45,10 @@ class PaymentConfirmDialog extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('ยอดรวม:', style: TextStyle(fontSize: 16)),
-                    Text(
-                      '฿${total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                
+
                 // แสดงจำนวนรับและเงินทอนเฉพาะเงินสด
                 if (!autoSetAmount) ...[
                   const SizedBox(height: 8),
@@ -71,10 +56,7 @@ class PaymentConfirmDialog extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('จำนวนรับ:', style: TextStyle(fontSize: 16)),
-                      Text(
-                        '฿${receivedAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                      Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -84,11 +66,7 @@ class PaymentConfirmDialog extends StatelessWidget {
                       const Text('เงินทอน:', style: TextStyle(fontSize: 16)),
                       Text(
                         '฿${(receivedAmount >= total ? receivedAmount - total : 0).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: receivedAmount >= total ? Colors.green : Colors.red,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: receivedAmount >= total ? Colors.green : Colors.red),
                       ),
                     ],
                   ),
@@ -99,10 +77,7 @@ class PaymentConfirmDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('ยกเลิก', style: TextStyle(fontSize: 18)),
-        ),
+        TextButton(onPressed: onCancel, child: const Text('ยกเลิก', style: TextStyle(fontSize: 18))),
         ElevatedButton(
           onPressed: () {
             Get.back(); // ปิด dialog

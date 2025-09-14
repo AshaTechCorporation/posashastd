@@ -324,6 +324,20 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
   // ✅ ฟังก์ชันแก้ไขออเดอร์ - นำทางไปหน้าโฮมเพจพร้อมข้อมูลออเดอร์
   void _editOrder(Order order) {
+    //inspect(order.canVoid);
+    // ✅ ตรวจสอบว่าออเดอร์สามารถแก้ไขได้หรือไม่
+    if (order.canVoid != true) {
+      Get.snackbar(
+        'ไม่สามารถแก้ไขได้',
+        'ออเดอร์นี้ไม่สามารถแก้ไขได้',
+        icon: const Icon(Icons.warning, color: Colors.white),
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+      return;
+    }
+
     // เตรียมข้อมูลสินค้าสำหรับส่งไปหน้าโฮมเพจ
     final cartItems = <Map<String, dynamic>>[];
 

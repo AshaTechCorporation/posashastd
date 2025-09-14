@@ -46,6 +46,7 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
       json['device'] == null
           ? null
           : Device.fromJson(json['device'] as Map<String, dynamic>),
+  canVoid: json['canVoid'] as bool?,
 );
 
 Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
@@ -64,6 +65,7 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'discount': instance.discount,
   'grandTotal': instance.grandTotal,
   'remark': instance.remark,
+  'canVoid': instance.canVoid,
   'shift': instance.shift,
   'orderItems': instance.orderItems,
   'device': instance.device,
