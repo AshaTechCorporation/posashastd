@@ -266,7 +266,16 @@ class _Homev2sState extends State<Homev2s> {
                       if (homeController.cartItems.isNotEmpty) {
                         final result = await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => OrderPagev2s(items: homeController.cartItems)),
+                          MaterialPageRoute(
+                            builder:
+                                (context) => OrderPagev2s(
+                                  items: homeController.cartItems,
+                                  onClearAll: () {
+                                    homeController.clearCart();
+                                    Navigator.pop(context, true);
+                                  },
+                                ),
+                          ),
                         );
 
                         // ถ้าได้ค่า true กลับมา ให้เคลียร์ออเดอร์ทั้งหมด

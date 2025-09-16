@@ -15,7 +15,19 @@ class PaymentSummaryBar extends StatelessWidget {
       onTap: () async {
         final homeController = Get.find<HomeController>();
         if (homeController.cartItems.isNotEmpty) {
-          final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => OrderPagev2s(items: homeController.cartItems)));
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => OrderPagev2s(
+                    items: homeController.cartItems,
+                    onClearAll: () {
+                      homeController.clearCart();
+                      Navigator.pop(context, true);
+                    },
+                  ),
+            ),
+          );
 
           // ถ้าได้ค่า true กลับมา ให้เคลียร์ออเดอร์ทั้งหมด
           if (result == true) {

@@ -44,7 +44,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     return Scaffold(
       drawer: const AppDrawerv2s(),
       appBar: AppBar(
-        title: const Text('ใบเสร็จรับเงิน', style: TextStyle(fontFamily: 'IBMPlexSansThai')),
+        title: Text('ใบเสร็จรับเงิน', style: TextStyle(fontFamily: 'IBMPlexSansThai')),
         backgroundColor: ktextColr,
         iconTheme: const IconThemeData(color: Colors.white), // 🔸 เปลี่ยนสีไอคอน
         titleTextStyle: const TextStyle(
@@ -213,12 +213,28 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     // จัดรูปแบบเวลา
     String timeString = '';
     if (order.orderDate != null) {
-      final time = order.orderDate;
-      final hour = time.hour;
-      final minute = time.minute.toString().padLeft(2, '0');
-      final period = hour < 12 ? 'ก่อนเที่ยง' : 'หลังเที่ยง';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      // ✅ เพิ่ม 7 ชั่วโมงก่อนแสดงเวลา
+      final adjustedTime = order.orderDate!.add(const Duration(hours: 7));
+      final hour = adjustedTime.hour;
+      final minute = adjustedTime.minute.toString().padLeft(2, '0');
+
+      // Debug: แสดงเวลาก่อนและหลังปรับ
+      log('🕐 Original time: ${order.orderDate}');
+      log('🕐 Adjusted time: $adjustedTime');
+      log('🕐 Hour: $hour, Minute: $minute');
+
+      final period = hour >= 12 ? 'หลังเที่ยง' : 'ก่อนเที่ยง';
+      final displayHour =
+          hour == 0
+              ? 12
+              : (hour > 12
+                  ? hour - 12
+                  : hour == 12
+                  ? 12
+                  : hour);
       timeString = '$displayHour:$minute $period';
+
+      log('🕐 Final display: $timeString');
     }
 
     return Card(

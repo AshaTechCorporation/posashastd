@@ -4,8 +4,9 @@ import 'package:posashastd/V2S/home/paymentPagev2s.dart';
 import 'package:posashastd/constants.dart';
 
 class OrderPagev2s extends StatefulWidget {
-  OrderPagev2s({super.key, required this.items});
+  OrderPagev2s({super.key, required this.items, this.onClearAll});
   final List<Map<String, dynamic>> items;
+  final VoidCallback? onClearAll; // ✅ เพิ่ม callback สำหรับเคลียร์ทั้งหมด
 
   @override
   State<OrderPagev2s> createState() => _OrderPagev2sState();
@@ -150,8 +151,8 @@ class _OrderPagev2sState extends State<OrderPagev2s> {
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
         title: Row(
           children: [
-            const Text('ตัวออเดอร์', style: TextStyle(color: Colors.white)),
-            const SizedBox(width: 8),
+            Text('ตัวออเดอร์', style: TextStyle(color: Colors.white)),
+            SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
@@ -159,12 +160,36 @@ class _OrderPagev2sState extends State<OrderPagev2s> {
             ),
           ],
         ),
-        // actions: const [
-        //   Icon(Icons.person_add_alt_1, color: Colors.white),
-        //   SizedBox(width: 12),
-        //   Icon(Icons.more_vert, color: Colors.white),
-        //   SizedBox(width: 8),
-        // ],
+        actions: [
+          // ✅ ปุ่มเคลียร์รายการทั้งหมด
+          IconButton(
+            icon: const Icon(Icons.clear_all, color: Colors.white),
+            onPressed: () {
+              // แสดง dialog ยืนยันการเคลียร์
+              showDialog(
+                context: context,
+                builder:
+                    (context) => AlertDialog(
+                      backgroundColor: Colors.white,
+                      title: const Row(children: [Icon(Icons.warning, color: Colors.orange), SizedBox(width: 8), Text('ยืนยันการเคลียร์')]),
+                      content: const Text('ต้องการเคลียร์รายการทั้งหมดหรือไม่?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('ยกเลิก')),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context); // ปิด dialog
+                            widget.onClearAll?.call(); // เรียกฟังก์ชันเคลียร์
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          child: const Text('เคลียร์ทั้งหมด', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
 
       body: ListView(

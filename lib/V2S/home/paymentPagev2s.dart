@@ -32,6 +32,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
   double totalDiscountApplied = 0;
   int currentPaymentMethodId = 1;
   String staffName = 'unknown unknown';
+  bool isCalculatingDiscount = false; // ✅ เพิ่มตัวแปรสำหรับ loading state
   late HomeController homeController;
   late OrderController orderController;
   late PrinterController printerController;
@@ -92,7 +93,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
 
       // เพิ่ม delay เล็กน้อยเพื่อให้แน่ใจว่าข้อมูลโหลดเสร็จ
       await Future.delayed(const Duration(milliseconds: 100));
-      _calculateAutoDiscount();
+      await _calculateAutoDiscount();
     });
   }
 
@@ -112,23 +113,31 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
   }
 
   // คำนวณส่วนลดจาก mix_match_multi_units
-  double calculateDiscountFromMixMatch() {
+  Future<double> calculateDiscountFromMixMatch() async {
     log('🔍 calculateDiscountFromMixMatch called');
 
-    if (orderController.discounts.isEmpty) {
-      log('⚠️ No discounts available in orderController');
-      return 0.0;
-    }
-
-    if (widget.items.isEmpty) {
-      log('⚠️ No items in cart for discount calculation');
-      return 0.0;
-    }
+    // ✅ แสดง loading state
+    setState(() {
+      isCalculatingDiscount = true;
+    });
 
     try {
+      if (orderController.discounts.isEmpty) {
+        log('⚠️ No discounts available in orderController');
+        return 0.0;
+      }
+
+      if (widget.items.isEmpty) {
+        log('⚠️ No items in cart for discount calculation');
+        return 0.0;
+      }
+
       log('📦 Sending to mix_match_multi_units:');
       log('   cartItems count: ${widget.items.length}');
       log('   discounts count: ${orderController.discounts.length}');
+
+      // ✅ เพิ่ม delay เล็กน้อยเพื่อให้ UI อัปเดต
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // แสดงรายละเอียดสินค้าในตะกร้า
       for (int i = 0; i < widget.items.length; i++) {
@@ -189,11 +198,18 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       log('❌ Error calculating discount from rules: $e');
       log('❌ Stack trace: ${StackTrace.current}');
       return 0.0;
+    } finally {
+      // ✅ ซ่อน loading state เมื่อเสร็จสิ้น
+      if (mounted) {
+        setState(() {
+          isCalculatingDiscount = false;
+        });
+      }
     }
   }
 
   // คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
-  void _calculateAutoDiscount() {
+  Future<void> _calculateAutoDiscount() async {
     log('🔍 _calculateAutoDiscount called');
     log('   orderController.discounts.length: ${orderController.discounts.length}');
     log('   widget.items.length: ${widget.items.length}');
@@ -217,7 +233,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
     }
 
     log('🎯 Starting auto discount calculation...');
-    final autoDiscount = calculateDiscountFromMixMatch();
+    final autoDiscount = await calculateDiscountFromMixMatch();
     log('🎯 Auto discount result: ฿$autoDiscount');
 
     if (autoDiscount > 0) {
@@ -266,7 +282,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
   }
 
   // เคลียร์ส่วนลดทั้งหมด
-  void clearAllDiscounts() {
+  Future<void> clearAllDiscounts() async {
     setState(() {
       selectedDiscountAmount = null;
       discountAmount = 0;
@@ -279,7 +295,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       ).showSnackBar(const SnackBar(content: Text('เคลียร์ส่วนลดแล้ว'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     });
 
-    _calculateAutoDiscount();
+    await _calculateAutoDiscount();
   }
 
   // โหลดข้อมูลพนักงานจาก API
@@ -559,422 +575,447 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
         ],
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // แสดงรายละเอียดยอดเงิน
-              if (totalDiscountApplied > 0) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('ยอดรวมเดิม:', style: TextStyle(fontSize: 16)),
-                          Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('ส่วนลดที่ได้รับ:', style: TextStyle(fontSize: 16, color: Colors.red)),
-                          Text(
-                            '-฿${totalDiscountApplied.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('ยอดที่ต้องชำระ:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          Text(
-                            '฿${total.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              Row(
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(14.0),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ส่วนยอดเงินที่ต้องชำระ
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Text('จำนวนเงินที่ต้องชำระ', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                      ],
-                    ),
-                  ),
-
-                  // เส้นแบ่งกลาง
-                  if (receivedAmount > 0) ...[
-                    Container(width: 1, height: 60, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 16)),
-
-                    // ส่วนเงินทอน
-                    Expanded(
+                  // แสดงรายละเอียดยอดเงิน
+                  if (totalDiscountApplied > 0) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
                       child: Column(
                         children: [
-                          Text(
-                            '฿${(receivedAmount - total).toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: receivedAmount >= total ? Colors.green : Colors.red),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ยอดรวมเดิม:', style: TextStyle(fontSize: 16)),
+                              Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          Text('เงินทอน', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ส่วนลดที่ได้รับ:', style: TextStyle(fontSize: 16, color: Colors.red)),
+                              Text(
+                                '-฿${totalDiscountApplied.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('ยอดที่ต้องชำระ:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text(
+                                '฿${total.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
                   ],
-                ],
-              ),
 
-              SizedBox(height: 20),
-
-              // ส่วนจำนวนเงินที่รับ
-              const Text('จำนวนรับ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 20)),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-                  OutlinedButton(
-                    onPressed: () async {
-                      final amount = await showDialog<double>(
-                        context: context,
-                        builder: (context) {
-                          double tempAmount = 0;
-                          return AlertDialog(
-                            backgroundColor: Colors.white,
-                            title: Text("ใส่จำนวนเงิน"),
-                            content: TextField(
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(hintText: 'เช่น 500'),
-                              onChanged: (value) {
-                                tempAmount = double.tryParse(value) ?? 0;
-                              },
-                            ),
-                            actions: [
-                              TextButton(
-                                child: const Text("ตกลง"),
-                                onPressed: () {
-                                  Navigator.of(context).pop(tempAmount);
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      );
-
-                      if (amount != null && amount > 0) {
-                        setState(() {
-                          receivedAmount = amount;
-                        });
-                      }
-                    },
-                    child: const Text("จำนวนเงิน", style: TextStyle(color: Colors.black)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // ปุ่มจำนวนเงิน
-              Column(
-                children: [
-                  // แถวที่ 1: ปุ่มรับเงินพอดี
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          receivedAmount = total;
-                        });
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.green),
-                        backgroundColor: Colors.green[50],
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // แถวที่ 2: ปุ่มจำนวนเงิน 100 และ 200
                   Row(
                     children: [
+                      // ส่วนยอดเงินที่ต้องชำระ
                       Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              setState(() {
-                                receivedAmount = 100.0;
-                              });
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey),
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text('฿100.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              setState(() {
-                                receivedAmount = 200.0;
-                              });
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey),
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text('฿200.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // แถวที่ 3: ปุ่มจำนวนเงิน 500 และ 1000
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              setState(() {
-                                receivedAmount = 500.0;
-                              });
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey),
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text('฿500.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              setState(() {
-                                receivedAmount = 1000.0;
-                              });
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey),
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            child: Text('฿1000.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-
-              const Divider(height: 32),
-
-              // ปุ่มชำระเงินในแถวเดียว
-              if (!isPaid) ...[
-                Row(
-                  children: [
-                    Expanded(child: _buildPaymentButton(context, Icons.money, 'เงินสด', 1)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildPaymentButton(context, Icons.credit_card, 'บัตร', 3)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildPaymentButton(context, Icons.receipt_long, 'โอน', 2)),
-                  ],
-                ),
-
-                const SizedBox(height: 15),
-
-                // ส่วนลดราคา
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('ลดราคา', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    if (totalDiscountApplied > 0) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade300, width: 1),
-                        ),
-                        child: Text(
-                          'ลดไปแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)}',
-                          style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // ปุ่มลดราคา
-                Row(
-                  children: [
-                    for (final amount in [1.0, 2.0, 5.0, 10.0])
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: ElevatedButton(
-                            onPressed: () => handleDiscountSelection(amount),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange.shade400,
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                            child: Text('ลด ฿${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-
-                // ปุ่มเคลียร์
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: totalDiscountApplied > 0 ? clearAllDiscounts : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: totalDiscountApplied > 0 ? Colors.green.shade500 : Colors.grey.shade300,
-                      foregroundColor: Colors.white,
-                      elevation: totalDiscountApplied > 0 ? 2 : 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    icon: Icon(Icons.refresh, color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600, size: 18),
-                    label: Text(
-                      totalDiscountApplied > 0 ? 'เคลียร์ - กลับเป็นราคาเดิม' : 'ไม่มีส่วนลดที่จะเคลียร์',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
-                ),
-              ] else ...[
-                // หลังจากชำระเงินแล้ว
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green[200]!),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 48),
-                      const SizedBox(height: 8),
-                      Text('ชำระเงินสำเร็จ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                      if (orderReceiptNumber != null) ...[
-                        const SizedBox(height: 4),
-                        Text('เลขที่ใบเสร็จ: $orderReceiptNumber', style: TextStyle(color: Colors.grey[600])),
-                      ],
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-                // ปุ่มปริ๊นใบเสร็จ
-                Obx(() {
-                  final isConnected = printerController.isDefaultPrinterConnected.value;
-                  return GestureDetector(
-                    onTap: () async {
-                      await checkPrinterAndPrint();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: isConnected ? Colors.blue.shade100 : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isConnected ? Border.all(color: Colors.blue.shade300) : null,
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Column(
                           children: [
-                            Icon(Icons.print, color: isConnected ? Colors.blue.shade700 : Colors.black),
-                            const SizedBox(width: 8),
-                            Text(
-                              'พิมพ์ใบเสร็จ',
-                              style: TextStyle(
-                                color: isConnected ? Colors.blue.shade700 : Colors.black,
-                                fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                            ),
+                            Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text('จำนวนเงินที่ต้องชำระ', style: TextStyle(color: Colors.grey, fontSize: 16)),
                           ],
                         ),
                       ),
-                    ),
-                  );
-                }),
 
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      // เส้นแบ่งกลาง
+                      if (receivedAmount > 0) ...[
+                        Container(width: 1, height: 60, color: Colors.grey[300], margin: const EdgeInsets.symmetric(horizontal: 16)),
+
+                        // ส่วนเงินทอน
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                '฿${(receivedAmount - total).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: receivedAmount >= total ? Colors.green : Colors.red,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text('เงินทอน', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // ส่วนจำนวนเงินที่รับ
+                  const Text('จำนวนรับ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 20)),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+                      OutlinedButton(
+                        onPressed: () async {
+                          final amount = await showDialog<double>(
+                            context: context,
+                            builder: (context) {
+                              double tempAmount = 0;
+                              return AlertDialog(
+                                backgroundColor: Colors.white,
+                                title: Text("ใส่จำนวนเงิน"),
+                                content: TextField(
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(hintText: 'เช่น 500'),
+                                  onChanged: (value) {
+                                    tempAmount = double.tryParse(value) ?? 0;
+                                  },
+                                ),
+                                actions: [
+                                  TextButton(
+                                    child: const Text("ตกลง"),
+                                    onPressed: () {
+                                      Navigator.of(context).pop(tempAmount);
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+
+                          if (amount != null && amount > 0) {
+                            setState(() {
+                              receivedAmount = amount;
+                            });
+                          }
+                        },
+                        child: const Text("จำนวนเงิน", style: TextStyle(color: Colors.black)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // ปุ่มจำนวนเงิน
+                  Column(
+                    children: [
+                      // แถวที่ 1: ปุ่มรับเงินพอดี
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              receivedAmount = total;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.green),
+                            backgroundColor: Colors.green[50],
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // แถวที่ 2: ปุ่มจำนวนเงิน 100 และ 200
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    receivedAmount = 100.0;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey),
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('฿100.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    receivedAmount = 200.0;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey),
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('฿200.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // แถวที่ 3: ปุ่มจำนวนเงิน 500 และ 1000
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    receivedAmount = 500.0;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey),
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('฿500.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    receivedAmount = 1000.0;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.grey),
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text('฿1000.00', style: const TextStyle(color: Colors.black, fontSize: 16)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+
+                  const Divider(height: 32),
+
+                  // ปุ่มชำระเงินในแถวเดียว
+                  if (!isPaid) ...[
+                    Row(
+                      children: [
+                        Expanded(child: _buildPaymentButton(context, Icons.money, 'เงินสด', 1)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildPaymentButton(context, Icons.credit_card, 'บัตร', 3)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildPaymentButton(context, Icons.receipt_long, 'โอน', 2)),
+                      ],
                     ),
-                    onPressed: () {
-                      //Navigator.pop(context, true);
-                      Navigator.of(context)
-                        ..pop()
-                        ..pop(true);
-                    },
-                    icon: const Icon(Icons.refresh, color: Colors.white),
-                    label: const Text('เริ่มรายการใหม่', style: TextStyle(color: Colors.white, fontSize: 16)),
+
+                    const SizedBox(height: 15),
+
+                    // ส่วนลดราคา
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('ลดราคา', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        if (totalDiscountApplied > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade300, width: 1),
+                            ),
+                            child: Text(
+                              'ลดไปแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)}',
+                              style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ปุ่มลดราคา
+                    Row(
+                      children: [
+                        for (final amount in [1.0, 2.0, 5.0, 10.0])
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: ElevatedButton(
+                                onPressed: () => handleDiscountSelection(amount),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade400,
+                                  foregroundColor: Colors.white,
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                child: Text('ลด ฿${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    // ปุ่มเคลียร์
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: totalDiscountApplied > 0 ? clearAllDiscounts : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: totalDiscountApplied > 0 ? Colors.green.shade500 : Colors.grey.shade300,
+                          foregroundColor: Colors.white,
+                          elevation: totalDiscountApplied > 0 ? 2 : 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: Icon(Icons.refresh, color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600, size: 18),
+                        label: Text(
+                          totalDiscountApplied > 0 ? 'เคลียร์ - กลับเป็นราคาเดิม' : 'ไม่มีส่วนลดที่จะเคลียร์',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // หลังจากชำระเงินแล้ว
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[200]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green, size: 48),
+                          const SizedBox(height: 8),
+                          Text('ชำระเงินสำเร็จ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                          if (orderReceiptNumber != null) ...[
+                            const SizedBox(height: 4),
+                            Text('เลขที่ใบเสร็จ: $orderReceiptNumber', style: TextStyle(color: Colors.grey[600])),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    // ปุ่มปริ๊นใบเสร็จ
+                    Obx(() {
+                      final isConnected = printerController.isDefaultPrinterConnected.value;
+                      return GestureDetector(
+                        onTap: () async {
+                          await checkPrinterAndPrint();
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: isConnected ? Colors.blue.shade100 : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isConnected ? Border.all(color: Colors.blue.shade300) : null,
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.print, color: isConnected ? Colors.blue.shade700 : Colors.black),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'พิมพ์ใบเสร็จ',
+                                  style: TextStyle(
+                                    color: isConnected ? Colors.blue.shade700 : Colors.black,
+                                    fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          //Navigator.pop(context, true);
+                          Navigator.of(context)
+                            ..pop()
+                            ..pop(true);
+                        },
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        label: const Text('เริ่มรายการใหม่', style: TextStyle(color: Colors.white, fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // ✅ Progress indicator สำหรับการคำนวณส่วนลด
+          if (isCalculatingDiscount)
+            Container(
+              color: Colors.black.withValues(alpha: 0.3),
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังคำนวณส่วนลด...', style: TextStyle(fontSize: 16))],
+                    ),
                   ),
                 ),
-              ],
-            ],
-          ),
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }
