@@ -32,7 +32,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
   double totalDiscountApplied = 0;
   int currentPaymentMethodId = 1;
   String staffName = 'unknown unknown';
-  bool isCalculatingDiscount = false; // ✅ เพิ่มตัวแปรสำหรับ loading state
+  bool isCalculatingDiscount = true; // ✅ เริ่มต้นด้วย true เพื่อแสดง loading ทันที
   late HomeController homeController;
   late OrderController orderController;
   late PrinterController printerController;
@@ -116,10 +116,8 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
   Future<double> calculateDiscountFromMixMatch() async {
     log('🔍 calculateDiscountFromMixMatch called');
 
-    // ✅ แสดง loading state
-    setState(() {
-      isCalculatingDiscount = true;
-    });
+    // ✅ loading state จะแสดงอยู่แล้วตั้งแต่เริ่มต้น
+    // ไม่ต้องตั้งค่าใหม่ที่นี่
 
     try {
       if (orderController.discounts.isEmpty) {
@@ -287,6 +285,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       selectedDiscountAmount = null;
       discountAmount = 0;
       totalDiscountApplied = 0;
+      isCalculatingDiscount = true; // ✅ แสดง loading เมื่อเคลียร์ส่วนลด
 
       log('🧹 Cleared all discounts');
 
