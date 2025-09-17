@@ -532,7 +532,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
-      final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      final order = await Homeservice.createOrderOffline(formattedOrder: formattedOrder);
       if (!mounted) return;
 
       // ✅ เก็บเลขที่ใบเสร็จจาก response
@@ -544,6 +544,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       setState(() {});
     } catch (e) {
       // handle error
+      log('❌ Error creating order: $e');
+      Get.snackbar('ข้อผิดพลาด', e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
