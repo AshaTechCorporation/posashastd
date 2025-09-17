@@ -52,6 +52,7 @@ dependencies:
   url_launcher: ^6.3.1
   cached_network_image: ^3.4.1
   flutter_launcher_icons: ^0.14.4
+  uuid: ^4.5.1
   isar_community: 
     version: *isar_version
   isar_community_flutter_libs: # contains Isar Core

@@ -1,14 +1,15 @@
 import 'dart:convert' as convert;
 import 'dart:developer';
 import 'package:http/http.dart' as http;
-import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/dto/order_dto.dart';
+import 'package:posashastd/main.dart';
 import 'package:posashastd/models/order.dart';
-import 'package:posashastd/seed_isar.dart';
+import 'package:posashastd/models/shift.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class Homeservice {
   Homeservice();
@@ -96,7 +97,6 @@ class Homeservice {
   static Future createOrderOffline({
     required Map<String, dynamic> formattedOrder,
   }) async {
-    final isar = await openIsar();
     await isar.writeTxn(() async {
       final order = OrderDto()
         ..branchId = formattedOrder['branchId']
@@ -127,8 +127,6 @@ class Homeservice {
 
       inspect({'orderId': orderId, 'items': orderItems.length});
     });
-
-    // await isar.close();
   }
 
   //แก้ไขออเดอร์ วอย ออเดอร์
@@ -171,6 +169,24 @@ class Homeservice {
       final data = convert.jsonDecode(response.body);
       throw Exception(data['message']);
     }
+  }
+
+  //เปิดกะงาน
+  static Future<int?> openShiftOffline({
+    required Map<String, dynamic> formattedShift,
+  }) async {
+    await isar.writeTxn(() async {
+      final shift = Shift(1)
+        ..uuid = Uuid().v7()
+        ..change = double.parse(formattedShift['change'].toString())
+        ..cash = double.parse(formattedShift['cash'].toString())
+        ..remark = formattedShift['remark']
+        ..status = 'open';
+
+      final shiftId = await isar.shifts.put(shift);
+
+      return shiftId;
+    });
   }
 
   //ปิดกะงาน

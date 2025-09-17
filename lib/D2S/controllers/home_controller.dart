@@ -119,6 +119,8 @@ class HomeController extends GetxController {
 
       final shiftData = {"deviceId": deviceIdToUse, "change": change, "cash": cash, "remark": remark};
 
+
+      final shiftId = await Homeservice.openShiftOffline(formattedShift: shiftData);
       final response = await Homeservice.openShift(formattedShift: shiftData);
 
       if (response != null && response['id'] != null) {

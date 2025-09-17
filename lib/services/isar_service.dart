@@ -1,28 +1,29 @@
 import 'dart:convert';
 import 'package:isar_community/isar.dart';
-import 'package:path_provider/path_provider.dart' show getApplicationDocumentsDirectory;
+import 'package:path_provider/path_provider.dart'
+    show getApplicationDocumentsDirectory;
 import 'package:posashastd/dto/order_dto.dart';
+import 'package:posashastd/models/shift.dart';
 
 /// เปิด Isar instance
 Future<Isar> openIsar() async {
   final dir = await getApplicationDocumentsDirectory();
   return await Isar.open(
-    [OrderDtoSchema, OrderItemDtoSchema],
+    [OrderDtoSchema, OrderItemDtoSchema, ShiftSchema,],
     directory: dir.path,
     inspector: true, // เปิด true เวลา debug ก็ได้
   );
 }
-
 /// แปลง String ISO8601 เป็น DateTime (nullable)
-DateTime? _dtOrNull(dynamic v) {
-  if (v == null) return null;
-  return DateTime.parse(v as String);
-}
+// DateTime? _dtOrNull(dynamic v) {
+//   if (v == null) return null;
+//   return DateTime.parse(v as String);
+// }
 
 /// นี่คือ JSON ต้นฉบับของคุณ (วางได้เลย หรือนำเข้าจากไฟล์/HTTP ก็ได้)
-const String rawJson = r'''
-{YOUR_JSON_HERE}
-''';
+// const String rawJson = r'''
+// {YOUR_JSON_HERE}
+// ''';
 
 /// import หลัก: สร้าง/อัปเดต Category, Unit, Product
 // // Future<void> importCatalog(Isar isar, Map<String, dynamic> json) async {

@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:isar_community/isar.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/V2S/login/loginPageV2s.dart';
 import 'package:posashastd/login/loginPage.dart';
+import 'package:posashastd/services/isar_service.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String? token;
 late SharedPreferences prefs;
-
+late Isar isar;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  isar = await openIsar();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 
