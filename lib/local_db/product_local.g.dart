@@ -29,20 +29,25 @@ const ProductLocalSchema = CollectionSchema(
       name: r'deletedAt',
       type: IsarType.dateTime,
     ),
-    r'imageUrl': PropertySchema(
+    r'imageLocal': PropertySchema(
       id: 4,
+      name: r'imageLocal',
+      type: IsarType.string,
+    ),
+    r'imageUrl': PropertySchema(
+      id: 5,
       name: r'imageUrl',
       type: IsarType.string,
     ),
-    r'name': PropertySchema(id: 5, name: r'name', type: IsarType.string),
-    r'price': PropertySchema(id: 6, name: r'price', type: IsarType.double),
+    r'name': PropertySchema(id: 6, name: r'name', type: IsarType.string),
+    r'price': PropertySchema(id: 7, name: r'price', type: IsarType.double),
     r'showType': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'showType',
       type: IsarType.string,
     ),
     r'updatedAt': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -89,6 +94,12 @@ int _productLocalEstimateSize(
     }
   }
   {
+    final value = object.imageLocal;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.imageUrl;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -119,11 +130,12 @@ void _productLocalSerialize(
   writer.writeString(offsets[1], object.color);
   writer.writeDateTime(offsets[2], object.createdAt);
   writer.writeDateTime(offsets[3], object.deletedAt);
-  writer.writeString(offsets[4], object.imageUrl);
-  writer.writeString(offsets[5], object.name);
-  writer.writeDouble(offsets[6], object.price);
-  writer.writeString(offsets[7], object.showType);
-  writer.writeDateTime(offsets[8], object.updatedAt);
+  writer.writeString(offsets[4], object.imageLocal);
+  writer.writeString(offsets[5], object.imageUrl);
+  writer.writeString(offsets[6], object.name);
+  writer.writeDouble(offsets[7], object.price);
+  writer.writeString(offsets[8], object.showType);
+  writer.writeDateTime(offsets[9], object.updatedAt);
 }
 
 ProductLocal _productLocalDeserialize(
@@ -138,11 +150,12 @@ ProductLocal _productLocalDeserialize(
   object.createdAt = reader.readDateTimeOrNull(offsets[2]);
   object.deletedAt = reader.readDateTimeOrNull(offsets[3]);
   object.id = id;
-  object.imageUrl = reader.readStringOrNull(offsets[4]);
-  object.name = reader.readStringOrNull(offsets[5]);
-  object.price = reader.readDoubleOrNull(offsets[6]);
-  object.showType = reader.readStringOrNull(offsets[7]);
-  object.updatedAt = reader.readDateTimeOrNull(offsets[8]);
+  object.imageLocal = reader.readStringOrNull(offsets[4]);
+  object.imageUrl = reader.readStringOrNull(offsets[5]);
+  object.name = reader.readStringOrNull(offsets[6]);
+  object.price = reader.readDoubleOrNull(offsets[7]);
+  object.showType = reader.readStringOrNull(offsets[8]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[9]);
   return object;
 }
 
@@ -166,10 +179,12 @@ P _productLocalDeserializeProp<P>(
     case 5:
       return (reader.readStringOrNull(offset)) as P;
     case 6:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 7:
       return (reader.readStringOrNull(offset)) as P;
+    case 7:
+      return (reader.readDoubleOrNull(offset)) as P;
     case 8:
+      return (reader.readStringOrNull(offset)) as P;
+    case 9:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -812,6 +827,165 @@ extension ProductLocalQueryFilter
           upper: upper,
           includeUpper: includeUpper,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'imageLocal'),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'imageLocal'),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'imageLocal',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'imageLocal',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'imageLocal',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'imageLocal', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterFilterCondition>
+  imageLocalIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'imageLocal', value: ''),
       );
     });
   }
@@ -1536,6 +1710,19 @@ extension ProductLocalQuerySortBy
     });
   }
 
+  QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy> sortByImageLocal() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageLocal', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy>
+  sortByImageLocalDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageLocal', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy> sortByImageUrl() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imageUrl', Sort.asc);
@@ -1659,6 +1846,19 @@ extension ProductLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy> thenByImageLocal() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageLocal', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy>
+  thenByImageLocalDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageLocal', Sort.desc);
+    });
+  }
+
   QueryBuilder<ProductLocal, ProductLocal, QAfterSortBy> thenByImageUrl() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imageUrl', Sort.asc);
@@ -1750,6 +1950,14 @@ extension ProductLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<ProductLocal, ProductLocal, QDistinct> distinctByImageLocal({
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'imageLocal', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<ProductLocal, ProductLocal, QDistinct> distinctByImageUrl({
     bool caseSensitive = true,
   }) {
@@ -1816,6 +2024,12 @@ extension ProductLocalQueryProperty
   QueryBuilder<ProductLocal, DateTime?, QQueryOperations> deletedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'deletedAt');
+    });
+  }
+
+  QueryBuilder<ProductLocal, String?, QQueryOperations> imageLocalProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'imageLocal');
     });
   }
 

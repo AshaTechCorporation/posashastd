@@ -8,6 +8,7 @@ class ProductLocal {
   Id id = Isar.autoIncrement;
   String? code;
   String? name;
+  String? imageLocal;
   String? imageUrl;
   double? price;
   String? showType;

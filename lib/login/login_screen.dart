@@ -58,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final isLoggedIn = await _authService.checkLoginStatus();
       if (isLoggedIn && mounted) {
         await _isarService.loadData();
-        // await _databaseService.loadDataSync();
         
         Get.offAll(HomePage());
       }
@@ -92,7 +91,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // โหลดข้อมูลจาก database
         log('🔄 Loading data sync...');
-        await _databaseService.loadDataSync();
+        // await _databaseService.loadDataSync();
+        await _isarService.loadData();
         log('✅ Data sync completed');
 
         // ✅ ตรวจสอบ deviceId หลังจากล็อกอินสำเร็จ
