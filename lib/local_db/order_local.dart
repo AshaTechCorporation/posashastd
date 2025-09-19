@@ -1,9 +1,9 @@
 import 'package:isar_community/isar.dart';
 
-part 'order_dto.g.dart';
+part 'order_local.g.dart';
 
 @collection
-class OrderDto {
+class OrderLocal {
   Id id = Isar.autoIncrement;
   int? deviceId;
   int? shiftId;
@@ -17,11 +17,11 @@ class OrderDto {
   double? discount;
   String? remark;
   
-  final orderItems = IsarLinks<OrderItemDto>();
+  final orderItems = IsarLinks<OrderItemLocal>();
 }
 
 @collection
-class OrderItemDto {
+class OrderItemLocal {
   Id id = Isar.autoIncrement;
   int? productId;
   double? price;

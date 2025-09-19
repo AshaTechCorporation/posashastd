@@ -17,7 +17,7 @@ late Isar isar;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  isar = await openIsar();
+  isar = await IsarService().openIsar();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
 

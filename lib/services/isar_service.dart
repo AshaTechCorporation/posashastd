@@ -1,19 +1,136 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart'
     show getApplicationDocumentsDirectory;
-import 'package:posashastd/dto/order_dto.dart';
-import 'package:posashastd/models/shift.dart';
+import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/local_db/order_local.dart';
+import 'package:posashastd/local_db/product_local.dart';
+import 'package:posashastd/local_db/shift_local.dart';
+import 'package:posashastd/services/auth_service.dart';
+import 'package:http/http.dart' as http;
 
-/// เปิด Isar instance
-Future<Isar> openIsar() async {
-  final dir = await getApplicationDocumentsDirectory();
-  return await Isar.open(
-    [OrderDtoSchema, OrderItemDtoSchema, ShiftSchema,],
-    directory: dir.path,
-    inspector: true, // เปิด true เวลา debug ก็ได้
-  );
+class IsarService {
+  // Singleton pattern
+  static final IsarService _instance = IsarService._internal();
+  factory IsarService() => _instance;
+  IsarService._internal();
+
+  Isar? _isar;
+
+  // Getter
+  Isar? get isar => _isar;
+
+  final _authService = AuthService();
+
+  // เปิด Isar instance
+  Future<Isar> openIsar() async {
+    final dir = await getApplicationDocumentsDirectory();
+    _isar = await Isar.open(
+      [
+        CategoryLocalSchema,
+        ProductLocalSchema,
+        ShiftLocalSchema,
+        OrderLocalSchema,
+        OrderItemLocalSchema,
+      ],
+      directory: dir.path,
+      inspector: true, // เปิด true เวลา debug ก็ได้
+    );
+    return _isar!;
+  }
+
+  loadData() async {
+    final data = await getData();
+
+    await _isar!.writeTxn(() async {
+      final List<CategoryLocal> categories = [];
+      for (var c in data['categories']) {
+        categories.add(
+          CategoryLocal()
+            ..id = c['id']
+            ..code = c['code']
+            ..name = c['name']
+            ..createdAt = DateTime.parse(c['createdAt'])
+            ..updatedAt = DateTime.parse(c['updatedAt'])
+            ..deletedAt = c['deletedAt'] != null ? DateTime.parse(c['deletedAt']) : null,
+        );
+      }
+
+      await _isar!.categoryLocals.putAll(categories);
+
+      for (var p in data['products']) {
+        final category = categories.firstWhere((c) => c.id == p['category']['id']);
+
+        final product = ProductLocal()
+            ..id = p['id']
+            ..code = p['code']
+            ..name = p['name']
+            ..imageUrl = p['imageUrl']
+            ..price = (p['price'] as num).toDouble()
+            ..showType = p['showType']
+            ..color = p['color']
+            ..category.value = category
+            ..createdAt = DateTime.parse(p['createdAt'])
+            ..updatedAt = DateTime.parse(p['updatedAt'])
+            ..deletedAt = p['deletedAt'] != null ? DateTime.parse(p['deletedAt'],) : null;
+
+        await _isar!.productLocals.put(product);
+        await product.category.save();
+      }
+    });
+  }
+
+  Future<List<CategoryLocal>> getCategories() async {
+    return await _isar!.categoryLocals.where().findAll();
+  }
+
+  /// ดึงข้อมูลจาก API สำหรับ Sync
+  Future getData() async {
+    try {
+      final url = Uri.https(publicUrl, '/api/load-data');
+
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'api-key':
+                  'c7ef38a0594617d91138899ca6f43884724b828047b22a2d16d706d32ed58040',
+              'Authorization': 'Bearer ${_authService.currentToken}',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'),
+          );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 401) {
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+        // );
+      } else if (response.statusCode == 429) {
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง',
+        // );
+      } else {
+        // return LoginResponse(
+        //   success: false,
+        //   message: loginResponse.message ?? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ',
+        // );
+      }
+    } catch (e) {
+      // return LoginResponse(success: false, message: _handleError(e));
+    }
+  }
 }
+
 /// แปลง String ISO8601 เป็น DateTime (nullable)
 // DateTime? _dtOrNull(dynamic v) {
 //   if (v == null) return null;

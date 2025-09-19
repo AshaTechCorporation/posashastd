@@ -3,7 +3,8 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:posashastd/constants.dart';
-import 'package:posashastd/dto/order_dto.dart';
+import 'package:posashastd/local_db/order_local.dart';
+import 'package:posashastd/local_db/shift_local.dart';
 import 'package:posashastd/main.dart';
 import 'package:posashastd/models/order.dart';
 import 'package:posashastd/models/shift.dart';
@@ -98,30 +99,34 @@ class Homeservice {
     required Map<String, dynamic> formattedOrder,
   }) async {
     await isar.writeTxn(() async {
-      final order = OrderDto()
-        ..branchId = formattedOrder['branchId']
-        ..deviceId = formattedOrder['deviceId']
-        ..shiftId = int.parse(formattedOrder['shiftId'])
-        ..total = formattedOrder['total']
-        ..memberId = formattedOrder['memberId']
-        ..date = DateTime.parse(formattedOrder['date'])
-        ..paymentMethodId = formattedOrder['paymentMethodId'];
+      final order =
+          OrderLocal()
+            ..branchId = formattedOrder['branchId']
+            ..deviceId = formattedOrder['deviceId']
+            ..shiftId = int.parse(formattedOrder['shiftId'])
+            ..total = formattedOrder['total']
+            ..memberId = formattedOrder['memberId']
+            ..date = DateTime.parse(formattedOrder['date'])
+            ..paymentMethodId = formattedOrder['paymentMethodId'];
       print('📦 Saving order to Isar');
-      final orderId = await isar.orderDtos.put(order);
+      final orderId = await isar.orderLocals.put(order);
 
       final rawItems =
-          (formattedOrder['orderItems'] as List<dynamic>).cast<Map<String, dynamic>>();
-      final orderItems = rawItems
-          .map(
-            (item) => OrderItemDto()
-              ..productId = item['productId']
-              ..price = double.parse(item['price'].toString())
-              ..quantity = item['quantity']
-              ..total = double.parse(item['total'].toString()),
-          )
-          .toList();
+          (formattedOrder['orderItems'] as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      final orderItems =
+          rawItems
+              .map(
+                (item) =>
+                    OrderItemLocal()
+                      ..productId = item['productId']
+                      ..price = double.parse(item['price'].toString())
+                      ..quantity = item['quantity']
+                      ..total = double.parse(item['total'].toString()),
+              )
+              .toList();
 
-      await isar.orderItemDtos.putAll(orderItems);
+      await isar.orderItemLocals.putAll(orderItems);
       order.orderItems.addAll(orderItems);
       await order.orderItems.save();
 
@@ -175,18 +180,21 @@ class Homeservice {
   static Future<int?> openShiftOffline({
     required Map<String, dynamic> formattedShift,
   }) async {
+    late int shiftId;
+
     await isar.writeTxn(() async {
-      final shift = Shift(1)
-        ..uuid = Uuid().v7()
-        ..change = double.parse(formattedShift['change'].toString())
-        ..cash = double.parse(formattedShift['cash'].toString())
-        ..remark = formattedShift['remark']
-        ..status = 'open';
+      final shift =
+          ShiftLocal()
+            ..uuid = Uuid().v7()
+            ..cash = double.parse(formattedShift['cash'].toString())
+            ..change = double.parse(formattedShift['change'].toString())
+            ..remark = formattedShift['remark']
+            ..status = 'open';
 
-      final shiftId = await isar.shifts.put(shift);
-
-      return shiftId;
+      shiftId = await isar.shiftLocals.put(shift);
     });
+    
+    return shiftId;
   }
 
   //ปิดกะงาน

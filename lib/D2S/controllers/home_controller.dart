@@ -2,8 +2,10 @@ import 'dart:developer';
 
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:posashastd/local_db/category_local.dart';
 import 'package:posashastd/models/product.dart';
 import 'package:posashastd/services/homeService.dart';
+import 'package:posashastd/services/isar_service.dart';
 
 import '../../models/panel.dart';
 import '../../models/panel_product.dart';
@@ -13,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class HomeController extends GetxController {
   RxList<Product> products = <Product>[].obs;
   RxList<Panel> panels = <Panel>[].obs;
-  RxList<Map<String, dynamic>> categories = <Map<String, dynamic>>[].obs;
+  RxList<CategoryLocal> categories = <CategoryLocal>[].obs;
   RxList<Map<String, dynamic>> cartItems = <Map<String, dynamic>>[].obs;
   RxString selectedCategoryCode = ''.obs;
   RxBool isConnected = false.obs;
@@ -30,6 +32,7 @@ class HomeController extends GetxController {
   String? editOrderNumber;
 
   final _databaseService = DatebaseService();
+  final _isarService = IsarService();
 
   @override
   void onInit() {
@@ -68,9 +71,17 @@ class HomeController extends GetxController {
   }
 
   // เพิ่ม device id
-  Future registerDevice({required String deviceId, required String name, required String description}) async {
+  Future registerDevice({
+    required String deviceId,
+    required String name,
+    required String description,
+  }) async {
     try {
-      final data = await Homeservice.registerDevice(deviceId: deviceId, name: name, description: description);
+      final data = await Homeservice.registerDevice(
+        deviceId: deviceId,
+        name: name,
+        description: description,
+      );
       log('✅ Device registered, data: ${data}');
       return data;
     } catch (e) {
@@ -102,7 +113,11 @@ class HomeController extends GetxController {
   }
 
   // เปิดกะ
-  Future<bool> openShift({required double change, required double cash, required String remark}) async {
+  Future<bool> openShift({
+    required double change,
+    required double cash,
+    required String remark,
+  }) async {
     try {
       log('🔄 Opening shift...');
 
@@ -117,20 +132,24 @@ class HomeController extends GetxController {
       log('📱 Current device internal ID: $currentDeviceInternalId');
       log('📱 Using device ID for shift: $deviceIdToUse');
 
-      final shiftData = {"deviceId": deviceIdToUse, "change": change, "cash": cash, "remark": remark};
+      final shiftData = {
+        "deviceId": deviceIdToUse,
+        "change": change,
+        "cash": cash,
+        "remark": remark,
+      };
 
+      final shiftId = await Homeservice.openShiftOffline(
+        formattedShift: shiftData,
+      );
+      // final response = await Homeservice.openShift(formattedShift: shiftData);
 
-      final shiftId = await Homeservice.openShiftOffline(formattedShift: shiftData);
-      final response = await Homeservice.openShift(formattedShift: shiftData);
-
-      if (response != null && response['id'] != null) {
-        final shiftId = response['id'].toString();
-
+      if (shiftId != null) {
         // บันทึก shift_id ลง SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('shift_id', shiftId);
+        await prefs.setString('shift_id', shiftId.toString());
 
-        currentShiftId.value = shiftId;
+        currentShiftId.value = shiftId.toString();
         isShiftOpen.value = true;
 
         log('✅ Shift opened successfully with ID: $shiftId');
@@ -160,7 +179,12 @@ class HomeController extends GetxController {
     try {
       if (currentShiftId.value.isEmpty) {
         log('❌ No shift ID to close');
-        Get.snackbar('ข้อผิดพลาด', 'ไม่พบข้อมูลกะที่จะปิด', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่พบข้อมูลกะที่จะปิด',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
         return false;
       }
 
@@ -230,7 +254,9 @@ class HomeController extends GetxController {
   }
 
   void addPanel() {
-    panels.add(Panel(0, panelProducts: List.generate(20, (i) => PanelProduct(0))));
+    panels.add(
+      Panel(0, panelProducts: List.generate(20, (i) => PanelProduct(0))),
+    );
     update();
   }
 
@@ -265,18 +291,17 @@ class HomeController extends GetxController {
   Future<void> getlistCategory() async {
     try {
       log('📂 Fetching categories...');
-      final rawData = await Homeservice.getCategory();
-      log('📦 Raw category data received: ${rawData.toString()}');
-
-      // แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
-      log('📋 Parsed categories count: ${parsedCategories.length}');
+      final List<CategoryLocal> rawData = await _isarService.getCategories();
 
       categories.assignAll([
-        {'code': 'ALL', 'name': 'ทั้งหมด'},
-        ...parsedCategories,
+        CategoryLocal()
+          ..id = 0
+          ..code = 'ALL'
+          ..name = 'ทั้งหมด',
+        ...rawData,
       ]);
-      selectedCategoryCode.value = categories.first['code'];
+
+      selectedCategoryCode.value = categories.first.code!;
       log('🎯 Selected category: ${selectedCategoryCode.value}');
 
       // โหลดสินค้าทั้งหมด (categoryId = 0 สำหรับทั้งหมด)
@@ -288,12 +313,22 @@ class HomeController extends GetxController {
   }
 
   // ดึงข้อมูล Product ตาม Category
-  Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
+  Future<void> getProductByCategory({
+    required int categoryId,
+    required int branchId,
+  }) async {
     try {
-      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
+      final rawData = await Homeservice.getProduct(
+        categoryId: categoryId,
+        branchId: branchId,
+      );
       // แปลงข้อมูลเป็น List<Product>
-      final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
-      final List<Product> productList = parsedProducts.map((productData) => Product.fromJson(productData)).toList();
+      final List<Map<String, dynamic>> parsedProducts =
+          List<Map<String, dynamic>>.from(rawData);
+      final List<Product> productList =
+          parsedProducts
+              .map((productData) => Product.fromJson(productData))
+              .toList();
       products.assignAll(productList);
     } catch (e) {
       log('Error loading products: $e');
@@ -302,23 +337,36 @@ class HomeController extends GetxController {
 
   // เพิ่มสินค้าลงตะกร้า
   void addToCart(Product product) {
-    final existingIndex = cartItems.indexWhere((item) => item['id'] == product.id);
+    final existingIndex = cartItems.indexWhere(
+      (item) => item['id'] == product.id,
+    );
 
     if (existingIndex >= 0) {
       final currentQty = cartItems[existingIndex]['qty'] ?? 1;
       // สร้าง List ใหม่เพื่อให้ GetX ตรวจจับการเปลี่ยนแปลง
       final updatedList = List<Map<String, dynamic>>.from(cartItems);
-      updatedList[existingIndex] = {...updatedList[existingIndex], 'qty': currentQty + 1};
+      updatedList[existingIndex] = {
+        ...updatedList[existingIndex],
+        'qty': currentQty + 1,
+      };
       cartItems.assignAll(updatedList); // บังคับให้ RxList อัพเดท
     } else {
-      final newItem = {'id': product.id, 'name': product.name ?? 'ไม่มีชื่อ', 'price': product.price ?? 0, 'qty': 1};
+      final newItem = {
+        'id': product.id,
+        'name': product.name ?? 'ไม่มีชื่อ',
+        'price': product.price ?? 0,
+        'qty': 1,
+      };
       cartItems.add(newItem);
     }
   }
 
   // คำนวณยอดรวมราคา
   double get totalPrice {
-    return cartItems.fold<double>(0, (sum, item) => sum + ((item['price'] ?? 0) * (item['qty'] ?? 1)));
+    return cartItems.fold<double>(
+      0,
+      (sum, item) => sum + ((item['price'] ?? 0) * (item['qty'] ?? 1)),
+    );
   }
 
   // ลบสินค้าออกจากตะกร้าตาม index
@@ -354,7 +402,10 @@ class HomeController extends GetxController {
       // เก็บข้อมูล device แต่ละฟิลด์
       await prefs.setString('device_id', deviceData['deviceId'] ?? '');
       await prefs.setString('device_name', deviceData['name'] ?? '');
-      await prefs.setString('device_description', deviceData['description'] ?? '');
+      await prefs.setString(
+        'device_description',
+        deviceData['description'] ?? '',
+      );
       await prefs.setBool('device_active', deviceData['active'] ?? true);
       await prefs.setInt('device_store_id', deviceData['store']?['id'] ?? 1);
       await prefs.setInt('device_internal_id', deviceData['id'] ?? 0);
@@ -438,14 +489,18 @@ class HomeController extends GetxController {
   // ✅ ดึง deviceId ปัจจุบัน
   String? getCurrentDeviceId() {
     final deviceId = deviceInfo['deviceId'];
-    log('🔍 getCurrentDeviceId() called - deviceInfo.length: ${deviceInfo.length}, deviceId: $deviceId');
+    log(
+      '🔍 getCurrentDeviceId() called - deviceInfo.length: ${deviceInfo.length}, deviceId: $deviceId',
+    );
     return deviceId;
   }
 
   // ✅ ดึง device internal ID ปัจจุบัน (สำหรับส่ง API)
   int? getCurrentDeviceInternalId() {
     final deviceId = deviceInfo['id'];
-    log('🔍 getCurrentDeviceInternalId() called - deviceInfo.length: ${deviceInfo.length}, id: $deviceId');
+    log(
+      '🔍 getCurrentDeviceInternalId() called - deviceInfo.length: ${deviceInfo.length}, id: $deviceId',
+    );
     return deviceId;
   }
 }

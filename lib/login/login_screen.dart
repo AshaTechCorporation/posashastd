@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/services/isar_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:posashastd/constants.dart';
 
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   final _databaseService = DatebaseService();
+  final _isarService = IsarService();
 
   bool _isLoading = false;
   bool _isCheckingLogin = true; // ✅ สำหรับ loading ตอน check existing login
@@ -55,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final isLoggedIn = await _authService.checkLoginStatus();
       if (isLoggedIn && mounted) {
-        await _databaseService.loadDataSync();
+        await _isarService.loadData();
+        // await _databaseService.loadDataSync();
+        
         Get.offAll(HomePage());
       }
     } catch (e) {

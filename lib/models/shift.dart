@@ -1,4 +1,3 @@
-import 'package:isar_community/isar.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:posashastd/models/store.dart';
 import 'package:posashastd/models/user.dart';
@@ -6,10 +5,7 @@ import 'package:posashastd/models/user.dart';
 part 'shift.g.dart';
 
 @JsonSerializable()
-@collection
 class Shift {
-  Id isarId = Isar.autoIncrement;
-  String? uuid;
   int id;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -21,14 +17,11 @@ class Shift {
   double? cash;
   String? remark;
   String? status;
-  @ignore
   Store? store;
-  @ignore
   User? user;
 
   Shift(
     this.id, {
-    this.uuid,
     this.createdAt,
     this.updatedAt,
     this.deletedAt,

@@ -7,6 +7,7 @@ import 'package:posashastd/V2S/home/widgets/PaymentSummaryBar.dart';
 import 'package:posashastd/V2S/home/widgets/ProductNameOverlay.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/category_local.dart';
 import 'package:posashastd/utils/color_utils.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
@@ -355,10 +356,10 @@ class _Homev2sState extends State<Homev2s> {
                                 homeController.selectedCategoryCode.value = value;
                                 // หา categoryId จาก code
                                 final selectedCategory = homeController.categories.firstWhere(
-                                  (cat) => cat['code'] == value,
-                                  orElse: () => {'id': 0}, // fallback ป้องกัน error
+                                  (cat) => cat.code == value,
+                                  orElse: () => CategoryLocal()..id = 0, // fallback ป้องกัน error
                                 );
-                                final int categoryId = selectedCategory['id'] ?? 0;
+                                final int categoryId = selectedCategory.id;
                                 // เรียก API สินค้า โดยใช้ branchId = 0
                                 await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
                               }
@@ -369,8 +370,8 @@ class _Homev2sState extends State<Homev2s> {
                             items:
                                 homeController.categories.map((category) {
                                   return DropdownMenuItem<String>(
-                                    value: category['code'],
-                                    child: Text(category['name'], style: const TextStyle(fontFamily: 'IBMPlexSansThai')),
+                                    value: category.code,
+                                    child: Text(category.name!, style: const TextStyle(fontFamily: 'IBMPlexSansThai')),
                                   );
                                 }).toList(),
                           ),

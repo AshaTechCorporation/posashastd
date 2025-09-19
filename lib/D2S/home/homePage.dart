@@ -8,6 +8,7 @@ import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/home/widgets/GridContentWidget.dart';
 import 'package:posashastd/D2S/home/widgets/ShiftClosedWidget.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/category_local.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/order_controller.dart';
@@ -459,10 +460,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                   if (value != null) {
                                                     homeController.selectedCategoryCode.value = value;
                                                     final selectedCategory = homeController.categories.firstWhere(
-                                                      (cat) => cat['code'] == value,
-                                                      orElse: () => {'id': 0},
+                                                      (cat) => cat.code == value,
+                                                      orElse: () => CategoryLocal()..id = 0,
                                                     );
-                                                    final int categoryId = selectedCategory['id'] ?? 0;
+                                                    final int categoryId = selectedCategory.id;
                                                     await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
 
                                                     // ✅ เลื่อน GridView กลับไปด้านบนหลังจากโหลดข้อมูลใหม่
@@ -480,7 +481,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               alignment: Alignment.centerLeft,
                                               child: Padding(
                                                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                                child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 18)),
+                                                child: Text(category.name!, style: const TextStyle(color: Colors.white, fontSize: 18)),
                                               ),
                                             );
                                           }).toList();
@@ -490,8 +491,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         items:
                                             homeController.categories.map((category) {
                                               return DropdownMenuItem<String>(
-                                                value: category['code'],
-                                                child: Text(category['name'] ?? '', style: const TextStyle(color: Colors.black)),
+                                                value: category.code,
+                                                child: Text(category.name!, style: const TextStyle(color: Colors.black)),
                                               );
                                             }).toList(),
                                       ),
