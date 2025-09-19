@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
+import 'package:posashastd/local_db/product_local.dart';
 import 'package:posashastd/models/product.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
@@ -119,8 +120,8 @@ class GridContentWidget extends StatelessWidget {
           }
 
           return ProductGrid(
-            itemCount: controller.panels[panelIndex].panelProducts?.length ?? 0,
-            panelProduct: controller.panels[panelIndex].panelProducts ?? [],
+            itemCount: controller.panels[panelIndex].panelProducts.length ?? 0,
+            panelProduct: controller.panels[panelIndex].panelProducts.toList(),
             isMainTab: false,
             width: width,
             height: height,
@@ -180,7 +181,7 @@ class GridContentWidget extends StatelessWidget {
   }
 
   // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
-  void _showQuantityDialog(Product product, HomeController homeController) {
+  void _showQuantityDialog(ProductLocal product, HomeController homeController) {
     final TextEditingController quantityController = TextEditingController(text: '1');
 
     Get.dialog(

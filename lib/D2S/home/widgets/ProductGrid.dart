@@ -1,18 +1,17 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:posashastd/models/panel_product.dart';
-import 'package:posashastd/models/product.dart';
+import 'package:posashastd/local_db/product_local.dart';
 import 'package:posashastd/utils/color_utils.dart';
+
+import '../../../local_db/panel_product_local.dart';
 
 class ProductGrid extends StatelessWidget {
   final int itemCount;
   final bool isMainTab;
-  final void Function(int index, Product? product)? onTap;
+  final void Function(int index, ProductLocal? product)? onTap;
   final void Function(int index)? onLongPress;
   final double width;
   final double height;
-  final List<PanelProduct> panelProduct;
+  final List<PanelProductLocal> panelProduct;
 
   const ProductGrid({
     super.key,
@@ -42,10 +41,10 @@ class ProductGrid extends StatelessWidget {
       itemCount: itemCount,
       itemBuilder: (context, index) {
         final product = panelProduct[index].product;
-        final String name = product?.name ?? 'ไม่ระบุชื่อ';
-        final String? showType = product?.showType;
-        final String? colorHex = product?.color;
-        final String? imageUrl = product?.imageUrl;
+        final String name = product.value?.name ?? 'ไม่ระบุชื่อ';
+        final String? showType = product.value?.showType;
+        final String? colorHex = product.value?.color;
+        final String? imageUrl = product.value?.imageUrl;
 
         // สร้างส่วนแสดงผลสินค้าตาม showType (เหมือนกับแท็บสินค้าทั้งหมด)
         final Widget productVisual =
@@ -101,7 +100,7 @@ class ProductGrid extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '฿${product.price ?? 0}',
+                            '฿${product.value?.price ?? 0}',
                             style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                           ),
@@ -117,7 +116,7 @@ class ProductGrid extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            onTap?.call(index, product);
+            onTap?.call(index, product.value);
           },
           onLongPress: () {
             if (!isMainTab) onLongPress?.call(index);

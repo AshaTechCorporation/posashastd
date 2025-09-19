@@ -3,6 +3,9 @@ import 'dart:developer';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/local_db/panel_local.dart';
+import 'package:posashastd/local_db/panel_product_local.dart';
+import 'package:posashastd/local_db/product_local.dart';
 import 'package:posashastd/models/product.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/services/isar_service.dart';
@@ -13,8 +16,8 @@ import '../../services/database_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeController extends GetxController {
-  RxList<Product> products = <Product>[].obs;
-  RxList<Panel> panels = <Panel>[].obs;
+  RxList<ProductLocal> products = <ProductLocal>[].obs;
+  RxList<PanelLocal> panels = <PanelLocal>[].obs;
   RxList<CategoryLocal> categories = <CategoryLocal>[].obs;
   RxList<Map<String, dynamic>> cartItems = <Map<String, dynamic>>[].obs;
   RxString selectedCategoryCode = ''.obs;
@@ -242,10 +245,7 @@ class HomeController extends GetxController {
   void fetchProducts() async {
     log('Fetch Products');
     try {
-      // final products = await _databaseService.getProducts();
-      // this.products.assignAll(products);
-
-      final panel = await _databaseService.getPanels();
+      final panel = await _isarService.getPanels();
       panels.assignAll(panel);
     } catch (e) {
       log('Fetch Products Error: $e');
@@ -255,7 +255,9 @@ class HomeController extends GetxController {
 
   void addPanel() {
     panels.add(
-      Panel(0, panelProducts: List.generate(20, (i) => PanelProduct(0))),
+      PanelLocal()
+        ..name = 'Panel ${panels.length + 1}'
+        ..panelProducts.addAll(List.generate(20, (i) => PanelProductLocal())),
     );
     update();
   }
@@ -318,25 +320,15 @@ class HomeController extends GetxController {
     required int branchId,
   }) async {
     try {
-      final rawData = await Homeservice.getProduct(
-        categoryId: categoryId,
-        branchId: branchId,
-      );
-      // แปลงข้อมูลเป็น List<Product>
-      final List<Map<String, dynamic>> parsedProducts =
-          List<Map<String, dynamic>>.from(rawData);
-      final List<Product> productList =
-          parsedProducts
-              .map((productData) => Product.fromJson(productData))
-              .toList();
-      products.assignAll(productList);
+      final List<ProductLocal> parsedProducts = await _isarService.getProducts(categoryId: categoryId);
+      products.assignAll(parsedProducts);
     } catch (e) {
       log('Error loading products: $e');
     }
   }
 
   // เพิ่มสินค้าลงตะกร้า
-  void addToCart(Product product) {
+  void addToCart(ProductLocal product) {
     final existingIndex = cartItems.indexWhere(
       (item) => item['id'] == product.id,
     );
