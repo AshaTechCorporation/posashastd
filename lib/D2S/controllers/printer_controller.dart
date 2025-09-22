@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+import 'package:flutter/material.dart'; // ✅ เพิ่ม import สำหรับ Colors, Icon, AlertDialog
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -348,6 +349,110 @@ class PrinterController extends GetxController {
           colorText: Get.theme.colorScheme.onError,
         );
       }
+      return false;
+    }
+  }
+
+  // ✅ ฟังก์ชันใหม่: ตรวจสอบและเชื่อมต่อปริ๊นเตอร์ใหม่อัตโนมัติ
+  Future<bool> checkAndReconnectPrinter({bool showProgress = true}) async {
+    try {
+      log('🔄 Starting automatic printer check and reconnection...');
+
+      final defaultPrinter = getDefaultPrinter();
+      if (defaultPrinter == null) {
+        log('⚠️ No default printer found');
+        if (showProgress) {
+          Get.snackbar(
+            'ไม่พบปริ๊นเตอร์',
+            'ไม่มีปริ๊นเตอร์เริ่มต้น กรุณาตั้งค่าปริ๊นเตอร์ก่อน',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            icon: const Icon(Icons.warning, color: Colors.white),
+          );
+        }
+        return false;
+      }
+
+      if (showProgress) {
+        Get.dialog(
+          const AlertDialog(
+            content: Row(
+              children: [CircularProgressIndicator(), SizedBox(width: 16), Expanded(child: Text('กำลังตรวจสอบและเชื่อมต่อปริ๊นเตอร์...'))],
+            ),
+          ),
+          barrierDismissible: false,
+        );
+      }
+
+      // ทดสอบการเชื่อมต่อปัจจุบัน
+      log('🔍 Testing current connection to ${defaultPrinter.name}...');
+      bool isConnected = await testPrinterConnection(defaultPrinter, showSnackbar: false);
+
+      if (!isConnected) {
+        log('❌ Current connection failed, attempting reconnection...');
+
+        // พยายามเชื่อมต่อใหม่ 3 ครั้ง
+        for (int attempt = 1; attempt <= 3; attempt++) {
+          log('🔄 Reconnection attempt $attempt/3...');
+
+          // รอสักครู่ก่อนลองใหม่
+          await Future.delayed(Duration(seconds: attempt));
+
+          isConnected = await testPrinterConnection(defaultPrinter, showSnackbar: false);
+
+          if (isConnected) {
+            log('✅ Reconnection successful on attempt $attempt');
+            break;
+          }
+        }
+      }
+
+      if (showProgress) {
+        Get.back(); // ปิด loading dialog
+      }
+
+      // อัพเดทสถานะการเชื่อมต่อ
+      isDefaultPrinterConnected.value = isConnected;
+      connectionStatus.value = isConnected ? 'เชื่อมต่อแล้ว: ${defaultPrinter.name}' : 'ไม่สามารถเชื่อมต่อ: ${defaultPrinter.name}';
+
+      if (showProgress) {
+        if (isConnected) {
+          Get.snackbar(
+            'เชื่อมต่อสำเร็จ',
+            'เชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name} สำเร็จ',
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+          );
+        } else {
+          Get.snackbar(
+            'เชื่อมต่อล้มเหลว',
+            'ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name} ได้',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            icon: const Icon(Icons.error, color: Colors.white),
+          );
+        }
+      }
+
+      return isConnected;
+    } catch (e) {
+      log('❌ Error in checkAndReconnectPrinter: $e');
+
+      if (showProgress && Get.isDialogOpen == true) {
+        Get.back(); // ปิด loading dialog
+      }
+
+      if (showProgress) {
+        Get.snackbar(
+          'เกิดข้อผิดพลาด',
+          'เกิดข้อผิดพลาดในการตรวจสอบปริ๊นเตอร์: ${e.toString()}',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          icon: const Icon(Icons.error, color: Colors.white),
+        );
+      }
+
       return false;
     }
   }

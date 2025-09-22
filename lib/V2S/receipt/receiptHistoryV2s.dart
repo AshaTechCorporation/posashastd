@@ -435,39 +435,21 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
         log('🆕 Created new PrinterController');
       }
 
-      // ตรวจสอบว่ามีเครื่องปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = printerController.getDefaultPrinter();
-      log('🔍 Default printer: ${defaultPrinter?.name ?? 'null'}');
+      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
+      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: false);
 
-      if (defaultPrinter == null) {
-        log('❌ No default printer found - proceeding without printer check');
+      if (!isConnected) {
+        log('⚠️ Printer not connected - proceeding anyway');
         Get.snackbar(
-          'ไม่พบเครื่องปริ๊นเตอร์',
-          'จะดำเนินการปริ๊นโดยไม่ตรวจสอบเครื่องปริ๊นเตอร์',
+          'ปริ๊นเตอร์ไม่พร้อม',
+          'จะดำเนินการปริ๊นต่อไปแม้ปริ๊นเตอร์ไม่พร้อมใช้งาน',
           backgroundColor: Colors.orange,
           colorText: Colors.white,
           icon: const Icon(Icons.warning, color: Colors.white),
           duration: const Duration(seconds: 3),
         );
-
-        // ดำเนินการปริ๊นต่อไปโดยไม่ตรวจสอบเครื่องปริ๊นเตอร์
       } else {
-        // ทดสอบการเชื่อมต่อเครื่องปริ๊นเตอร์
-        log('🔄 Testing printer connection...');
-        final isConnected = await printerController.testPrinterConnection(defaultPrinter);
-        log('📡 Connection result: $isConnected');
-
-        if (!isConnected) {
-          log('❌ Printer connection failed - proceeding anyway');
-          Get.snackbar(
-            'เชื่อมต่อไม่สำเร็จ',
-            'จะดำเนินการปริ๊นต่อไปแม้ไม่สามารถเชื่อมต่อได้',
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
-            icon: const Icon(Icons.warning, color: Colors.white),
-            duration: const Duration(seconds: 3),
-          );
-        }
+        log('✅ Printer is ready for printing');
       }
 
       // สร้างข้อมูล cartItems จาก order

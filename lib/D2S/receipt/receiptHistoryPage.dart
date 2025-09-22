@@ -376,26 +376,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       // ✅ ตรวจสอบการเชื่อมต่อปริ๊นเตอร์ก่อนปริ๊น
       final printerController = Get.find<PrinterController>();
 
-      // ตรวจสอบว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = printerController.getDefaultPrinter();
-      if (defaultPrinter == null) {
-        Get.snackbar(
-          'ไม่มีปริ๊นเตอร์',
-          'กรุณาตั้งค่าปริ๊นเตอร์เริ่มต้นก่อนใช้งาน',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-        );
-        return;
-      }
-
-      // ตรวจสอบการเชื่อมต่อปริ๊นเตอร์
-      log('🔍 Checking printer connection: ${defaultPrinter.name}');
-      final isConnected = await printerController.testPrinterConnection(defaultPrinter, showSnackbar: false);
+      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
+      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: false);
 
       if (!isConnected) {
         // แสดง dialog ยืนยันการปริ๊นแม้ปริ๊นเตอร์ไม่เชื่อมต่อ
-        final shouldPrint = await _showPrinterConnectionDialog(defaultPrinter);
+        final shouldPrint = await _showPrinterConnectionDialog(null);
         if (!shouldPrint) {
           return;
         }

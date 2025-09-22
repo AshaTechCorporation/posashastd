@@ -198,44 +198,26 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     try {
       log('🖨️ Starting printer check and print process...');
 
-      // ตรวจสอบว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = printerController.getDefaultPrinter();
+      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
+      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: true);
 
-      if (defaultPrinter == null) {
-        log('⚠️ No default printer found');
-        _showNoPrinterDialog();
+      if (!isConnected) {
+        log('❌ Cannot connect to printer after reconnection attempts');
+        _showNoPrinterDialog(); // ใช้ dialog ไม่มีปริ๊นเตอร์แทน
         return;
       }
 
-      log('🖨️ Found default printer: ${defaultPrinter.name}');
+      log('✅ Printer is connected, proceeding to print...');
 
-      // ✅ เช็คสถานะการเชื่อมต่อปัจจุบัน
-      if (!printerController.isDefaultPrinterConnected.value) {
-        log('⚠️ Default printer not connected, testing connection...');
-
-        // แสดง loading dialog
-        Get.dialog(
-          const AlertDialog(content: Row(children: [CircularProgressIndicator(), SizedBox(width: 16), Text('กำลังเช็คการเชื่อมต่อปริ๊นเตอร์...')])),
-          barrierDismissible: false,
-        );
-
-        // ทดสอบการเชื่อมต่อ
-        final isConnected = await printerController.testPrinterConnection(defaultPrinter, showSnackbar: false);
-
-        // ปิด loading dialog
-        Get.back();
-
-        if (!isConnected) {
-          log('❌ Cannot connect to default printer');
-          _showPrinterConnectionErrorDialog(defaultPrinter);
-          return;
-        }
+      // ดำเนินการปริ๊น
+      final defaultPrinter = printerController.getDefaultPrinter();
+      if (defaultPrinter != null) {
+        await _printToDefaultPrinter(defaultPrinter);
+        log('✅ Print process completed successfully');
+      } else {
+        log('❌ Default printer not found after connection check');
+        _showNoPrinterDialog();
       }
-
-      log('✅ Printer connection confirmed, starting print...');
-
-      // ปริ๊นใบเสร็จ
-      await _printToDefaultPrinter(defaultPrinter);
     } catch (e) {
       log('❌ Error in checkPrinterAndPrint: $e');
       if (mounted) {

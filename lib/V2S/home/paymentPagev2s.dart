@@ -341,30 +341,26 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
     try {
       log('🖨️ Starting printer check and print process...');
 
-      // ตรวจสอบว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = _getDefaultPrinter();
-
-      if (defaultPrinter == null) {
-        log('⚠️ No default printer found');
-        _showNoPrinterDialog();
-        return;
-      }
-
-      log('🖨️ Found default printer: ${defaultPrinter.name}');
-
-      // ทดสอบการเชื่อมต่อกับปริ๊นเตอร์เริ่มต้น
-      final isConnected = await printerController.testPrinterConnection(defaultPrinter);
+      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
+      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: true);
 
       if (!isConnected) {
-        log('❌ Cannot connect to default printer');
-        _showPrinterConnectionErrorDialog(defaultPrinter);
+        log('❌ Cannot connect to printer after reconnection attempts');
+        _showNoPrinterDialog(); // ใช้ dialog ไม่มีปริ๊นเตอร์แทน
         return;
       }
 
-      log('✅ Printer connection successful, starting print...');
+      log('✅ Printer is connected, proceeding to print...');
 
-      // ปริ๊นใบเสร็จ
-      await _printToDefaultPrinter(defaultPrinter);
+      // ดำเนินการปริ๊น
+      final defaultPrinter = printerController.getDefaultPrinter();
+      if (defaultPrinter != null) {
+        await _printToDefaultPrinter(defaultPrinter);
+        log('✅ Print process completed successfully');
+      } else {
+        log('❌ Default printer not found after connection check');
+        _showNoPrinterDialog();
+      }
     } catch (e) {
       log('❌ Error in checkPrinterAndPrint: $e');
       if (mounted) {

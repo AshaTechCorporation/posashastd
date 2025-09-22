@@ -179,7 +179,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // เริ่มต้นด้วยแท็บแรกที่เป็นสินค้าทั้งหมด
       List<String> newTabs = ['สินค้าทั้งหมด'];
 
-      // เพิ่มแท็บตามจำนวนพาเนลที่มี
+      // ✅ เพิ่มแท็บตามจำนวนพาเนลที่มี (ไม่จำกัดจำนวน)
       for (int i = 0; i < homeController.panels.length; i++) {
         newTabs.add('${homeController.panels[i].name}');
       }
@@ -189,8 +189,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabController.dispose(); // ลบ controller เก่า
       _tabController = TabController(length: tabs.length, vsync: this);
 
-      log('📋 Updated tabs: ${tabs.length} tabs total');
+      log('📋 Updated tabs: ${tabs.length} tabs total (unlimited)');
       log('🎯 Tabs: ${tabs.join(", ")}');
+
+      // ✅ แสดงข้อมูลเพิ่มเติมถ้ามีแท็บมาก
+      if (tabs.length > 10) {
+        log('⚠️ Large number of tabs detected: ${tabs.length} tabs');
+        log('✅ TabBar is scrollable and can handle unlimited tabs');
+      }
     });
   }
 
@@ -457,18 +463,61 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             homeController.isShiftOpen.value
                                                 ? (value) async {
                                                   if (value != null) {
-                                                    homeController.selectedCategoryCode.value = value;
-                                                    final selectedCategory = homeController.categories.firstWhere(
-                                                      (cat) => cat['code'] == value,
-                                                      orElse: () => {'id': 0},
-                                                    );
-                                                    final int categoryId = selectedCategory['id'] ?? 0;
-                                                    await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                                                    try {
+                                                      // ✅ แสดง loading indicator
+                                                      Get.dialog(
+                                                        const Center(
+                                                          child: Card(
+                                                            child: Padding(
+                                                              padding: EdgeInsets.all(20),
+                                                              child: Column(
+                                                                mainAxisSize: MainAxisSize.min,
+                                                                children: [
+                                                                  CircularProgressIndicator(),
+                                                                  SizedBox(height: 16),
+                                                                  Text('กำลังโหลดสินค้า...'),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        barrierDismissible: false,
+                                                      );
 
-                                                    // ✅ เลื่อน GridView กลับไปด้านบนหลังจากโหลดข้อมูลใหม่
-                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                      _scrollGridToTop();
-                                                    });
+                                                      homeController.selectedCategoryCode.value = value;
+                                                      final selectedCategory = homeController.categories.firstWhere(
+                                                        (cat) => cat['code'] == value,
+                                                        orElse: () => {'id': 0},
+                                                      );
+                                                      final int categoryId = selectedCategory['id'] ?? 0;
+
+                                                      await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+
+                                                      // ✅ ปิด loading dialog
+                                                      Get.back();
+
+                                                      // ✅ เลื่อน GridView กลับไปด้านบนหลังจากโหลดข้อมูลใหม่
+                                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                        _scrollGridToTop();
+                                                      });
+                                                    } catch (e) {
+                                                      // ✅ ปิด loading dialog ถ้ายังเปิดอยู่
+                                                      if (Get.isDialogOpen == true) {
+                                                        Get.back();
+                                                      }
+
+                                                      // ✅ แจ้งเตือนข้อผิดพลาด
+                                                      Get.snackbar(
+                                                        'เกิดข้อผิดพลาด',
+                                                        'ไม่สามารถโหลดข้อมูลสินค้าได้: ${e.toString()}',
+                                                        backgroundColor: Colors.red,
+                                                        colorText: Colors.white,
+                                                        duration: const Duration(seconds: 4),
+                                                        icon: const Icon(Icons.error, color: Colors.white),
+                                                      );
+
+                                                      log('❌ Error in dropdown onChanged: $e');
+                                                    }
                                                   }
                                                 }
                                                 : null,
@@ -530,16 +579,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       }),
                     ),
 
-                    // TabBar
+                    // TabBar - รองรับแท็บจำนวนมากและสกรอลได้
                     Obx(() {
-                      return SizedBox(
+                      return Container(
                         height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 1)),
+                          ],
+                        ),
                         child: Row(
                           children: [
-                            //IconButton(icon: const Icon(Icons.add, color: Colors.green), onPressed: _addTab),
+                            // ✅ แสดงจำนวนแท็บทั้งหมด
+                            if (tabs.length > 5)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text('${tabs.length}', style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                              ),
                             Expanded(
                               child: TabBar(
-                                isScrollable: true,
+                                isScrollable: true, // ✅ อนุญาตให้สกรอลได้
+                                tabAlignment: TabAlignment.start, // ✅ จัดแท็บให้เริ่มจากซ้าย
+                                padding: const EdgeInsets.symmetric(horizontal: 4), // ✅ เพิ่ม padding
                                 controller: _tabController,
                                 tabs: List.generate(
                                   tabs.length,
@@ -550,12 +612,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               //_removeTab(index);
                                             }
                                             : null,
-                                    child: Tab(text: tabs[index]),
+                                    child: Tab(
+                                      text: tabs[index],
+                                      height: 40, // ✅ กำหนดความสูงแท็บ
+                                    ),
                                   ),
                                 ),
                                 labelColor: homeController.isShiftOpen.value ? Colors.green : Colors.grey,
                                 unselectedLabelColor: homeController.isShiftOpen.value ? Colors.black54 : Colors.grey,
                                 indicatorColor: homeController.isShiftOpen.value ? Colors.green : Colors.grey,
+                                labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500), // ✅ ปรับขนาดฟอนต์
+                                unselectedLabelStyle: const TextStyle(fontSize: 13), // ✅ ฟอนต์แท็บที่ไม่ได้เลือก
                                 onTap:
                                     homeController.isShiftOpen.value
                                         ? null

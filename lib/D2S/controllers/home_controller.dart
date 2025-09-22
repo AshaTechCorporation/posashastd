@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:flutter/material.dart'; // ✅ เพิ่ม import สำหรับ Colors และ Icon
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:posashastd/models/product.dart';
@@ -264,7 +265,22 @@ class HomeController extends GetxController {
     try {
       log('📂 Fetching categories...');
       final rawData = await Homeservice.getCategory();
-      log('📦 Raw category data received: ${rawData.toString()}');
+
+      // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
+      if (rawData == null) {
+        log('⚠️ No category data received from API');
+        Get.snackbar(
+          'ไม่พบข้อมูล',
+          'ไม่สามารถโหลดข้อมูลหมวดหมู่สินค้าได้',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          icon: const Icon(Icons.warning, color: Colors.white),
+        );
+        return;
+      }
+
+      log('📦 Raw category data received: $rawData');
 
       // แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
       final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
@@ -282,19 +298,77 @@ class HomeController extends GetxController {
       await getProductByCategory(categoryId: 0, branchId: 0);
     } catch (e) {
       log('❌ Error loading categories: $e');
+
+      // ✅ แจ้งเตือนเมื่อเกิดข้อผิดพลาดในการโหลดหมวดหมู่
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถโหลดข้อมูลหมวดหมู่สินค้าได้: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        icon: const Icon(Icons.error, color: Colors.white),
+      );
+
+      // ✅ ตั้งค่าหมวดหมู่เริ่มต้นเมื่อเกิดข้อผิดพลาด
+      categories.assignAll([
+        {'code': 'ALL', 'name': 'ทั้งหมด'},
+      ]);
+      selectedCategoryCode.value = 'ALL';
     }
   }
 
   // ดึงข้อมูล Product ตาม Category
   Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
     try {
+      log('🔄 Loading products for category: $categoryId, branch: $branchId');
+
       final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
+
+      // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
+      if (rawData == null) {
+        log('⚠️ No data received from API');
+        Get.snackbar(
+          'ไม่พบข้อมูล',
+          'ไม่สามารถโหลดข้อมูลสินค้าได้',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          icon: const Icon(Icons.warning, color: Colors.white),
+        );
+        return;
+      }
+
       // แปลงข้อมูลเป็น List<Product>
       final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
       final List<Product> productList = parsedProducts.map((productData) => Product.fromJson(productData)).toList();
+
       products.assignAll(productList);
+
+      log('✅ Successfully loaded ${productList.length} products');
+
+      // ✅ แจ้งเตือนถ้าไม่มีสินค้าในหมวดหมู่นี้
+      if (productList.isEmpty) {
+        Get.snackbar(
+          'ไม่มีสินค้า',
+          'ไม่พบสินค้าในหมวดหมู่นี้',
+          backgroundColor: Colors.blue,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+          icon: const Icon(Icons.info, color: Colors.white),
+        );
+      }
     } catch (e) {
-      log('Error loading products: $e');
+      log('❌ Error loading products: $e');
+
+      // ✅ แจ้งเตือนเมื่อเกิดข้อผิดพลาด
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถโหลดข้อมูลสินค้าได้: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+        icon: const Icon(Icons.error, color: Colors.white),
+      );
     }
   }
 
