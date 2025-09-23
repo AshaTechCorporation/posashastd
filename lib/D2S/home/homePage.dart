@@ -491,10 +491,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                       );
                                                       final int categoryId = selectedCategory['id'] ?? 0;
 
-                                                      await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                                                      // ✅ เพิ่ม timeout 15 วินาที
+                                                      await homeController
+                                                          .getProductByCategory(categoryId: categoryId, branchId: 0)
+                                                          .timeout(
+                                                            const Duration(seconds: 15),
+                                                            onTimeout: () {
+                                                              throw Exception('การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต');
+                                                            },
+                                                          );
 
                                                       // ✅ ปิด loading dialog
-                                                      Get.back();
+                                                      if (Get.isDialogOpen == true) {
+                                                        Get.back();
+                                                      }
 
                                                       // ✅ เลื่อน GridView กลับไปด้านบนหลังจากโหลดข้อมูลใหม่
                                                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -506,14 +516,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                         Get.back();
                                                       }
 
-                                                      // ✅ แจ้งเตือนข้อผิดพลาด
+                                                      // ✅ แจ้งเตือนข้อผิดพลาดตามประเภท
+                                                      String errorMessage;
+                                                      Color errorColor;
+                                                      IconData errorIcon;
+
+                                                      if (e.toString().contains('หมดเวลา') || e.toString().contains('timeout')) {
+                                                        errorMessage = 'การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต';
+                                                        errorColor = Colors.orange;
+                                                        errorIcon = Icons.wifi_off;
+                                                      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+                                                        errorMessage = 'ไม่สามารถเชื่อมต่อเครือข่ายได้ กรุณาตรวจสอบอินเทอร์เน็ต';
+                                                        errorColor = Colors.red;
+                                                        errorIcon = Icons.signal_wifi_off;
+                                                      } else {
+                                                        errorMessage = 'ไม่สามารถโหลดข้อมูลสินค้าได้: ${e.toString()}';
+                                                        errorColor = Colors.red;
+                                                        errorIcon = Icons.error;
+                                                      }
+
                                                       Get.snackbar(
                                                         'เกิดข้อผิดพลาด',
-                                                        'ไม่สามารถโหลดข้อมูลสินค้าได้: ${e.toString()}',
-                                                        backgroundColor: Colors.red,
+                                                        errorMessage,
+                                                        backgroundColor: errorColor,
                                                         colorText: Colors.white,
-                                                        duration: const Duration(seconds: 4),
-                                                        icon: const Icon(Icons.error, color: Colors.white),
+                                                        duration: const Duration(seconds: 5),
+                                                        icon: Icon(errorIcon, color: Colors.white),
                                                       );
 
                                                       log('❌ Error in dropdown onChanged: $e');

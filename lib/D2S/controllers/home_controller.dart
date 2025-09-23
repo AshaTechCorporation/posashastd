@@ -264,7 +264,13 @@ class HomeController extends GetxController {
   Future<void> getlistCategory() async {
     try {
       log('📂 Fetching categories...');
-      final rawData = await Homeservice.getCategory();
+      // ✅ เพิ่ม timeout 10 วินาที สำหรับ API call
+      final rawData = await Homeservice.getCategory().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต');
+        },
+      );
 
       // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
       if (rawData == null) {
@@ -322,7 +328,13 @@ class HomeController extends GetxController {
     try {
       log('🔄 Loading products for category: $categoryId, branch: $branchId');
 
-      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId);
+      // ✅ เพิ่ม timeout 10 วินาที สำหรับ API call
+      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต');
+        },
+      );
 
       // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
       if (rawData == null) {
@@ -360,15 +372,11 @@ class HomeController extends GetxController {
     } catch (e) {
       log('❌ Error loading products: $e');
 
-      // ✅ แจ้งเตือนเมื่อเกิดข้อผิดพลาด
-      Get.snackbar(
-        'เกิดข้อผิดพลาด',
-        'ไม่สามารถโหลดข้อมูลสินค้าได้: ${e.toString()}',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-        icon: const Icon(Icons.error, color: Colors.white),
-      );
+      // ✅ ล้างข้อมูลสินค้าเมื่อเกิดข้อผิดพลาด
+      products.clear();
+
+      // ✅ ส่งต่อ error เพื่อให้ UI จัดการได้
+      rethrow;
     }
   }
 

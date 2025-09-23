@@ -31,6 +31,66 @@ class GridContentWidget extends StatelessWidget {
     if (tabController.index == 0) {
       // แท็บแรก: แสดงสินค้าทั้งหมดจาก API
       return Obx(() {
+        // ✅ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
+        if (!homeController.isConnected.value) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.wifi_off, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('กรุณาตรวจสอบการเชื่อมต่อและลองใหม่', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    homeController.checkConnectivityAndLoadData();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('ลองใหม่'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // ✅ ตรวจสอบว่ามีสินค้าหรือไม่
+        if (homeController.products.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text('ไม่พบสินค้า', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(
+                  'ไม่มีสินค้าในหมวดหมู่นี้\nหรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // รีเฟรชข้อมูลสินค้า
+                    final selectedCategory = homeController.categories.firstWhere(
+                      (cat) => cat['code'] == homeController.selectedCategoryCode.value,
+                      orElse: () => {'id': 0},
+                    );
+                    final int categoryId = selectedCategory['id'] ?? 0;
+                    homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('รีเฟรช'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                ),
+              ],
+            ),
+          );
+        }
+
         return GridView.builder(
           key: const ValueKey("grid_main_products"),
           controller: scrollController, // ✅ เพิ่ม ScrollController
@@ -104,15 +164,46 @@ class GridContentWidget extends StatelessWidget {
       final panelIndex = tabController.index - 1;
       return GetX<HomeController>(
         builder: (controller) {
-          // ตรวจสอบว่ามีพาเนลในตำแหน่งนี้หรือไม่
-          if (panelIndex < 0 || panelIndex >= controller.panels.length) {
-            return const Center(
+          // ✅ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตสำหรับแท็บพาเนล
+          if (!controller.isConnected.value) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.dashboard_outlined, size: 60, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('ไม่มีข้อมูลพาเนล', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.wifi_off, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('กรุณาตรวจสอบการเชื่อมต่อและลองใหม่', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      controller.checkConnectivityAndLoadData();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('ลองใหม่'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // ตรวจสอบว่ามีพาเนลในตำแหน่งนี้หรือไม่
+          if (panelIndex < 0 || panelIndex >= controller.panels.length) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.dashboard_outlined, size: 60, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('ไม่มีข้อมูลพาเนล', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'พาเนลนี้ยังไม่มีข้อมูล\nหรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
                 ],
               ),
             );
