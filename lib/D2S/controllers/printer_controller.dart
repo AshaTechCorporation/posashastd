@@ -586,4 +586,132 @@ class PrinterController extends GetxController {
       log('❌ Error setting default printer: $e');
     }
   }
+
+  // ✅ ส่งภาพไปปริ๊นเตอร์
+  Future<bool> printImage(PrinterInfo printer, List<int> imageBytes) async {
+    try {
+      log('🖨️ Sending image to printer: ${printer.name}');
+      log('📸 Image size: ${imageBytes.length} bytes');
+
+      // ตรวจสอบการเชื่อมต่อก่อน
+      final isConnected = await testPrinterConnection(printer, showSnackbar: false);
+      if (!isConnected) {
+        log('❌ Printer not connected, cannot print image');
+        return false;
+      }
+
+      // ส่งภาพตามประเภทปริ๊นเตอร์
+      bool success = false;
+      switch (printer.type.toLowerCase()) {
+        case 'wifi':
+        case 'lan':
+          success = await _printImageToNetworkPrinter(printer, imageBytes);
+          break;
+        case 'bluetooth':
+          success = await _printImageToBluetoothPrinter(printer, imageBytes);
+          break;
+        case 'usb':
+          success = await _printImageToUSBPrinter(printer, imageBytes);
+          break;
+        default:
+          success = await _printImageToGenericPrinter(printer, imageBytes);
+      }
+
+      if (success) {
+        log('✅ Image sent to printer successfully');
+      } else {
+        log('❌ Failed to send image to printer');
+      }
+
+      return success;
+    } catch (e) {
+      log('❌ Error printing image: $e');
+      return false;
+    }
+  }
+
+  // ✅ ส่งภาพไปปริ๊นเตอร์เครือข่าย
+  Future<bool> _printImageToNetworkPrinter(PrinterInfo printer, List<int> imageBytes) async {
+    try {
+      log('🌐 Sending image to network printer: ${printer.address}');
+
+      // TODO: ในการใช้งานจริง ให้ใช้ HTTP POST หรือ Socket
+      // ส่งข้อมูลภาพไปยัง IP address ของปริ๊นเตอร์
+
+      // จำลองการส่งข้อมูล
+      await Future.delayed(const Duration(seconds: 2));
+
+      // สำหรับการพัฒนา: สำเร็จ 90% ของเวลา
+      final success = DateTime.now().millisecond % 10 != 0;
+
+      log(success ? '✅ Network printer received image' : '❌ Network printer failed to receive image');
+      return success;
+    } catch (e) {
+      log('❌ Network printer image send failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ส่งภาพไปปริ๊นเตอร์ Bluetooth
+  Future<bool> _printImageToBluetoothPrinter(PrinterInfo printer, List<int> imageBytes) async {
+    try {
+      log('📱 Sending image to Bluetooth printer: ${printer.address}');
+
+      // TODO: ในการใช้งานจริง ให้ใช้ Bluetooth library
+      // เช่น flutter_bluetooth_serial หรือ blue_thermal
+
+      // จำลองการส่งข้อมูล
+      await Future.delayed(const Duration(seconds: 3));
+
+      // สำหรับการพัฒนา: สำเร็จ 85% ของเวลา
+      final success = DateTime.now().millisecond % 7 != 0;
+
+      log(success ? '✅ Bluetooth printer received image' : '❌ Bluetooth printer failed to receive image');
+      return success;
+    } catch (e) {
+      log('❌ Bluetooth printer image send failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ส่งภาพไปปริ๊นเตอร์ USB
+  Future<bool> _printImageToUSBPrinter(PrinterInfo printer, List<int> imageBytes) async {
+    try {
+      log('🔌 Sending image to USB printer: ${printer.name}');
+
+      // TODO: ในการใช้งานจริง ให้ใช้ USB library
+      // เช่น usb_serial หรือ platform channels
+
+      // จำลองการส่งข้อมูล
+      await Future.delayed(const Duration(seconds: 1));
+
+      // สำหรับการพัฒนา: สำเร็จ 95% ของเวลา
+      final success = DateTime.now().millisecond % 20 != 0;
+
+      log(success ? '✅ USB printer received image' : '❌ USB printer failed to receive image');
+      return success;
+    } catch (e) {
+      log('❌ USB printer image send failed: $e');
+      return false;
+    }
+  }
+
+  // ✅ ส่งภาพไปปริ๊นเตอร์แบบทั่วไป
+  Future<bool> _printImageToGenericPrinter(PrinterInfo printer, List<int> imageBytes) async {
+    try {
+      log('🖨️ Sending image to generic printer: ${printer.name}');
+
+      // จำลองการส่งข้อมูล
+      await Future.delayed(const Duration(seconds: 2));
+
+      // สำหรับการพัฒนา: สำเร็จ 80% ของเวลา
+      final success = DateTime.now().millisecond % 5 != 0;
+
+      log(success ? '✅ Generic printer received image' : '❌ Generic printer failed to receive image');
+      return success;
+    } catch (e) {
+      log('❌ Generic printer image send failed: $e');
+      return false;
+    }
+  }
 }

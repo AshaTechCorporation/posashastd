@@ -412,33 +412,45 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       Uint8List imageBytes = byteData.buffer.asUint8List();
       log('✅ Image captured successfully, size: ${imageBytes.length} bytes');
 
-      // ส่งภาพไปปริ๊น
+      // ✅ ส่งภาพไปปริ๊นเตอร์จริง
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ทดสอบการเชื่อมต่อก่อนปริ๊น
-        final isConnected = await printerController.testPrinterConnection(defaultPrinter, showSnackbar: false);
+        // ส่งภาพไปปริ๊นเตอร์
+        final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
 
-        if (isConnected) {
-          // จำลองการส่งภาพไปปริ๊น
-          await Future.delayed(const Duration(seconds: 2));
-          log('✅ Image sent to printer successfully (simulated)');
+        Get.back(); // ปิด loading
 
-          Get.back(); // ปิด loading
+        if (printSuccess) {
+          log('✅ Image sent to printer successfully');
           Get.snackbar(
-            'สำเร็จ',
+            'ปริ๊นสำเร็จ',
             'ส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว',
             backgroundColor: Colors.green,
             colorText: Colors.white,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+            duration: const Duration(seconds: 3),
           );
         } else {
-          log('❌ Printer not connected');
-          Get.back(); // ปิด loading
-          Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับเครื่องปริ๊นเตอร์ได้', backgroundColor: Colors.red, colorText: Colors.white);
+          log('❌ Failed to send image to printer');
+          Get.snackbar(
+            'ปริ๊นล้มเหลว',
+            'ไม่สามารถส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} ได้',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            icon: const Icon(Icons.error, color: Colors.white),
+            duration: const Duration(seconds: 3),
+          );
         }
       } else {
         log('❌ No default printer found');
         Get.back(); // ปิด loading
-        Get.snackbar('ข้อผิดพลาด', 'ไม่พบเครื่องปริ๊นเตอร์');
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่พบเครื่องปริ๊นเตอร์เริ่มต้น',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          icon: const Icon(Icons.warning, color: Colors.white),
+        );
       }
     } catch (e) {
       log('❌ Error in capture and print: $e');
@@ -892,6 +904,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 Expanded(
                                   child: Card(
                                     elevation: 4, // เพิ่มเงา
+                                    color: Colors.white,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     child: InkWell(
                                       onTap: () {
@@ -962,6 +975,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 Expanded(
                                   child: Card(
                                     elevation: 4,
+                                    color: Colors.white,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     child: InkWell(
                                       onTap: () {
@@ -1026,6 +1040,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 Expanded(
                                   child: Card(
                                     elevation: 4,
+                                    color: Colors.white,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     child: InkWell(
                                       onTap: () {

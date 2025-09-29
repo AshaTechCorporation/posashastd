@@ -10,6 +10,10 @@ import 'package:posashastd/helpers/mix_match_multi_units.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItemsV2s.dart';
 import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/D2S/home/widgets/ReceiptPreviewWidget.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
 
 class PaymentPagev2s extends StatefulWidget {
   final double totalAmount;
@@ -346,36 +350,220 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
 
       if (!isConnected) {
         log('❌ Cannot connect to printer after reconnection attempts');
-        _showNoPrinterDialog(); // ใช้ dialog ไม่มีปริ๊นเตอร์แทน
+        // ✅ แสดง print preview dialog แทนการแสดงข้อผิดพลาด
+        _showPrintPreviewDialog();
         return;
       }
 
       log('✅ Printer is connected, proceeding to print...');
 
-      // ดำเนินการปริ๊น
+      // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        await _printToDefaultPrinter(defaultPrinter);
-        log('✅ Print process completed successfully');
+        // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
+        if (defaultPrinter.name.toLowerCase().contains('sunmi')) {
+          await _printToDefaultPrinter(defaultPrinter);
+          log('✅ Print process completed successfully');
+        } else {
+          log('⚠️ Default printer is not Sunmi, showing preview dialog');
+          _showPrintPreviewDialog();
+        }
       } else {
         log('❌ Default printer not found after connection check');
-        _showNoPrinterDialog();
+        _showPrintPreviewDialog();
       }
     } catch (e) {
       log('❌ Error in checkPrinterAndPrint: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
+        Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
       }
     }
   }
 
-  // ✅ หาปริ๊นเตอร์เริ่มต้น
-  PrinterInfo? _getDefaultPrinter() {
+  // ✅ แสดง dialog พรีวิวใบเสร็จ
+  void _showPrintPreviewDialog() {
+    final GlobalKey previewKey = GlobalKey();
+
+    Get.dialog(
+      Dialog(
+        child: Container(
+          width: 400,
+          height: 600,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Icon(Icons.receipt_long, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Text('พรีวิวใบเสร็จ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close)),
+                ],
+              ),
+              const Divider(),
+
+              // Receipt Preview Content
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: RepaintBoundary(
+                      key: previewKey,
+                      child: Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.all(8),
+                        child: ReceiptPreviewWidget(
+                          cartItems: widget.items,
+                          receivedAmount: receivedAmount,
+                          changeAmount: receivedAmount - calculateTotalWithDiscount(),
+                          discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
+                          paymentMethod: _getPaymentMethodName(),
+                          staffName: staffName,
+                          receiptNumber: orderReceiptNumber,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Print Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await _captureAndPrintReceipt(previewKey); // แคปภาพและปริ๊นก่อน
+                  },
+                  icon: const Icon(Icons.print),
+                  label: const Text('ปริ๊น'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  // ✅ แคปภาพจาก Widget และส่งไปปริ๊น
+  Future<void> _captureAndPrintReceipt(GlobalKey key) async {
     try {
-      return printerController.savedPrinters.firstWhere((printer) => printer.isDefault);
+      log('📸 Starting capture and print process...');
+
+      // เก็บ context ก่อน async gap
+      final context = key.currentContext;
+      if (context == null) {
+        log('❌ Context is null');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - Context หายไป');
+        return;
+      }
+
+      final renderObject = context.findRenderObject();
+      if (renderObject == null) {
+        log('❌ RenderObject is null');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - RenderObject หายไป');
+        return;
+      }
+
+      if (renderObject is! RenderRepaintBoundary) {
+        log('❌ RenderObject is not RenderRepaintBoundary');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - ไม่ใช่ RepaintBoundary');
+        return;
+      }
+
+      final boundary = renderObject;
+      log('✅ Found RenderRepaintBoundary, proceeding to capture...');
+
+      // รอให้ widget render เสร็จก่อนแคป
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // ปิด preview dialog ก่อนแสดง loading
+      Get.back(); // ปิด preview dialog
+
+      // แสดง loading dialog
+      Get.dialog(
+        const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังแคปภาพและปริ๊น...', style: TextStyle(color: Colors.white))],
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // สร้างภาพ
+      ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        log('❌ Cannot convert image to bytes');
+        Get.back(); // ปิด loading
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแปลงภาพได้');
+        return;
+      }
+
+      Uint8List imageBytes = byteData.buffer.asUint8List();
+      log('✅ Image captured successfully, size: ${imageBytes.length} bytes');
+
+      // ✅ ส่งภาพไปปริ๊นเตอร์จริง
+      final defaultPrinter = printerController.getDefaultPrinter();
+      if (defaultPrinter != null) {
+        // ส่งภาพไปปริ๊นเตอร์
+        final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+
+        Get.back(); // ปิด loading
+
+        if (printSuccess) {
+          log('✅ Image sent to printer successfully');
+          Get.snackbar(
+            'ปริ๊นสำเร็จ',
+            'ส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว',
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+            duration: const Duration(seconds: 3),
+          );
+        } else {
+          log('❌ Failed to send image to printer');
+          Get.snackbar(
+            'ปริ๊นล้มเหลว',
+            'ไม่สามารถส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} ได้',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            icon: const Icon(Icons.error, color: Colors.white),
+            duration: const Duration(seconds: 3),
+          );
+        }
+      } else {
+        log('❌ No default printer found');
+        Get.back(); // ปิด loading
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่พบเครื่องปริ๊นเตอร์เริ่มต้น',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          icon: const Icon(Icons.warning, color: Colors.white),
+        );
+      }
     } catch (e) {
-      log('No default printer found: $e');
-      return null;
+      log('❌ Error in capture and print: $e');
+      Get.back(); // ปิด loading
+      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
