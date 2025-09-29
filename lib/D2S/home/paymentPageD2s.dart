@@ -218,7 +218,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
         // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
-        if (defaultPrinter.name?.toLowerCase().contains('sunmi') == true) {
+        if (defaultPrinter.name.toLowerCase().contains('sunmi')) {
           await _printToDefaultPrinter(defaultPrinter);
           log('✅ Print process completed successfully');
         } else {
@@ -333,8 +333,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    Get.back(); // ปิด dialog
-                    await _captureAndPrintReceipt(previewKey); // แคปภาพและปริ๊น
+                    await _captureAndPrintReceipt(previewKey); // แคปภาพและปริ๊นก่อน
                   },
                   icon: const Icon(Icons.print),
                   label: const Text('ปริ๊น'),
@@ -358,21 +357,46 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     try {
       log('📸 Starting capture and print process...');
 
-      // แสดง loading
-      Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
-
-      // รอให้ widget render เสร็จ
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // แคปภาพจาก widget
-      RenderRepaintBoundary? boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-
-      if (boundary == null) {
-        log('❌ Cannot find RenderRepaintBoundary');
-        Get.back(); // ปิด loading
-        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้');
+      // เก็บ context ก่อน async gap
+      final context = key.currentContext;
+      if (context == null) {
+        log('❌ Context is null');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - Context หายไป');
         return;
       }
+
+      final renderObject = context.findRenderObject();
+      if (renderObject == null) {
+        log('❌ RenderObject is null');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - RenderObject หายไป');
+        return;
+      }
+
+      if (renderObject is! RenderRepaintBoundary) {
+        log('❌ RenderObject is not RenderRepaintBoundary');
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - ไม่ใช่ RepaintBoundary');
+        return;
+      }
+
+      final boundary = renderObject;
+      log('✅ Found RenderRepaintBoundary, proceeding to capture...');
+
+      // รอให้ widget render เสร็จก่อนแคป
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // ปิด preview dialog ก่อนแสดง loading
+      Get.back(); // ปิด preview dialog
+
+      // แสดง loading dialog
+      Get.dialog(
+        const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังแคปภาพและปริ๊น...', style: TextStyle(color: Colors.white))],
+          ),
+        ),
+        barrierDismissible: false,
+      );
 
       // สร้างภาพ
       ui.Image image = await boundary.toImage(pixelRatio: 2.0);
@@ -821,44 +845,41 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            // ✅ ใช้ Wrap โดยตรงเพื่อให้ปุ่มสามารถลงมาข้างล่างได้เมื่อเกิน
+                            Wrap(
+                              alignment: WrapAlignment.start,
+                              spacing: 12,
+                              runSpacing: 12,
                               children: [
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: [
-                                    // ✅ ปุ่มรับเงินพอดี
-                                    OutlinedButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          receivedAmount = calculateTotalWithDiscount();
-                                        });
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: Colors.green),
-                                        backgroundColor: Colors.green[50],
-                                        fixedSize: Size(130, 48),
-                                      ),
-                                      child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                                    ),
-                                    // ปุ่มจำนวนเงินต่างๆ
-                                    for (final amount in [100, 200, 500, 1000])
-                                      OutlinedButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            receivedAmount = amount.toDouble();
-                                          });
-                                        },
-                                        style: OutlinedButton.styleFrom(
-                                          side: BorderSide(color: Colors.grey),
-                                          backgroundColor: Colors.white,
-                                          fixedSize: Size(130, 48), // ✅ เพิ่มความกว้างตรงนี้
-                                        ),
-                                        child: Text('฿${amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black)),
-                                      ),
-                                  ],
+                                // ✅ ปุ่มรับเงินพอดี
+                                OutlinedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      receivedAmount = calculateTotalWithDiscount();
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: Colors.green),
+                                    backgroundColor: Colors.green[50],
+                                    fixedSize: Size(130, 48),
+                                  ),
+                                  child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                                 ),
+                                // ปุ่มจำนวนเงินต่างๆ
+                                for (final amount in [100, 200, 500, 1000])
+                                  OutlinedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        receivedAmount = amount.toDouble();
+                                      });
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: Colors.grey),
+                                      backgroundColor: Colors.white,
+                                      fixedSize: Size(130, 48), // ✅ เพิ่มความกว้างตรงนี้
+                                    ),
+                                    child: Text('฿${amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black)),
+                                  ),
                               ],
                             ),
 
