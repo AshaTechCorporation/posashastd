@@ -15,6 +15,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   int selectedTab = 0;
   late PrinterController printerController;
+  final TextEditingController ipController = TextEditingController();
 
   final List<String> tabs = ['เครื่องพิมพ์'];
   //final List<String> tabs = ['เครื่องพิมพ์', 'ภาษี', 'ทั่วไป'];
@@ -23,6 +24,8 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     printerController = Get.put(PrinterController());
+    // ✅ ตั้งค่าเริ่มต้น IP
+    ipController.text = '192.168.1.110';
   }
 
   // ฟังก์ชันออกจากระบบ
@@ -179,26 +182,76 @@ class _SettingsPageState extends State<SettingsPage> {
           // ✅ Header พร้อมปุ่มสแกน
           Container(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    'ปริ๊นเตอร์ที่บันทึกไว้ (${printerController.savedPrinters.length})',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'ปริ๊นเตอร์ที่บันทึกไว้ (${printerController.savedPrinters.length})',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: printerController.isScanning.value ? null : () => _showScanDialog(),
+                      icon:
+                          printerController.isScanning.value
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.search, color: Colors.white),
+                      label: Text(
+                        printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+                    ),
+                  ],
                 ),
-                ElevatedButton.icon(
-                  onPressed: printerController.isScanning.value ? null : () => _showScanDialog(),
-                  icon:
-                      printerController.isScanning.value
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.search, color: Colors.white),
-                  label: Text(
-                    printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+
+                // ✅ ช่องกรอก IP
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: ipController,
+                        decoration: InputDecoration(
+                          labelText: 'IP Address (เช่น 192.168.1.110)',
+                          hintText: '192.168.1.110',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.computer),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: printerController.isScanning.value ? null : () => _scanSpecificIP(),
+                      icon: const Icon(Icons.search, color: Colors.white, size: 16),
+                      label: const Text('สแกน IP', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                  ],
                 ),
+
+                // ✅ แสดงสถานะการสแกน (สั้นๆ)
+                if (printerController.isScanning.value)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(6)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                        const SizedBox(width: 8),
+                        Text('กำลังสแกน...', style: TextStyle(color: Colors.blue[600], fontSize: 12)),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -264,6 +317,85 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  // ✅ สแกน IP เฉพาะ
+  Future<void> _scanSpecificIP() async {
+    final ip = ipController.text.trim();
+    if (ip.isEmpty) {
+      Get.snackbar('ข้อผิดพลาด', 'กรุณากรอก IP Address', backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+
+    // ตรวจสอบรูปแบบ IP
+    final ipRegex = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
+    if (!ipRegex.hasMatch(ip)) {
+      Get.snackbar('ข้อผิดพลาด', 'รูปแบบ IP ไม่ถูกต้อง', backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+
+    try {
+      printerController.isScanning.value = true;
+      printerController.scanStatus.value = 'กำลังตรวจสอบ $ip...';
+      printerController.availablePrinters.clear();
+
+      // ทดสอบการเชื่อมต่อ
+      final isReachable = await printerController.pingHost(ip);
+
+      if (isReachable) {
+        // ตรวจสอบว่าเป็นปริ๊นเตอร์หรือไม่
+        final printerInfo = await printerController.identifyPrinter(ip);
+        if (printerInfo != null) {
+          // ตรวจสอบว่ามีอยู่แล้วหรือไม่
+          final existingIndex = printerController.availablePrinters.indexWhere((p) => p.address == ip);
+          if (existingIndex >= 0) {
+            printerController.availablePrinters[existingIndex] = printerInfo;
+          } else {
+            printerController.availablePrinters.add(printerInfo);
+          }
+
+          // แสดงผลลัพธ์พร้อมปุ่มเพิ่ม
+          Get.dialog(
+            AlertDialog(
+              title: Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('พบปริ๊นเตอร์')]),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('ชื่อ: ${printerInfo.name}', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('IP: ${printerInfo.address}'),
+                  Text('ประเภท: ${printerInfo.type}'),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Get.back(), child: Text('ปิด')),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Get.back(); // ปิด dialog นี้ก่อน
+                    final isConnected = await printerController.testPrinterConnection(printerInfo);
+                    if (isConnected) {
+                      await printerController.savePrinter(printerInfo);
+                    }
+                  },
+                  icon: Icon(Icons.add, color: Colors.white),
+                  label: Text('เพิ่มปริ๊นเตอร์', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                ),
+              ],
+            ),
+          );
+        } else {
+          Get.snackbar('ไม่พบปริ๊นเตอร์', '$ip ไม่ใช่ปริ๊นเตอร์', backgroundColor: Colors.orange, colorText: Colors.white);
+        }
+      } else {
+        Get.snackbar('ไม่สามารถเชื่อมต่อ', '$ip ไม่ตอบสนอง', backgroundColor: Colors.red, colorText: Colors.white);
+      }
+    } catch (e) {
+      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาด: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    } finally {
+      printerController.isScanning.value = false;
+      printerController.scanStatus.value = '';
+    }
+  }
+
   // ✅ แสดง Dialog สำหรับสแกนปริ๊นเตอร์
   void _showScanDialog() {
     Get.dialog(
@@ -293,7 +425,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          printerController.scanStatus.value.isEmpty ? 'กดปุ่ม "เริ่มสแกน" เพื่อค้นหาปริ๊นเตอร์' : printerController.scanStatus.value,
+                          printerController.scanStatus.value.isEmpty
+                              ? 'กดปุ่ม "เริ่มสแกน" เพื่อค้นหาปริ๊นเตอร์'
+                              : printerController.scanStatus.value.contains('สแกนแล้ว')
+                              ? 'กำลังสแกน...'
+                              : printerController.scanStatus.value,
                           style: TextStyle(color: Colors.blue[600]),
                         ),
                       ),

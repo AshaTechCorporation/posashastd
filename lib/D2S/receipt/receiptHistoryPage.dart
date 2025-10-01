@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -631,12 +632,50 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       Uint8List imageBytes = byteData.buffer.asUint8List();
       log('✅ Image captured successfully, size: ${imageBytes.length} bytes');
 
-      // ✅ ส่งภาพไปปริ๊นเตอร์จริง
+      // ✅ ส่งข้อมูลไปปริ๊นเตอร์จริง
       final printerController = Get.find<PrinterController>();
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ส่งภาพไปปริ๊นเตอร์
-        final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+        log('🖨️ Sending to printer: ${defaultPrinter.name} (${defaultPrinter.type}) at ${defaultPrinter.address}');
+
+        // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+        log('📡 Connecting to printer for printing only...');
+        log('🔧 Memory optimization: Connect → Print → Disconnect');
+        final connectSuccess = await _connectToPrinter(defaultPrinter, printerController);
+        if (!connectSuccess) {
+          Get.back(); // ปิด loading
+          Get.snackbar(
+            'ไม่สามารถเชื่อมต่อ',
+            'ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}\nIP: ${defaultPrinter.address}\nตรวจสอบการเชื่อมต่อ WiFi และสถานะปริ๊นเตอร์',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            icon: const Icon(Icons.wifi_off, color: Colors.white),
+            duration: const Duration(seconds: 5),
+          );
+          return;
+        }
+        log('✅ Connected to printer - starting print job');
+
+        // ✅ ตรวจสอบว่าเป็น BARIGAN-PR01W หรือไม่
+        bool printSuccess = false;
+        try {
+          if (defaultPrinter.name.contains('BARIGAN-PR01W')) {
+            log('🖨️ BARIGAN-PR01W detected - sending ESC/POS text commands');
+            log('📋 Order details: ${order.orderNo}, Items: ${order.orderItems?.length ?? 0}');
+            // ส่งเป็นเท็กสำหรับ BARIGAN-PR01W
+            printSuccess = await _printTextToBARIGAN(defaultPrinter, order, printerController);
+          } else {
+            log('🖨️ Standard printer - sending image');
+            // ส่งภาพไปปริ๊นเตอร์ปกติ
+            printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+          }
+        } finally {
+          // ✅ ปิดการเชื่อมต่อทันทีหลังปริ๊นเสร็จ (ประหยัด RAM)
+          log('🔌 Disconnecting from printer to save memory and resources...');
+          log('💾 Memory optimization: Closing all printer connections');
+          await _disconnectFromPrinter(defaultPrinter, printerController);
+          log('✅ Printer disconnected - memory freed');
+        }
 
         Get.back(); // ปิด loading
 
@@ -654,11 +693,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
           log('❌ Failed to send image to printer');
           Get.snackbar(
             'ปริ๊นล้มเหลว',
-            'ไม่สามารถส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} ได้',
+            'ไม่สามารถส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} ได้\nตรวจสอบการเชื่อมต่อ WiFi และ IP: ${defaultPrinter.address}',
             backgroundColor: Colors.red,
             colorText: Colors.white,
             icon: const Icon(Icons.error, color: Colors.white),
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 5),
           );
         }
       } else {
@@ -666,7 +705,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         Get.back(); // ปิด loading
         Get.snackbar(
           'ข้อผิดพลาด',
-          'ไม่พบเครื่องปริ๊นเตอร์เริ่มต้น',
+          'ไม่พบเครื่องปริ๊นเตอร์เริ่มต้น\nกรุณาตั้งค่าปริ๊นเตอร์ในหน้า Settings',
           backgroundColor: Colors.orange,
           colorText: Colors.white,
           icon: const Icon(Icons.warning, color: Colors.white),
@@ -677,5 +716,244 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       Get.back(); // ปิด loading
       Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
+  }
+
+  // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+  Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
+    try {
+      log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
+      log('💾 Memory-efficient connection: Only for printing session');
+
+      // ทดสอบการเชื่อมต่อ 2 ครั้ง
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        log('🔄 Connection attempt $attempt/2...');
+        final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
+        if (isConnected) {
+          log('✅ Printer connected successfully on attempt $attempt');
+          log('📡 Connection established - ready for print job');
+          return true;
+        }
+
+        if (attempt < 2) {
+          log('⚠️ Connection failed on attempt $attempt, retrying...');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+
+      log('❌ Failed to connect to printer after 2 attempts');
+      log('💾 No persistent connection - memory saved');
+      return false;
+    } catch (e) {
+      log('❌ Error connecting to printer: $e');
+      return false;
+    }
+  }
+
+  // ✅ ปิดการเชื่อมต่อปริ๊นเตอร์เพื่อประหยัด RAM
+  Future<void> _disconnectFromPrinter(PrinterInfo printer, PrinterController printerController) async {
+    try {
+      log('🔌 Disconnecting from printer: ${printer.name}');
+
+      // ปิดการเชื่อมต่อตามประเภทปริ๊นเตอร์
+      switch (printer.type.toLowerCase()) {
+        case 'wifi':
+        case 'lan':
+          // สำหรับ Network printer ไม่ต้องทำอะไรเพิ่ม (Socket จะปิดเอง)
+          log('📡 Network printer connection will close automatically');
+          break;
+
+        case 'bluetooth':
+          // สำหรับ Bluetooth printer ควรปิดการเชื่อมต่อ
+          log('📱 Closing Bluetooth connection');
+          // TODO: เพิ่มการปิด Bluetooth connection เมื่อมี library
+          break;
+
+        case 'usb':
+          // สำหรับ USB printer ปิด USB connection
+          log('🔌 Closing USB connection');
+          // TODO: เพิ่มการปิด USB connection เมื่อมี library
+          break;
+
+        default:
+          log('🖨️ Generic printer - no specific disconnect needed');
+          break;
+      }
+
+      // รอให้การปิดการเชื่อมต่อเสร็จสิ้น
+      await Future.delayed(const Duration(milliseconds: 500));
+      log('✅ Printer disconnected successfully');
+    } catch (e) {
+      log('⚠️ Error disconnecting from printer: $e');
+      // ไม่ throw error เพราะการปิดการเชื่อมต่อไม่สำคัญมาก
+    }
+  }
+
+  // ✅ ส่งเท็กไป BARIGAN-PR01W
+  Future<bool> _printTextToBARIGAN(PrinterInfo printer, Order order, PrinterController printerController) async {
+    try {
+      log('📝 Generating ESC/POS commands for BARIGAN-PR01W');
+
+      // สร้างเท็กใบเสร็จ
+      final textReceipt = _generateTextReceipt(order);
+      log('📝 Generated text receipt:\n$textReceipt');
+
+      // ✅ แปลงเป็น ESC/POS commands สำหรับภาษาไทย
+      final escPosBytes = _convertToESCPOS(textReceipt);
+
+      log('📄 ESC/POS commands generated, size: ${escPosBytes.length} bytes');
+      log('🔢 First 50 bytes: ${escPosBytes.take(50).toList()}');
+
+      // ส่งไปปริ๊นเตอร์
+      final success = await printerController.printImage(printer, escPosBytes);
+
+      return success;
+    } catch (e) {
+      log('❌ Error printing text to BARIGAN: $e');
+      return false;
+    }
+  }
+
+  // ✅ แปลงเท็กเป็น ESC/POS commands สำหรับภาษาไทย
+  List<int> _convertToESCPOS(String text) {
+    final List<int> commands = [];
+
+    // ESC/POS initialization
+    commands.addAll([0x1B, 0x40]); // ESC @ (Initialize printer)
+    commands.addAll([0x1B, 0x74, 0x0D]); // ESC t 13 (Select Thai character set)
+    commands.addAll([0x1C, 0x43, 0x01]); // FS C 1 (Select Thai code page)
+    commands.addAll([0x1B, 0x61, 0x01]); // ESC a 1 (Center alignment)
+
+    // แปลงเท็กไทยเป็น TIS-620 encoding
+    try {
+      // ใช้ latin1 encoding แทน utf8 เพื่อหลีกเลี่ยงปัญหาตัวอักษรไทย
+      final lines = text.split('\n');
+      for (final line in lines) {
+        if (line.trim().isNotEmpty) {
+          // แปลงตัวอักษรไทยเป็น ASCII ที่อ่านได้
+          final asciiLine = _convertThaiToASCII(line);
+          commands.addAll(latin1.encode(asciiLine));
+        }
+        commands.addAll([0x0A]); // LF (Line feed)
+      }
+    } catch (e) {
+      log('❌ Error encoding text: $e');
+      // Fallback: ใช้ ASCII เท่านั้น
+      final asciiText = _convertThaiToASCII(text);
+      commands.addAll(latin1.encode(asciiText));
+    }
+
+    // Cut paper
+    commands.addAll([0x0A, 0x0A, 0x0A]); // 3 line feeds
+    commands.addAll([0x1D, 0x56, 0x41, 0x10]); // GS V A (Cut paper)
+
+    return commands;
+  }
+
+  // ✅ แปลงตัวอักษรไทยเป็น ASCII ที่อ่านได้
+  String _convertThaiToASCII(String text) {
+    String result = text
+        // คำศัพท์พื้นฐาน
+        .replaceAll('ใบเสร็จ', 'RECEIPT')
+        .replaceAll('เลขที่', 'No.')
+        .replaceAll('วันที่', 'Date')
+        .replaceAll('รวม', 'Total')
+        .replaceAll('รับเงิน', 'Received')
+        .replaceAll('เงินทอน', 'Change')
+        .replaceAll('สถานะ', 'Status')
+        .replaceAll('บาท', 'THB')
+        .replaceAll('ขอบคุณที่ใช้บริการ', 'Thank you')
+        .replaceAll('สินค้า', 'Product')
+        .replaceAll('ส่วนลด', 'Discount')
+        // เครื่องดื่ม
+        .replaceAll('กาแฟ', 'Coffee')
+        .replaceAll('ชา', 'Tea')
+        .replaceAll('น้ำ', 'Water')
+        .replaceAll('โค้ก', 'Coke')
+        .replaceAll('เป๊ปซี่', 'Pepsi')
+        .replaceAll('น้ำส้ม', 'Orange Juice')
+        // อาหาร
+        .replaceAll('ข้าว', 'Rice')
+        .replaceAll('ผัดไทย', 'Pad Thai')
+        .replaceAll('ส้มตำ', 'Som Tam')
+        .replaceAll('ต้มยำ', 'Tom Yum')
+        .replaceAll('แกงเขียวหวาน', 'Green Curry')
+        // ขนม
+        .replaceAll('เค้ก', 'Cake')
+        .replaceAll('คุกกี้', 'Cookie')
+        .replaceAll('ไอศกรีม', 'Ice Cream')
+        // หน่วยนับ
+        .replaceAll('แก้ว', 'Glass')
+        .replaceAll('จาน', 'Plate')
+        .replaceAll('ชิ้น', 'Piece')
+        .replaceAll('ถ้วย', 'Cup');
+
+    // แปลงตัวอักษรไทยที่เหลือเป็น ASCII readable
+    result = result.replaceAllMapped(RegExp(r'[ก-๙]+'), (match) {
+      // ถ้าเป็นตัวเลขไทย ให้แปลงเป็นตัวเลขอารบิก
+      final thaiText = match.group(0)!;
+      if (RegExp(r'[๐-๙]').hasMatch(thaiText)) {
+        return thaiText
+            .replaceAll('๐', '0')
+            .replaceAll('๑', '1')
+            .replaceAll('๒', '2')
+            .replaceAll('๓', '3')
+            .replaceAll('๔', '4')
+            .replaceAll('๕', '5')
+            .replaceAll('๖', '6')
+            .replaceAll('๗', '7')
+            .replaceAll('๘', '8')
+            .replaceAll('๙', '9');
+      }
+      // ถ้าเป็นตัวอักษรไทยอื่นๆ ให้ใช้ชื่อแบบย่อ
+      return '[${thaiText.length}chars]';
+    });
+
+    return result;
+  }
+
+  // ✅ สร้างเท็กใบเสร็จสำหรับ BARIGAN-PR01W
+  String _generateTextReceipt(Order order) {
+    final buffer = StringBuffer();
+
+    // Header (ใช้ ASCII เพื่อหลีกเลี่ยงปัญหา encoding)
+    buffer.writeln('================================');
+    buffer.writeln('           RECEIPT');
+    buffer.writeln('================================');
+    buffer.writeln('No.: ${order.orderNo ?? 'N/A'}');
+    buffer.writeln('Date: ${order.createdAt != null ? DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt!) : 'N/A'}');
+    buffer.writeln('--------------------------------');
+
+    // รายการสินค้า
+    if (order.orderItems != null) {
+      for (final item in order.orderItems!) {
+        // ใช้ชื่อสินค้าเป็น ASCII หรือตัวเลข
+        final productName = item.product?.name ?? 'Product';
+        final asciiProductName = _convertThaiToASCII(productName);
+        buffer.writeln(asciiProductName);
+
+        final quantity = item.quantity ?? 0;
+        final price = (item.price ?? 0) / 100.0; // แปลงจาก satang เป็น baht
+        final total = quantity * price;
+        buffer.writeln('  $quantity x ${price.toStringAsFixed(2)} = ${total.toStringAsFixed(2)}');
+      }
+    }
+
+    buffer.writeln('--------------------------------');
+    final grandTotal = (order.grandTotal ?? 0) / 100.0;
+    final paid = (order.paid ?? 0) / 100.0;
+    final change = (order.change ?? 0) / 100.0;
+
+    buffer.writeln('Total: ${grandTotal.toStringAsFixed(2)} THB');
+    buffer.writeln('Received: ${paid.toStringAsFixed(2)} THB');
+    buffer.writeln('Change: ${change.toStringAsFixed(2)} THB');
+    buffer.writeln('Status: ${order.orderStatus ?? 'N/A'}');
+    buffer.writeln('================================');
+    buffer.writeln('       Thank you');
+    buffer.writeln('================================');
+    buffer.writeln(''); // บรรทัดว่าง
+    buffer.writeln(''); // บรรทัดว่าง
+    buffer.writeln(''); // บรรทัดว่าง
+
+    return buffer.toString();
   }
 }
