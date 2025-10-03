@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -219,9 +218,9 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                 ),
-                child: Padding(padding: const EdgeInsets.all(20), child: _buildOrderDetails(selectedOrder)),
+                child: Padding(padding: EdgeInsets.all(20), child: _buildOrderDetails(selectedOrder)),
               ),
             );
           }),
@@ -528,18 +527,14 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     ),
                     child: RepaintBoundary(
                       key: previewKey,
-                      child: Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.all(8),
-                        child: ReceiptPreviewWidget(
-                          cartItems: cartItems,
-                          receivedAmount: paid,
-                          changeAmount: change,
-                          discountAmount: discount > 0 ? discount : null,
-                          paymentMethod: 'เงินสด',
-                          staffName: staffName,
-                          receiptNumber: order.orderNo,
-                        ),
+                      child: ReceiptPreviewWidget(
+                        cartItems: cartItems,
+                        receivedAmount: paid,
+                        changeAmount: change,
+                        discountAmount: discount > 0 ? discount : null,
+                        paymentMethod: 'เงินสด',
+                        staffName: staffName,
+                        receiptNumber: order.orderNo,
                       ),
                     ),
                   ),
@@ -656,19 +651,33 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         }
         log('✅ Connected to printer - starting print job');
 
-        // ✅ ตรวจสอบว่าเป็น BARIGAN-PR01W หรือไม่
+        // ✅ ส่งเป็นรูปภาพสำหรับทุกปริ๊นเตอร์ (รองรับภาษาไทยได้ดี)
         bool printSuccess = false;
         try {
-          if (defaultPrinter.name.contains('BARIGAN-PR01W')) {
-            log('🖨️ BARIGAN-PR01W detected - sending ESC/POS text commands');
-            log('📋 Order details: ${order.orderNo}, Items: ${order.orderItems?.length ?? 0}');
-            // ส่งเป็นเท็กสำหรับ BARIGAN-PR01W
-            printSuccess = await _printTextToBARIGAN(defaultPrinter, order, printerController);
-          } else {
-            log('🖨️ Standard printer - sending image');
-            // ส่งภาพไปปริ๊นเตอร์ปกติ
-            printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+          log('🖨️ Sending receipt as REAL bitmap image to support Thai language properly');
+          log('📋 Order details: ${order.orderNo}, Items: ${order.orderItems?.length ?? 0}');
+          log('🖼️ Image size: ${imageBytes.length} bytes');
+          log('🇹🇭 Using image package to convert PNG to ESC/POS bitmap');
+          log('📱 Printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+          log('🔍 Image data preview: ${imageBytes.take(20).toList()}...');
+          log('📄 Image format: PNG → Grayscale → Monochrome bitmap → ESC/POS commands');
+
+          // ✅ ตรวจสอบข้อมูลภาพก่อนส่ง
+          if (imageBytes.isEmpty) {
+            log('❌ Empty image data - cannot print');
+            throw Exception('ไม่มีข้อมูลภาพสำหรับปริ๊น');
           }
+
+          if (imageBytes.length < 100) {
+            log('⚠️ Image data too small: ${imageBytes.length} bytes');
+          }
+
+          log('✅ Image data validation passed - sending to printer');
+
+          // ส่งภาพไปปริ๊นเตอร์ทุกประเภท (รองรับภาษาไทยได้ดี)
+          printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+
+          log('📊 Print result: ${printSuccess ? 'SUCCESS' : 'FAILED'}');
         } finally {
           // ✅ ปิดการเชื่อมต่อทันทีหลังปริ๊นเสร็จ (ประหยัด RAM)
           log('🔌 Disconnecting from printer to save memory and resources...');
@@ -788,172 +797,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ ส่งเท็กไป BARIGAN-PR01W
-  Future<bool> _printTextToBARIGAN(PrinterInfo printer, Order order, PrinterController printerController) async {
-    try {
-      log('📝 Generating ESC/POS commands for BARIGAN-PR01W');
-
-      // สร้างเท็กใบเสร็จ
-      final textReceipt = _generateTextReceipt(order);
-      log('📝 Generated text receipt:\n$textReceipt');
-
-      // ✅ แปลงเป็น ESC/POS commands สำหรับภาษาไทย
-      final escPosBytes = _convertToESCPOS(textReceipt);
-
-      log('📄 ESC/POS commands generated, size: ${escPosBytes.length} bytes');
-      log('🔢 First 50 bytes: ${escPosBytes.take(50).toList()}');
-
-      // ส่งไปปริ๊นเตอร์
-      final success = await printerController.printImage(printer, escPosBytes);
-
-      return success;
-    } catch (e) {
-      log('❌ Error printing text to BARIGAN: $e');
-      return false;
-    }
-  }
-
-  // ✅ แปลงเท็กเป็น ESC/POS commands สำหรับภาษาไทย
-  List<int> _convertToESCPOS(String text) {
-    final List<int> commands = [];
-
-    // ESC/POS initialization
-    commands.addAll([0x1B, 0x40]); // ESC @ (Initialize printer)
-    commands.addAll([0x1B, 0x74, 0x0D]); // ESC t 13 (Select Thai character set)
-    commands.addAll([0x1C, 0x43, 0x01]); // FS C 1 (Select Thai code page)
-    commands.addAll([0x1B, 0x61, 0x01]); // ESC a 1 (Center alignment)
-
-    // แปลงเท็กไทยเป็น TIS-620 encoding
-    try {
-      // ใช้ latin1 encoding แทน utf8 เพื่อหลีกเลี่ยงปัญหาตัวอักษรไทย
-      final lines = text.split('\n');
-      for (final line in lines) {
-        if (line.trim().isNotEmpty) {
-          // แปลงตัวอักษรไทยเป็น ASCII ที่อ่านได้
-          final asciiLine = _convertThaiToASCII(line);
-          commands.addAll(latin1.encode(asciiLine));
-        }
-        commands.addAll([0x0A]); // LF (Line feed)
-      }
-    } catch (e) {
-      log('❌ Error encoding text: $e');
-      // Fallback: ใช้ ASCII เท่านั้น
-      final asciiText = _convertThaiToASCII(text);
-      commands.addAll(latin1.encode(asciiText));
-    }
-
-    // Cut paper
-    commands.addAll([0x0A, 0x0A, 0x0A]); // 3 line feeds
-    commands.addAll([0x1D, 0x56, 0x41, 0x10]); // GS V A (Cut paper)
-
-    return commands;
-  }
-
-  // ✅ แปลงตัวอักษรไทยเป็น ASCII ที่อ่านได้
-  String _convertThaiToASCII(String text) {
-    String result = text
-        // คำศัพท์พื้นฐาน
-        .replaceAll('ใบเสร็จ', 'RECEIPT')
-        .replaceAll('เลขที่', 'No.')
-        .replaceAll('วันที่', 'Date')
-        .replaceAll('รวม', 'Total')
-        .replaceAll('รับเงิน', 'Received')
-        .replaceAll('เงินทอน', 'Change')
-        .replaceAll('สถานะ', 'Status')
-        .replaceAll('บาท', 'THB')
-        .replaceAll('ขอบคุณที่ใช้บริการ', 'Thank you')
-        .replaceAll('สินค้า', 'Product')
-        .replaceAll('ส่วนลด', 'Discount')
-        // เครื่องดื่ม
-        .replaceAll('กาแฟ', 'Coffee')
-        .replaceAll('ชา', 'Tea')
-        .replaceAll('น้ำ', 'Water')
-        .replaceAll('โค้ก', 'Coke')
-        .replaceAll('เป๊ปซี่', 'Pepsi')
-        .replaceAll('น้ำส้ม', 'Orange Juice')
-        // อาหาร
-        .replaceAll('ข้าว', 'Rice')
-        .replaceAll('ผัดไทย', 'Pad Thai')
-        .replaceAll('ส้มตำ', 'Som Tam')
-        .replaceAll('ต้มยำ', 'Tom Yum')
-        .replaceAll('แกงเขียวหวาน', 'Green Curry')
-        // ขนม
-        .replaceAll('เค้ก', 'Cake')
-        .replaceAll('คุกกี้', 'Cookie')
-        .replaceAll('ไอศกรีม', 'Ice Cream')
-        // หน่วยนับ
-        .replaceAll('แก้ว', 'Glass')
-        .replaceAll('จาน', 'Plate')
-        .replaceAll('ชิ้น', 'Piece')
-        .replaceAll('ถ้วย', 'Cup');
-
-    // แปลงตัวอักษรไทยที่เหลือเป็น ASCII readable
-    result = result.replaceAllMapped(RegExp(r'[ก-๙]+'), (match) {
-      // ถ้าเป็นตัวเลขไทย ให้แปลงเป็นตัวเลขอารบิก
-      final thaiText = match.group(0)!;
-      if (RegExp(r'[๐-๙]').hasMatch(thaiText)) {
-        return thaiText
-            .replaceAll('๐', '0')
-            .replaceAll('๑', '1')
-            .replaceAll('๒', '2')
-            .replaceAll('๓', '3')
-            .replaceAll('๔', '4')
-            .replaceAll('๕', '5')
-            .replaceAll('๖', '6')
-            .replaceAll('๗', '7')
-            .replaceAll('๘', '8')
-            .replaceAll('๙', '9');
-      }
-      // ถ้าเป็นตัวอักษรไทยอื่นๆ ให้ใช้ชื่อแบบย่อ
-      return '[${thaiText.length}chars]';
-    });
-
-    return result;
-  }
-
-  // ✅ สร้างเท็กใบเสร็จสำหรับ BARIGAN-PR01W
-  String _generateTextReceipt(Order order) {
-    final buffer = StringBuffer();
-
-    // Header (ใช้ ASCII เพื่อหลีกเลี่ยงปัญหา encoding)
-    buffer.writeln('================================');
-    buffer.writeln('           RECEIPT');
-    buffer.writeln('================================');
-    buffer.writeln('No.: ${order.orderNo ?? 'N/A'}');
-    buffer.writeln('Date: ${order.createdAt != null ? DateFormat('dd/MM/yyyy HH:mm').format(order.createdAt!) : 'N/A'}');
-    buffer.writeln('--------------------------------');
-
-    // รายการสินค้า
-    if (order.orderItems != null) {
-      for (final item in order.orderItems!) {
-        // ใช้ชื่อสินค้าเป็น ASCII หรือตัวเลข
-        final productName = item.product?.name ?? 'Product';
-        final asciiProductName = _convertThaiToASCII(productName);
-        buffer.writeln(asciiProductName);
-
-        final quantity = item.quantity ?? 0;
-        final price = (item.price ?? 0) / 100.0; // แปลงจาก satang เป็น baht
-        final total = quantity * price;
-        buffer.writeln('  $quantity x ${price.toStringAsFixed(2)} = ${total.toStringAsFixed(2)}');
-      }
-    }
-
-    buffer.writeln('--------------------------------');
-    final grandTotal = (order.grandTotal ?? 0) / 100.0;
-    final paid = (order.paid ?? 0) / 100.0;
-    final change = (order.change ?? 0) / 100.0;
-
-    buffer.writeln('Total: ${grandTotal.toStringAsFixed(2)} THB');
-    buffer.writeln('Received: ${paid.toStringAsFixed(2)} THB');
-    buffer.writeln('Change: ${change.toStringAsFixed(2)} THB');
-    buffer.writeln('Status: ${order.orderStatus ?? 'N/A'}');
-    buffer.writeln('================================');
-    buffer.writeln('       Thank you');
-    buffer.writeln('================================');
-    buffer.writeln(''); // บรรทัดว่าง
-    buffer.writeln(''); // บรรทัดว่าง
-    buffer.writeln(''); // บรรทัดว่าง
-
-    return buffer.toString();
-  }
+  // ✅ ลบฟังก์ชันเก่าทั้งหมด - ตอนนี้ใช้รูปภาพสำหรับทุกปริ๊นเตอร์
+  // ฟังก์ชันเหล่านี้ถูกลบแล้วเพราะใช้การแปลงเป็นรูปภาพแทน:
+  // - _printTextToBARIGAN
+  // - _convertToESCPOS
+  // - _convertThaiToASCII
+  // - _generateTextReceipt
+  //
+  // การใช้รูปภาพจะรองรับภาษาไทยได้ดีกว่าและแสดงผลถูกต้อง
 }

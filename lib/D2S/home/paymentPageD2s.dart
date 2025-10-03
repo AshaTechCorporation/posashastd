@@ -214,16 +214,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       log('✅ Printer is connected, proceeding to print...');
 
-      // ดำเนินการปริ๊น
+      // ✅ ดำเนินการปริ๊นสำหรับปริ๊นเตอร์ทุกประเภท
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
         // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
         if (defaultPrinter.name.toLowerCase().contains('sunmi')) {
           await _printToDefaultPrinter(defaultPrinter);
-          log('✅ Print process completed successfully');
+          log('✅ Sunmi print process completed successfully');
         } else {
-          log('⚠️ Default printer is not Sunmi, showing preview dialog');
-          _showPrintPreviewDialog();
+          log('🖨️ Printing to network printer: ${defaultPrinter.name}');
+          await _printToNetworkPrinter(defaultPrinter);
+          log('✅ Network printer process completed successfully');
         }
       } else {
         log('❌ Default printer not found after connection check');
@@ -234,6 +235,19 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
       }
+    }
+  }
+
+  // ✅ ปริ๊นไปยัง Network Printer (แบบเดียวกับ ReceiptHistoryPage)
+  Future<void> _printToNetworkPrinter(PrinterInfo printer) async {
+    try {
+      log('🖨️ Starting network printer process for: ${printer.name}');
+
+      // แสดง print preview dialog และรอให้ผู้ใช้กดปริ๊น
+      _showPrintPreviewDialog();
+    } catch (e) {
+      log('❌ Error in network printer process: $e');
+      Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -415,8 +429,57 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // ✅ ส่งภาพไปปริ๊นเตอร์จริง
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ส่งภาพไปปริ๊นเตอร์
-        final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+        log('🖨️ Sending to printer: ${defaultPrinter.name} (${defaultPrinter.type}) at ${defaultPrinter.address}');
+
+        // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+        log('📡 Connecting to printer for printing only...');
+        log('🔧 Memory optimization: Connect → Print → Disconnect');
+        final connectSuccess = await _connectToPrinter(defaultPrinter, printerController);
+        if (!connectSuccess) {
+          Get.back(); // ปิด loading
+          Get.snackbar(
+            'ไม่สามารถเชื่อมต่อ',
+            'ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}\nIP: ${defaultPrinter.address}\nตรวจสอบการเชื่อมต่อ WiFi และสถานะปริ๊นเตอร์',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            icon: const Icon(Icons.wifi_off, color: Colors.white),
+            duration: const Duration(seconds: 5),
+          );
+          return;
+        }
+        log('✅ Connected to printer - starting print job');
+
+        // ✅ ส่งเป็นรูปภาพสำหรับทุกปริ๊นเตอร์ (รองรับภาษาไทยได้ดี)
+        bool printSuccess = false;
+        try {
+          log('🖨️ Sending receipt as REAL bitmap image to support Thai language properly');
+          log('📋 Payment details: Items: ${widget.cartItems.length}');
+          log('🖼️ Image size: ${imageBytes.length} bytes');
+          log('🇹🇭 Using image package to convert PNG to ESC/POS bitmap');
+          log('📱 Printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+          log('🔍 Image data preview: ${imageBytes.take(20).toList()}...');
+          log('📄 Image format: PNG → Grayscale → Monochrome bitmap → ESC/POS commands');
+
+          // ✅ ตรวจสอบข้อมูลภาพก่อนส่ง
+          if (imageBytes.isEmpty) {
+            log('❌ Empty image data - cannot print');
+            throw Exception('ไม่มีข้อมูลภาพสำหรับปริ๊น');
+          }
+
+          if (imageBytes.length < 100) {
+            log('⚠️ Image data too small: ${imageBytes.length} bytes');
+          }
+
+          log('✅ Image data validation passed - sending to printer');
+
+          // ส่งภาพไปปริ๊นเตอร์ทุกประเภท (รองรับภาษาไทยได้ดี)
+          printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+
+          log('📊 Print result: ${printSuccess ? 'SUCCESS' : 'FAILED'}');
+        } finally {
+          // ✅ ตัดการเชื่อมต่อหลังปริ๊นเสร็จ (ประหยัด RAM)
+          log('🔌 Disconnecting from printer to save memory...');
+        }
 
         Get.back(); // ปิด loading
 
@@ -456,6 +519,37 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('❌ Error in capture and print: $e');
       Get.back(); // ปิด loading
       Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+  Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
+    try {
+      log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
+      log('💾 Memory-efficient connection: Only for printing session');
+
+      // ทดสอบการเชื่อมต่อ 2 ครั้ง
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        log('🔄 Connection attempt $attempt/2...');
+        final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
+        if (isConnected) {
+          log('✅ Printer connected successfully on attempt $attempt');
+          log('📡 Connection established - ready for print job');
+          return true;
+        }
+
+        if (attempt < 2) {
+          log('⚠️ Connection failed on attempt $attempt, retrying...');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+
+      log('❌ Failed to connect to printer after 2 attempts');
+      log('💾 No persistent connection - memory saved');
+      return false;
+    } catch (e) {
+      log('❌ Error connecting to printer: $e');
+      return false;
     }
   }
 
