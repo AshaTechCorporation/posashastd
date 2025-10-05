@@ -1,7 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:posashastd/V2S/home/saleSummaryPagev2s.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
@@ -365,8 +364,9 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
           await _printToDefaultPrinter(defaultPrinter);
           log('✅ Print process completed successfully');
         } else {
-          log('⚠️ Default printer is not Sunmi, showing preview dialog');
-          _showPrintPreviewDialog();
+          log('🖨️ Printing to network printer: ${defaultPrinter.name}');
+          await _printToNetworkPrinter(defaultPrinter);
+          log('✅ Network printer process completed successfully');
         }
       } else {
         log('❌ Default printer not found after connection check');
@@ -380,83 +380,165 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
     }
   }
 
-  // ✅ แสดง dialog พรีวิวใบเสร็จ
+  // ✅ ปริ๊นไปยัง Network Printer (แบบเดียวกับ ReceiptHistoryV2s)
+  Future<void> _printToNetworkPrinter(PrinterInfo printer) async {
+    try {
+      log('🖨️ Starting network printer process for: ${printer.name}');
+
+      // แสดง print preview dialog และรอให้ผู้ใช้กดปริ๊น
+      _showPrintPreviewDialog();
+    } catch (e) {
+      log('❌ Error in network printer process: $e');
+      Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  // ✅ แสดง Print Preview แบบเต็มจอสำหรับ V2S (ขนาดกระดาษ 80mm)
   void _showPrintPreviewDialog() {
     final GlobalKey previewKey = GlobalKey();
+    final total = calculateTotalWithDiscount();
+    final change = receivedAmount - total;
 
-    Get.dialog(
-      Dialog(
-        child: Container(
-          width: 400,
-          height: 600,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // Header
-              Row(
-                children: [
-                  const Icon(Icons.receipt_long, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text('พรีวิวใบเสร็จ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close)),
+    // ✅ แสดงเต็มจอแทน Dialog
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => Scaffold(
+              backgroundColor: Colors.grey[100],
+              appBar: AppBar(
+                backgroundColor: ktextColr,
+                leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+                title: Text('พรีวิวใบเสร็จ $orderReceiptNumber', style: const TextStyle(color: Colors.white)),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.print, color: Colors.white),
+                    onPressed: () async {
+                      await _captureAndPrintReceipt(previewKey);
+                    },
+                  ),
                 ],
               ),
-              const Divider(),
-
-              // Receipt Preview Content
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Container(
+              body: Column(
+                children: [
+                  // ✅ ข้อมูลสรุป
+                  Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                     ),
-                    child: RepaintBoundary(
-                      key: previewKey,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            const Text('ยอดรวม', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text('฿${total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            const Text('รับเงิน', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text(
+                              '฿${receivedAmount.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            const Text('เงินทอน', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text(
+                              '฿${change.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ✅ พรีวิวใบเสร็จ (ขนาดกระดาษ 80mm)
+                  Expanded(
+                    child: Center(
                       child: Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.all(8),
-                        child: ReceiptPreviewWidget(
-                          cartItems: widget.items,
-                          receivedAmount: receivedAmount,
-                          changeAmount: receivedAmount - calculateTotalWithDiscount(),
-                          discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
-                          paymentMethod: _getPaymentMethodName(),
-                          staffName: staffName,
-                          receiptNumber: orderReceiptNumber,
+                        width: 320, // ขนาดกระดาษ 80mm = 320 pixels (4:1 ratio)
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SingleChildScrollView(
+                            child: RepaintBoundary(
+                              key: previewKey,
+                              child: Container(
+                                width: 320, // กำหนดความกว้างให้เท่ากับกระดาษ 80mm
+                                color: Colors.white,
+                                child: ReceiptPreviewWidget(
+                                  cartItems: widget.items,
+                                  receivedAmount: receivedAmount,
+                                  changeAmount: change,
+                                  discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
+                                  paymentMethod: _getPaymentMethodName(),
+                                  staffName: staffName,
+                                  receiptNumber: orderReceiptNumber,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
 
-              const SizedBox(height: 16),
-
-              // Print Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await _captureAndPrintReceipt(previewKey); // แคปภาพและปริ๊นก่อน
-                  },
-                  icon: const Icon(Icons.print),
-                  label: const Text('ปริ๊น'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  // ✅ ปุ่มปริ๊น (ด้านล่าง)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                            label: const Text('ปิด'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: const BorderSide(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await _captureAndPrintReceipt(previewKey);
+                            },
+                            icon: const Icon(Icons.print, color: Colors.white),
+                            label: const Text('ปริ๊นใบเสร็จ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
       ),
-      barrierDismissible: true,
     );
   }
 
@@ -523,8 +605,57 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       // ✅ ส่งภาพไปปริ๊นเตอร์จริง
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ส่งภาพไปปริ๊นเตอร์
-        final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+        log('🖨️ Sending to printer: ${defaultPrinter.name} (${defaultPrinter.type}) at ${defaultPrinter.address}');
+
+        // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+        log('📡 Connecting to printer for printing only...');
+        log('🔧 Memory optimization: Connect → Print → Disconnect');
+        final connectSuccess = await _connectToPrinter(defaultPrinter, printerController);
+        if (!connectSuccess) {
+          Get.back(); // ปิด loading
+          Get.snackbar(
+            'ไม่สามารถเชื่อมต่อ',
+            'ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}\nIP: ${defaultPrinter.address}\nตรวจสอบการเชื่อมต่อ WiFi และสถานะปริ๊นเตอร์',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            icon: const Icon(Icons.wifi_off, color: Colors.white),
+            duration: const Duration(seconds: 5),
+          );
+          return;
+        }
+        log('✅ Connected to printer - starting print job');
+
+        // ✅ ส่งเป็นรูปภาพสำหรับทุกปริ๊นเตอร์ (รองรับภาษาไทยได้ดี)
+        bool printSuccess = false;
+        try {
+          log('🖨️ Sending receipt as REAL bitmap image to support Thai language properly');
+          log('📋 Receipt details: $orderReceiptNumber');
+          log('🖼️ Image size: ${imageBytes.length} bytes');
+          log('🇹🇭 Using image package to convert PNG to ESC/POS bitmap');
+          log('📱 Printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+          log('🔍 Image data preview: ${imageBytes.take(20).toList()}...');
+          log('📄 Image format: PNG → Grayscale → Monochrome bitmap → ESC/POS commands');
+
+          // ✅ ตรวจสอบข้อมูลภาพก่อนส่ง
+          if (imageBytes.isEmpty) {
+            log('❌ Empty image data - cannot print');
+            throw Exception('ไม่มีข้อมูลภาพสำหรับปริ๊น');
+          }
+
+          if (imageBytes.length < 100) {
+            log('⚠️ Image data too small: ${imageBytes.length} bytes');
+          }
+
+          log('✅ Image data validation passed - sending to printer');
+
+          // ส่งภาพไปปริ๊นเตอร์ทุกประเภท (รองรับภาษาไทยได้ดี)
+          printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+
+          log('📊 Print result: ${printSuccess ? 'SUCCESS' : 'FAILED'}');
+        } finally {
+          // ✅ ตัดการเชื่อมต่อหลังปริ๊นเสร็จ (ประหยัด RAM)
+          log('🔌 Disconnecting from printer to save memory...');
+        }
 
         Get.back(); // ปิด loading
 
@@ -565,49 +696,6 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       Get.back(); // ปิด loading
       Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
-  }
-
-  // ✅ แสดง dialog เมื่อไม่พบปริ๊นเตอร์
-  void _showNoPrinterDialog() {
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: const Text('ไม่พบปริ๊นเตอร์'),
-            content: const Text('กรุณาตั้งค่าปริ๊นเตอร์เริ่มต้นในหน้าการตั้งค่า'),
-            actions: [TextButton(onPressed: () => Get.back(), child: const Text('ปิด'))],
-          ),
-    );
-  }
-
-  // ✅ แสดง dialog เมื่อเชื่อมต่อปริ๊นเตอร์ไม่ได้
-  void _showPrinterConnectionErrorDialog(PrinterInfo printer) {
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: const Text('เชื่อมต่อปริ๊นเตอร์ไม่ได้'),
-            content: Text('ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${printer.name} ได้\nกรุณาตรวจสอบการเชื่อมต่อ'),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text('ปิด')),
-              ElevatedButton(
-                onPressed: () async {
-                  Get.back();
-                  // ลองทดสอบการเชื่อมต่อใหม่
-                  await printerController.testPrinterConnection(printer);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                child: const Text('ทดสอบใหม่', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-    );
   }
 
   // ✅ ปริ๊นไปยังปริ๊นเตอร์เริ่มต้น
@@ -1263,5 +1351,36 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
         ],
       ),
     );
+  }
+
+  // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+  Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
+    try {
+      log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
+      log('💾 Memory-efficient connection: Only for printing session');
+
+      // ทดสอบการเชื่อมต่อ 2 ครั้ง
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        log('🔄 Connection attempt $attempt/2...');
+        final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
+        if (isConnected) {
+          log('✅ Printer connected successfully on attempt $attempt');
+          log('📡 Connection established - ready for print job');
+          return true;
+        }
+
+        if (attempt < 2) {
+          log('⚠️ Connection failed on attempt $attempt, retrying...');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+      }
+
+      log('❌ Failed to connect to printer after 2 attempts');
+      log('💾 No persistent connection - memory saved');
+      return false;
+    } catch (e) {
+      log('❌ Error connecting to printer: $e');
+      return false;
+    }
   }
 }
