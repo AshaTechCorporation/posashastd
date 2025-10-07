@@ -145,7 +145,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
             child: ElevatedButton.icon(
               onPressed: () => _showScanDialog(),
               icon: const Icon(Icons.wifi, color: Colors.white, size: 18),
-              label: const Text('สแกนหาเครื่องปริ๊นเตอร์ในเครือข่าย', style: TextStyle(color: Colors.white, fontSize: 14)),
+              label: const Text('แสกนปริ๊นเตอร์', style: TextStyle(color: Colors.white, fontSize: 14)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ktextColr,
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
@@ -322,9 +322,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
                 children: [
                   const Icon(Icons.search, color: Colors.white, size: 28),
                   const SizedBox(width: 16),
-                  const Expanded(
-                    child: Text('สแกนหาเครื่องปริ๊นเตอร์', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  ),
+                  const Expanded(child: Text('แสกนปริ๊นเตอร์', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
                   IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close, color: Colors.white, size: 24), padding: EdgeInsets.zero),
                 ],
               ),
@@ -357,7 +355,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
-                                  printerController.scanStatus.value.isEmpty ? 'กำลังสแกนหาเครื่องปริ๊นเตอร์...' : printerController.scanStatus.value,
+                                  printerController.scanStatus.value.isEmpty ? 'กำลังแสกนปริ๊นเตอร์บลูทูธ...' : printerController.scanStatus.value,
                                   style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w500, fontSize: 16),
                                 ),
                               ),
@@ -370,7 +368,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
-                                  'กดปุ่ม "เริ่มสแกน" เพื่อค้นหาเครื่องปริ๊นเตอร์ในเครือข่าย',
+                                  'กดปุ่ม "เริ่มสแกน" เพื่อค้นหาปริ๊นเตอร์บลูทูธที่เชื่อมต่ออยู่',
                                   style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w500, fontSize: 16),
                                 ),
                               ),
@@ -395,12 +393,12 @@ class _PrinterSettingState extends State<PrinterSetting> {
                                   Icon(Icons.print_disabled, size: 80, color: Colors.grey.shade400),
                                   const SizedBox(height: 20),
                                   Text(
-                                    'ยังไม่พบเครื่องปริ๊นเตอร์',
+                                    'ยังไม่พบปริ๊นเตอร์บลูทูธ',
                                     style: TextStyle(color: Colors.grey.shade600, fontSize: 18, fontWeight: FontWeight.w500),
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'ตรวจสอบการเชื่อมต่อเครือข่ายและลองสแกนใหม่',
+                                    'ตรวจสอบการเชื่อมต่อบลูทูธและลองสแกนใหม่',
                                     style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                                     textAlign: TextAlign.center,
                                   ),
@@ -421,7 +419,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
                                   ),
                                   const SizedBox(height: 20),
                                   Text(
-                                    'กำลังค้นหาเครื่องปริ๊นเตอร์...',
+                                    'กำลังค้นหาปริ๊นเตอร์บลูทูธ...',
                                     style: TextStyle(color: Colors.grey.shade600, fontSize: 18, fontWeight: FontWeight.w500),
                                   ),
                                 ],
@@ -444,7 +442,7 @@ class _PrinterSettingState extends State<PrinterSetting> {
                                     Icon(Icons.devices, color: Colors.grey.shade600, size: 16),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'พบเครื่องปริ๊นเตอร์ ${printerController.availablePrinters.length} เครื่อง',
+                                      'พบปริ๊นเตอร์บลูทูธ ${printerController.availablePrinters.length} เครื่อง',
                                       style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600, fontSize: 14),
                                     ),
                                   ],
@@ -824,45 +822,172 @@ class _PrinterSettingState extends State<PrinterSetting> {
       // ✅ แสดงผลลัพธ์
       if (foundCount > 0) {
         Get.dialog(
-          AlertDialog(
-            title: Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('พบปริ๊นเตอร์')]),
-            content: SizedBox(
-              width: 400,
-              height: 300,
+          Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              width: 600,
+              height: 650,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.green.shade50, Colors.white]),
+              ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('พบปริ๊นเตอร์ $foundCount เครื่องจาก ${ipsToScan.length} IP', style: TextStyle(fontWeight: FontWeight.bold)),
-                  SizedBox(height: 16),
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                          child: Icon(Icons.check_circle, color: Colors.green, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('พบปริ๊นเตอร์แล้ว!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              Text(
+                                'ค้นพบ $foundCount เครื่องจาก ${ipsToScan.length} IP ที่สแกน',
+                                style: TextStyle(color: Colors.green.shade100, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+
+                  // Content
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: printerController.availablePrinters.length,
-                      itemBuilder: (context, index) {
-                        final printer = printerController.availablePrinters[index];
-                        return Card(
-                          child: ListTile(
-                            leading: Icon(Icons.print, color: Colors.blue),
-                            title: Text(printer.name),
-                            subtitle: Text('${printer.address} (${printer.type})'),
-                            trailing: ElevatedButton(
-                              onPressed: () async {
-                                final isConnected = await printerController.testPrinterConnection(printer);
-                                if (isConnected) {
-                                  await printerController.savePrinter(printer);
-                                  Get.back();
-                                }
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.devices, color: Colors.green.shade600, size: 20),
+                              const SizedBox(width: 8),
+                              Text('ปริ๊นเตอร์ที่พบ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: printerController.availablePrinters.length,
+                              itemBuilder: (context, index) {
+                                final printer = printerController.availablePrinters[index];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.green.shade200),
+                                    boxShadow: [BoxShadow(color: Colors.green.shade100, blurRadius: 4, offset: const Offset(0, 2))],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(12)),
+                                              child: Icon(Icons.print, color: Colors.green.shade600, size: 24),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(printer.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                  const SizedBox(height: 8),
+                                                  Row(
+                                                    children: [
+                                                      Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                                                      const SizedBox(width: 6),
+                                                      Text(printer.address, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Row(
+                                                    children: [
+                                                      Icon(Icons.category, size: 16, color: Colors.grey.shade600),
+                                                      const SizedBox(width: 6),
+                                                      Text(printer.type, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            onPressed: () async {
+                                              final isConnected = await printerController.testPrinterConnection(printer);
+                                              if (isConnected) {
+                                                await printerController.savePrinter(printer);
+                                                Get.back();
+                                              }
+                                            },
+                                            icon: const Icon(Icons.add, size: 18),
+                                            label: const Text('เพิ่มปริ๊นเตอร์นี้', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
                               },
-                              child: Text('เพิ่ม'),
                             ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Footer
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('กดปุ่ม "เพิ่ม" เพื่อบันทึกปริ๊นเตอร์ลงในระบบ', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                        ),
+                        TextButton(onPressed: () => Get.back(), child: const Text('ปิด', style: TextStyle(color: Colors.grey))),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [TextButton(onPressed: () => Get.back(), child: Text('ปิด'))],
           ),
         );
       } else {

@@ -199,7 +199,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.search, color: Colors.white),
                       label: Text(
-                        printerController.isScanning.value ? 'กำลังสแกน...' : 'สแกนปริ๊นเตอร์',
+                        printerController.isScanning.value ? 'กำลังสแกน...' : 'แสกนปริ๊นเตอร์',
                         style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
                       style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
@@ -293,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           SizedBox(height: 16),
                           Text('ยังไม่มีปริ๊นเตอร์ที่บันทึกไว้', style: TextStyle(fontSize: 16, color: Colors.grey)),
                           SizedBox(height: 8),
-                          Text('กดปุ่ม "สแกนปริ๊นเตอร์" เพื่อค้นหาปริ๊นเตอร์', style: TextStyle(color: Colors.grey)),
+                          Text('กดปุ่ม "แสกนปริ๊นเตอร์" เพื่อค้นหาปริ๊นเตอร์', style: TextStyle(color: Colors.grey)),
                         ],
                       ),
                     )
@@ -557,7 +557,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showScanDialog() {
     Get.dialog(
       AlertDialog(
-        title: const Row(children: [Icon(Icons.search, color: Colors.blue), SizedBox(width: 8), Text('สแกนหาปริ๊นเตอร์')]),
+        title: const Row(children: [Icon(Icons.search, color: Colors.blue), SizedBox(width: 8), Text('แสกนปริ๊นเตอร์')]),
         content: SizedBox(
           width: 500,
           height: 400,

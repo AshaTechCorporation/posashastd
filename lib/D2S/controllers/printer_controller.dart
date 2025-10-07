@@ -178,11 +178,8 @@ class PrinterController extends GetxController {
   Future<void> scanForPrinters() async {
     try {
       isScanning.value = true;
-      scanStatus.value = 'กำลังสแกนหาปริ๊นเตอร์...';
+      scanStatus.value = 'กำลังสแกนปริ๊นเตอร์บลูทูธและ USB...';
       availablePrinters.clear();
-
-      // สแกนปริ๊นเตอร์ในเครือข่าย LAN/WiFi
-      await _scanNetworkPrinters();
 
       // สแกนปริ๊นเตอร์ USB (สำหรับ Android)
       await _scanUSBPrinters();
