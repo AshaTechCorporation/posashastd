@@ -89,67 +89,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ✅ ฟังก์ชันรีโหลดข้อมูล
-  Future<void> _reloadData() async {
-    try {
-      // แสดง loading indicator
-      Get.dialog(
-        const Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังรีโหลดข้อมูล...')],
-              ),
-            ),
-          ),
-        ),
-        barrierDismissible: false,
-      );
-
-      log('🔄 Starting data reload...');
-
-      // รีเซ็ตข้อมูลในตะกร้า
-      homeController.cartItems.clear();
-
-      // โหลดข้อมูลใหม่
-      await homeController.checkConnectivityAndLoadData();
-      log('✅ Data reload completed');
-
-      // โหลดข้อมูลส่วนลด
-      await orderController.checkDiscount();
-      log('✅ Discount data reloaded');
-
-      // อัพเดทแท็บ
-      _updateTabsFromPanels();
-
-      // ปิด loading dialog
-      Get.back();
-
-      // แสดงข้อความสำเร็จ
-      Get.snackbar(
-        'รีโหลดสำเร็จ',
-        'ข้อมูลได้รับการอัพเดทแล้ว',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-      );
-    } catch (e) {
-      // ปิด loading dialog
-      Get.back();
-
-      log('❌ Error reloading data: $e');
-      Get.snackbar(
-        'เกิดข้อผิดพลาด',
-        'ไม่สามารถรีโหลดข้อมูลได้: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
-    }
-  }
-
   // ✅ ฟังก์ชันเลื่อนตะกร้าลงด้านล่างสุด
   void _scrollCartToBottom() {
     if (_cartScrollController.hasClients) {
@@ -638,26 +577,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 }),
 
                                 const Spacer(), // ✅ ดันให้ปุ่มค้นหาชิดขวาสุด
-                                // ✅ ปุ่มรีโหลดข้อมูล (แสดงเฉพาะเมื่อเปิดกะแล้ว)
-                                Obx(
-                                  () =>
-                                      homeController.isShiftOpen.value
-                                          ? Container(
-                                            margin: const EdgeInsets.only(right: 8),
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _reloadData(),
-                                              icon: const Icon(Icons.refresh, size: 18),
-                                              label: const Text('รีโหลดข้อมูล'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.white,
-                                                foregroundColor: kTabColor,
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                              ),
-                                            ),
-                                          )
-                                          : const SizedBox.shrink(),
-                                ),
+
+                                const Icon(Icons.search, size: 30, color: Colors.white),
                               ],
                             ),
                       ),
@@ -709,7 +630,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 isScrollable: true, // ✅ อนุญาตให้สกรอลได้
                                 tabAlignment: TabAlignment.start, // ✅ จัดแท็บให้เริ่มจากซ้าย
                                 padding: const EdgeInsets.symmetric(horizontal: 4), // ✅ เพิ่ม padding
-                                physics: const ClampingScrollPhysics(), // ✅ เปลี่ยนเป็น ClampingScrollPhysics
                                 controller: _tabController,
                                 tabs: List.generate(
                                   tabs.length,

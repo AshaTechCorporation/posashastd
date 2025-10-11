@@ -32,7 +32,7 @@ class ProductGrid extends StatelessWidget {
     return GridView.builder(
       key: ValueKey("grid_${isMainTab ? 'main' : 'extra'}"),
       padding: const EdgeInsets.all(8),
-      physics: isMainTab ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+      physics: const BouncingScrollPhysics(),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: (width * 0.7) / 5,
         mainAxisExtent: gridHeight / 4,
