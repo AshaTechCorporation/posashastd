@@ -256,10 +256,13 @@ class _LoginFormPageV2sState extends State<LoginFormPageV2s> {
       // เรียกใช้ฟังก์ชัน checkDevice จาก HomeService
       final isRegistered = await Homeservice.checkDevice(deviceId: deviceId);
 
-      if (isRegistered) {
+      if (isRegistered != null) {
         // Device ลงทะเบียนแล้ว - ไปหน้า Homev2s ตามปกติ
         log('✅ Device is registered, navigating to Homev2s');
         if (mounted) {
+          //
+          // เก็บข้อมูล device ที่ได้รับจาก API
+          await _saveDeviceData(isRegistered);
           Get.offAll(const Homev2s());
         }
       } else {
@@ -362,11 +365,20 @@ class _LoginFormPageV2sState extends State<LoginFormPageV2s> {
   // ✅ เก็บข้อมูล device ลง SharedPreferences
   Future<void> _saveDeviceData(Map<String, dynamic> deviceData) async {
     try {
-      // ใช้ HomeController เพื่อเก็บข้อมูล device
-      final homeController = Get.find<HomeController>();
-      await homeController.saveDeviceInfo(deviceData);
+      log('💾 Attempting to save device data: ${deviceData['deviceId']}');
 
-      log('💾 Device data saved: ${deviceData['deviceId']}');
+      // ตรวจสอบว่า HomeController มีอยู่หรือไม่
+      HomeController homeController;
+      if (Get.isRegistered<HomeController>()) {
+        homeController = Get.find<HomeController>();
+        log('✅ Found existing HomeController');
+      } else {
+        homeController = Get.put(HomeController());
+        log('✅ Created new HomeController');
+      }
+
+      await homeController.saveDeviceInfo(deviceData);
+      log('💾 Device data saved successfully: ${deviceData['deviceId']}');
     } catch (e) {
       log('❌ Error saving device data: $e');
       // ไม่ throw error เพราะการลงทะเบียนสำเร็จแล้ว

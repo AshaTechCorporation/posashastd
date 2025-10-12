@@ -143,7 +143,7 @@ class Homeservice {
   //เช็ค device id เครื่องที่ลงทะเบียน
   static Future checkDevice({required String deviceId}) async {
     final _authService = AuthService();
-    final url = Uri.https(publicUrl, '/api/device/check-device', {"deviceId": deviceId});
+    final url = Uri.https(publicUrl, '/api/device/v2/check-device', {"deviceId": deviceId});
     var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
     final response = await http.get(headers: headers, url);
     if (response.statusCode == 200) {

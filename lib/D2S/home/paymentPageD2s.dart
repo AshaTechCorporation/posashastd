@@ -202,39 +202,37 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     try {
       log('🖨️ Starting printer check and print process...');
 
-      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
-      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: true);
-
-      if (!isConnected) {
-        log('❌ Cannot connect to printer after reconnection attempts');
-        // ✅ แสดง print preview dialog แทนการแสดงข้อผิดพลาด
-        _showPrintPreviewDialog();
-        return;
-      }
-
-      log('✅ Printer is connected, proceeding to print...');
-
-      // ✅ ดำเนินการปริ๊นสำหรับปริ๊นเตอร์ทุกประเภท
+      // ✅ ตรวจสอบปริ๊นเตอร์เริ่มต้นทันที
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
-        if (defaultPrinter.name.toLowerCase().contains('sunmi')) {
+        log('🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+
+        // ✅ เช็คเร็วๆ ว่าเป็นปริ๊นเตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
+        bool isBuiltInPrinter =
+            defaultPrinter.name.toLowerCase().contains('sunmi') ||
+            defaultPrinter.name.toLowerCase().contains('built') ||
+            defaultPrinter.name.toLowerCase().contains('internal') ||
+            defaultPrinter.type.toLowerCase().contains('sunmi') ||
+            defaultPrinter.type.toLowerCase().contains('built') ||
+            defaultPrinter.address.isEmpty ||
+            defaultPrinter.address == 'built-in' ||
+            defaultPrinter.address == 'internal' ||
+            !defaultPrinter.address.contains('.');
+
+        if (isBuiltInPrinter) {
+          log('✅ Built-in printer - direct print');
           await _printToDefaultPrinter(defaultPrinter);
-          log('✅ Sunmi print process completed successfully');
         } else {
-          log('🖨️ Printing to network printer: ${defaultPrinter.name}');
-          await _printToNetworkPrinter(defaultPrinter);
-          log('✅ Network printer process completed successfully');
+          log('🖨️ External printer - show preview');
+          _showPrintPreviewDialog();
         }
       } else {
-        log('❌ Default printer not found after connection check');
+        log('❌ No default printer - show preview');
         _showPrintPreviewDialog();
       }
     } catch (e) {
-      log('❌ Error in checkPrinterAndPrint: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
-      }
+      log('❌ Error: $e');
+      _showPrintPreviewDialog();
     }
   }
 

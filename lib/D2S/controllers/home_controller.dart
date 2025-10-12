@@ -479,7 +479,7 @@ class HomeController extends GetxController {
       // อัปเดต observable
       deviceInfo.value = deviceData;
 
-      log('📱 Device info loaded: ${deviceData['deviceId']}');
+      log('📱 Device info loaded: ${deviceData['deviceId']} ${deviceData['id']}');
       return deviceData;
     } catch (e) {
       log('❌ Error loading device info: $e');

@@ -380,38 +380,40 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       // ✅ ตรวจสอบการเชื่อมต่อปริ๊นเตอร์ก่อนปริ๊น
       final printerController = Get.find<PrinterController>();
 
-      // ✅ ใช้ฟังก์ชันใหม่ที่ตรวจสอบและเชื่อมต่อปริ๊นเตอร์อัตโนมัติ
-      final isConnected = await printerController.checkAndReconnectPrinter(showProgress: true);
+      // ✅ โหลดข้อมูลปริ๊นเตอร์ก่อนตรวจสอบ
+      await printerController.loadSavedPrinters();
 
-      if (!isConnected) {
-        log('❌ Cannot connect to printer after reconnection attempts');
-        // ✅ แสดง print preview dialog แทนการแสดงข้อผิดพลาด
-        _showPrintPreviewDialog(order);
-        return;
-      }
-
-      log('✅ Printer is connected, proceeding to print...');
-
-      // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
+      // ✅ ตรวจสอบปริ๊นเตอร์เริ่มต้นทันที
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        // ✅ ตรวจสอบว่าเป็น Sunmi printer หรือไม่
-        if (defaultPrinter.name.toLowerCase().contains('sunmi')) {
+        log('🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+
+        // ✅ เช็คเร็วๆ ว่าเป็นปริ๊นเตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
+        bool isBuiltInPrinter =
+            defaultPrinter.name.toLowerCase().contains('sunmi') ||
+            defaultPrinter.name.toLowerCase().contains('built') ||
+            defaultPrinter.name.toLowerCase().contains('internal') ||
+            defaultPrinter.type.toLowerCase().contains('sunmi') ||
+            defaultPrinter.type.toLowerCase().contains('built') ||
+            defaultPrinter.address.isEmpty ||
+            defaultPrinter.address == 'built-in' ||
+            defaultPrinter.address == 'internal' ||
+            !defaultPrinter.address.contains('.');
+
+        if (isBuiltInPrinter) {
+          log('✅ Built-in printer - direct print');
           await _printToSunmi(order);
-          log('✅ Print process completed successfully');
         } else {
-          log('⚠️ Default printer is not Sunmi, showing preview dialog');
+          log('🖨️ External printer - show preview');
           _showPrintPreviewDialog(order);
         }
       } else {
-        log('❌ Default printer not found after connection check');
+        log('❌ No default printer - show preview');
         _showPrintPreviewDialog(order);
       }
     } catch (e) {
-      log('❌ Error in _printOrderReceipt: $e');
-      if (mounted) {
-        Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
-      }
+      log('❌ Error: $e');
+      _showPrintPreviewDialog(order);
     }
   }
 
