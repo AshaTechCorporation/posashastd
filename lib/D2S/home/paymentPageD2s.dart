@@ -208,8 +208,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         log('🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})');
 
         // ✅ เช็คเร็วๆ ว่าเป็นปริ๊นเตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
-        bool isBuiltInPrinter =
-            defaultPrinter.name.toLowerCase().contains('sunmi') ||
+        bool isBuiltInPrinter = defaultPrinter.name.toLowerCase().contains('sunmi') ||
             defaultPrinter.name.toLowerCase().contains('built') ||
             defaultPrinter.name.toLowerCase().contains('internal') ||
             defaultPrinter.type.toLowerCase().contains('sunmi') ||
@@ -814,15 +813,15 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         "total": total,
         "memberId": null,
         "date": DateTime.now().toIso8601String(),
-        "orderItems":
-            widget.cartItems.map((item) {
-              return {
-                "productId": item["id"] ?? 0,
-                "price": item["price"] ?? 0,
-                "quantity": item["qty"] ?? 0,
-                "total": item["price"] * item["qty"] ?? 0,
-              };
-            }).toList(),
+        "orderItems": widget.cartItems.map((item) {
+          return {
+            "productId": item["id"] ?? 0,
+            "productName": item["name"] ?? 0,
+            "price": item["price"] ?? 0,
+            "quantity": item["qty"] ?? 0,
+            "total": item["price"] * item["qty"] ?? 0,
+          };
+        }).toList(),
         "paymentMethodId": paymentMethodId,
         "paid": receivedAmount,
         "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
@@ -831,7 +830,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
-      final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      final order = await Homeservice.createOrderOffline(formattedOrder: formattedOrder);
       if (!mounted) return;
 
       // ✅ เก็บเลขที่ใบเสร็จจาก response
@@ -843,6 +842,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       setState(() {});
     } catch (e) {
       // handle error
+      log('❌ Error creating order: $e');
+      Get.snackbar('ข้อผิดพลาด', e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 

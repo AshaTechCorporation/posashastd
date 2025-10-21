@@ -255,31 +255,39 @@ class _LoginScreenState extends State<LoginScreen> {
   // ✅ ตรวจสอบการลงทะเบียน device
   Future<void> _checkDeviceRegistration() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
       // ดึง deviceId จากเครื่อง
       final deviceId = await _getDeviceId();
 
       // เรียกใช้ฟังก์ชัน checkDevice จาก HomeService
       final isRegistered = await Homeservice.checkDevice(deviceId: deviceId);
+      // await prefs.setInt('apiDeviceID', isRegistered['id']);
 
-      if (isRegistered) {
-        // Device ลงทะเบียนแล้ว - ไปหน้า HomePage ตามปกติ
-        log('✅ Device is registered, navigating to HomePage');
-        if (mounted) {
-          Get.offAll(HomePage());
-        }
-      } else {
-        // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
-        log('⚠️ Device not registered, showing registration dialog');
-        if (mounted) {
-          await _showDeviceRegistrationDialog();
-        }
-      }
+      // if (isRegistered) {
+      // Device ลงทะเบียนแล้ว - ไปหน้า HomePage ตามปกติ
+      log('✅ Device is registered, navigating to HomePage');
+      // if (mounted) {
+      await _saveDeviceData(isRegistered['device']);
+      Get.offAll(HomePage());
+      // }
+      // } else {
+      //   // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
+      //   log('⚠️ Device not registered, showing registration dialog');
+      //   if (mounted) {
+      //     await _showDeviceRegistrationDialog();
+      //   }
+      // }
     } catch (e) {
       log('❌ Error checking device registration: $e');
       // ถ้าเกิดข้อผิดพลาด ให้ไปหน้า HomePage ตามปกติ
-      if (mounted) {
+      if (e.toString() == 'Exception: Device not found') {
+        if (mounted) {
+          await _showDeviceRegistrationDialog();
+          // _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
+          // Get.offAll(HomePage());
+        }
+      } else {
         _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
-        Get.offAll(HomePage());
       }
     }
   }
@@ -487,10 +495,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(backgroundColor: kTabColor, padding: EdgeInsets.symmetric(vertical: 14)),
-                              child:
-                                  _isLoading
-                                      ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                      : Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 16, color: Colors.white)),
+                              child: _isLoading
+                                  ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
                           ),
                           SizedBox(height: 12),

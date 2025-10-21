@@ -1795,8 +1795,13 @@ const OrderItemLocalSchema = CollectionSchema(
       name: r'productId',
       type: IsarType.long,
     ),
-    r'quantity': PropertySchema(id: 2, name: r'quantity', type: IsarType.long),
-    r'total': PropertySchema(id: 3, name: r'total', type: IsarType.double),
+    r'productName': PropertySchema(
+      id: 2,
+      name: r'productName',
+      type: IsarType.string,
+    ),
+    r'quantity': PropertySchema(id: 3, name: r'quantity', type: IsarType.long),
+    r'total': PropertySchema(id: 4, name: r'total', type: IsarType.double),
   },
 
   estimateSize: _orderItemLocalEstimateSize,
@@ -1820,6 +1825,12 @@ int _orderItemLocalEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.productName;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -1831,8 +1842,9 @@ void _orderItemLocalSerialize(
 ) {
   writer.writeDouble(offsets[0], object.price);
   writer.writeLong(offsets[1], object.productId);
-  writer.writeLong(offsets[2], object.quantity);
-  writer.writeDouble(offsets[3], object.total);
+  writer.writeString(offsets[2], object.productName);
+  writer.writeLong(offsets[3], object.quantity);
+  writer.writeDouble(offsets[4], object.total);
 }
 
 OrderItemLocal _orderItemLocalDeserialize(
@@ -1845,8 +1857,9 @@ OrderItemLocal _orderItemLocalDeserialize(
   object.id = id;
   object.price = reader.readDoubleOrNull(offsets[0]);
   object.productId = reader.readLongOrNull(offsets[1]);
-  object.quantity = reader.readLongOrNull(offsets[2]);
-  object.total = reader.readDoubleOrNull(offsets[3]);
+  object.productName = reader.readStringOrNull(offsets[2]);
+  object.quantity = reader.readLongOrNull(offsets[3]);
+  object.total = reader.readDoubleOrNull(offsets[4]);
   return object;
 }
 
@@ -1862,8 +1875,10 @@ P _orderItemLocalDeserializeProp<P>(
     case 1:
       return (reader.readLongOrNull(offset)) as P;
     case 2:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 3:
+      return (reader.readLongOrNull(offset)) as P;
+    case 4:
       return (reader.readDoubleOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -2194,6 +2209,165 @@ extension OrderItemLocalQueryFilter
   }
 
   QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'productName'),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'productName'),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'productName',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'productName',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'productName',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'productName', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
+  productNameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'productName', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterFilterCondition>
   quantityIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -2393,6 +2567,20 @@ extension OrderItemLocalQuerySortBy
     });
   }
 
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy>
+  sortByProductName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'productName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy>
+  sortByProductNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'productName', Sort.desc);
+    });
+  }
+
   QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy> sortByQuantity() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'quantity', Sort.asc);
@@ -2458,6 +2646,20 @@ extension OrderItemLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy>
+  thenByProductName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'productName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy>
+  thenByProductNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'productName', Sort.desc);
+    });
+  }
+
   QueryBuilder<OrderItemLocal, OrderItemLocal, QAfterSortBy> thenByQuantity() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'quantity', Sort.asc);
@@ -2499,6 +2701,13 @@ extension OrderItemLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<OrderItemLocal, OrderItemLocal, QDistinct>
+  distinctByProductName({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'productName', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<OrderItemLocal, OrderItemLocal, QDistinct> distinctByQuantity() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'quantity');
@@ -2529,6 +2738,13 @@ extension OrderItemLocalQueryProperty
   QueryBuilder<OrderItemLocal, int?, QQueryOperations> productIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'productId');
+    });
+  }
+
+  QueryBuilder<OrderItemLocal, String?, QQueryOperations>
+  productNameProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'productName');
     });
   }
 

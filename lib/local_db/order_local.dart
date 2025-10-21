@@ -16,7 +16,7 @@ class OrderLocal {
   double? change;
   double? discount;
   String? remark;
-  
+
   final orderItems = IsarLinks<OrderItemLocal>();
 }
 
@@ -24,6 +24,7 @@ class OrderLocal {
 class OrderItemLocal {
   Id id = Isar.autoIncrement;
   int? productId;
+  String? productName;
   double? price;
   int? quantity;
   double? total;

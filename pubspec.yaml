@@ -71,6 +71,8 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   build_runner: ^2.5.4
   json_serializable: ^6.9.5
+  isar_community_generator:
+    version: *isar_version
 
 flutter_icons:
   android: true

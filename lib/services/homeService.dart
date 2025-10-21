@@ -1,6 +1,9 @@
 import 'dart:convert' as convert;
+import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/order_local.dart';
+import 'package:posashastd/main.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -172,5 +175,41 @@ class Homeservice {
       final data = convert.jsonDecode(response.body);
       throw Exception(data['message']);
     }
+  }
+
+  //สร้างออเดอร์ Offline
+  static Future createOrderOffline({
+    required Map<String, dynamic> formattedOrder,
+  }) async {
+    await isar.writeTxn(() async {
+      final order = OrderLocal()
+        ..branchId = formattedOrder['branchId']
+        ..deviceId = formattedOrder['deviceId']
+        ..shiftId = int.parse(formattedOrder['shiftId'])
+        ..total = formattedOrder['total']
+        ..memberId = formattedOrder['memberId']
+        ..date = DateTime.parse(formattedOrder['date'])
+        ..paymentMethodId = formattedOrder['paymentMethodId'];
+      print('📦 Saving order to Isar');
+      final orderId = await isar.orderLocals.put(order);
+
+      final rawItems = (formattedOrder['orderItems'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final orderItems = rawItems
+          .map(
+            (item) => OrderItemLocal()
+              ..productId = item['productId']
+              ..productName = item['productName']
+              ..price = double.parse(item['price'].toString())
+              ..quantity = item['quantity']
+              ..total = double.parse(item['total'].toString()),
+          )
+          .toList();
+
+      await isar.orderItemLocals.putAll(orderItems);
+      order.orderItems.addAll(orderItems);
+      await order.orderItems.save();
+
+      inspect({'orderId': orderId, 'items': orderItems.length});
+    });
   }
 }
