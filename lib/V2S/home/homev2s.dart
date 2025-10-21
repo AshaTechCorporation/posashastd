@@ -112,11 +112,7 @@ class _Homev2sState extends State<Homev2s> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: remarkController,
-                  decoration: const InputDecoration(labelText: 'หมายเหตุ', hintText: 'ใส่หมายเหตุ (ถ้ามี)', border: OutlineInputBorder()),
-                  maxLines: 2,
-                ),
+                TextFormField(controller: remarkController, decoration: const InputDecoration(labelText: 'หมายเหตุ', hintText: 'ใส่หมายเหตุ (ถ้ามี)', border: OutlineInputBorder()), maxLines: 2),
               ],
             ),
           ),
@@ -135,30 +131,12 @@ class _Homev2sState extends State<Homev2s> {
                     final success = await homeController.openShift(change: change, cash: cash, remark: remark);
 
                     if (success) {
-                      Get.snackbar(
-                        'สำเร็จ',
-                        'เปิดกะเรียบร้อยแล้ว',
-                        backgroundColor: kTabColor,
-                        colorText: Colors.white,
-                        duration: const Duration(seconds: 3),
-                      );
+                      Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: kTabColor, colorText: Colors.white, duration: const Duration(seconds: 3));
                     } else {
-                      Get.snackbar(
-                        'ไม่สำเร็จ',
-                        'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง',
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                        duration: const Duration(seconds: 4),
-                      );
+                      Get.snackbar('ไม่สำเร็จ', 'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 4));
                     }
                   } catch (e) {
-                    Get.snackbar(
-                      'เกิดข้อผิดพลาด',
-                      'ไม่สามารถเปิดกะได้: ${e.toString()}',
-                      backgroundColor: Colors.red,
-                      colorText: Colors.white,
-                      duration: const Duration(seconds: 5),
-                    );
+                    Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 5));
                     log('❌ Error opening shift: $e');
                   }
                 }
@@ -215,13 +193,7 @@ class _Homev2sState extends State<Homev2s> {
                 Get.back();
 
                 // แสดงข้อความยืนยัน
-                Get.snackbar(
-                  'เพิ่มสินค้าสำเร็จ',
-                  'เพิ่ม ${product['name']} จำนวน $finalQuantity ชิ้น',
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
-                  duration: const Duration(seconds: 2),
-                );
+                Get.snackbar('เพิ่มสินค้าสำเร็จ', 'เพิ่ม ${product['name']} จำนวน $finalQuantity ชิ้น', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
@@ -354,11 +326,8 @@ class _Homev2sState extends State<Homev2s> {
                               if (value != null) {
                                 homeController.selectedCategoryCode.value = value;
                                 // หา categoryId จาก code
-                                final selectedCategory = homeController.categories.firstWhere(
-                                  (cat) => cat['code'] == value,
-                                  orElse: () => {'id': 0}, // fallback ป้องกัน error
-                                );
-                                final int categoryId = selectedCategory['id'] ?? 0;
+                                final selectedCategory = homeController.categories.firstWhere((cat) => cat.code == value);
+                                final int categoryId = selectedCategory.id;
                                 // เรียก API สินค้า โดยใช้ branchId = 0
                                 await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
                               }
@@ -368,10 +337,7 @@ class _Homev2sState extends State<Homev2s> {
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'IBMPlexSansThai'),
                             items:
                                 homeController.categories.map((category) {
-                                  return DropdownMenuItem<String>(
-                                    value: category['code'],
-                                    child: Text(category['name'], style: const TextStyle(fontFamily: 'IBMPlexSansThai')),
-                                  );
+                                  return DropdownMenuItem<String>(value: category.code, child: Text(category.name ?? '', style: const TextStyle(fontFamily: 'IBMPlexSansThai')));
                                 }).toList(),
                           ),
                         );
@@ -398,12 +364,7 @@ class _Homev2sState extends State<Homev2s> {
                 child: Obx(() {
                   return GridView.builder(
                     padding: const EdgeInsets.only(top: 8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                      childAspectRatio: 0.75,
-                    ),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 0.75),
                     itemCount: homeController.products.length,
                     itemBuilder: (context, index) {
                       final product = homeController.products[index];
@@ -433,14 +394,8 @@ class _Homev2sState extends State<Homev2s> {
                                       ? CachedNetworkImage(
                                         imageUrl: imageUrl,
                                         fit: BoxFit.cover,
-                                        placeholder:
-                                            (context, url) => Container(
-                                              color: Colors.grey[200],
-                                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                            ),
-                                        errorWidget:
-                                            (context, url, error) =>
-                                                Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                                        placeholder: (context, url) => Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                                        errorWidget: (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
                                       )
                                       : Container(color: Colors.grey[300]), // fallback
                             ),
@@ -452,10 +407,7 @@ class _Homev2sState extends State<Homev2s> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
-                                child: Text(
-                                  '฿${(product.price ?? 0).toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
+                                child: Text('฿${(product.price ?? 0).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                               ),
                             ),
 

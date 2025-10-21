@@ -3,8 +3,13 @@ import 'dart:developer';
 import 'package:flutter/material.dart'; // ✅ เพิ่ม import สำหรับ Colors และ Icon
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/local_db/panel_local.dart';
+import 'package:posashastd/local_db/panel_product_local.dart';
+import 'package:posashastd/local_db/product_local.dart';
 import 'package:posashastd/models/product.dart';
 import 'package:posashastd/services/homeService.dart';
+import 'package:posashastd/services/isar_service.dart';
 
 import '../../models/panel.dart';
 import '../../models/panel_product.dart';
@@ -12,9 +17,13 @@ import '../../services/database_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeController extends GetxController {
-  RxList<Product> products = <Product>[].obs;
-  RxList<Panel> panels = <Panel>[].obs;
-  RxList<Map<String, dynamic>> categories = <Map<String, dynamic>>[].obs;
+  // RxList<Product> products = <Product>[].obs;
+  // RxList<Panel> panels = <Panel>[].obs;
+  // RxList<Map<String, dynamic>> categories = <Map<String, dynamic>>[].obs;
+  // RxList<Map<String, dynamic>> cartItems = <Map<String, dynamic>>[].obs;
+  RxList<ProductLocal> products = <ProductLocal>[].obs;
+  RxList<PanelLocal> panels = <PanelLocal>[].obs;
+  RxList<CategoryLocal> categories = <CategoryLocal>[].obs;
   RxList<Map<String, dynamic>> cartItems = <Map<String, dynamic>>[].obs;
   RxString selectedCategoryCode = ''.obs;
   RxBool isConnected = false.obs;
@@ -31,6 +40,7 @@ class HomeController extends GetxController {
   String? editOrderNumber;
 
   final _databaseService = DatebaseService();
+  final _isarService = IsarService();
 
   @override
   void onInit() {
@@ -144,12 +154,7 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       log('❌ Error opening shift: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'ไม่สามารถเปิดกะได้: ${e.toString()}',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       return false;
     }
   }
@@ -194,22 +199,12 @@ class HomeController extends GetxController {
         return true;
       } else {
         log('❌ Failed to close shift - no response');
-        Get.snackbar(
-          'ข้อผิดพลาด',
-          'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์',
-          backgroundColor: Get.theme.colorScheme.error,
-          colorText: Get.theme.colorScheme.onError,
-        );
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
         return false;
       }
     } catch (e) {
       log('❌ Error closing shift: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'ไม่สามารถปิดกะได้: ${e.toString()}',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       return false;
     }
   }
@@ -219,8 +214,8 @@ class HomeController extends GetxController {
     try {
       // final products = await _databaseService.getProducts();
       // this.products.assignAll(products);
-
-      final panel = await _databaseService.getPanels();
+      final panel = await _isarService.getPanels();
+      // final panel = await _databaseService.getPanels();
       panels.assignAll(panel);
     } catch (e) {
       log('Fetch Products Error: $e');
@@ -229,7 +224,12 @@ class HomeController extends GetxController {
   }
 
   void addPanel() {
-    panels.add(Panel(0, panelProducts: List.generate(20, (i) => PanelProduct(0))));
+    // panels.add(Panel(0, panelProducts: List.generate(20, (i) => PanelProduct(0))));
+    panels.add(
+      PanelLocal()
+        ..name = 'Panel ${panels.length + 1}'
+        ..panelProducts.addAll(List.generate(20, (i) => PanelProductLocal())),
+    );
     update();
   }
 
@@ -248,12 +248,7 @@ class HomeController extends GetxController {
       } else {
         log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
-        Get.snackbar(
-          'ไม่มีการเชื่อมต่อ',
-          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
-          backgroundColor: Get.theme.colorScheme.error,
-          colorText: Get.theme.colorScheme.onError,
-        );
+        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       }
     } catch (e) {
       log('❌ Error checking connectivity: $e');
@@ -264,39 +259,17 @@ class HomeController extends GetxController {
   Future<void> getlistCategory() async {
     try {
       log('📂 Fetching categories...');
-      // ✅ เพิ่ม timeout 10 วินาที สำหรับ API call
-      final rawData = await Homeservice.getCategory().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต');
-        },
-      );
-
-      // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
-      if (rawData == null) {
-        log('⚠️ No category data received from API');
-        Get.snackbar(
-          'ไม่พบข้อมูล',
-          'ไม่สามารถโหลดข้อมูลหมวดหมู่สินค้าได้',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-          icon: const Icon(Icons.warning, color: Colors.white),
-        );
-        return;
-      }
-
-      log('📦 Raw category data received: $rawData');
-
-      // แปลงให้แน่ใจว่าเป็น List<Map<String, dynamic>>
-      final List<Map<String, dynamic>> parsedCategories = List<Map<String, dynamic>>.from(rawData);
-      log('📋 Parsed categories count: ${parsedCategories.length}');
+      final List<CategoryLocal> rawData = await _isarService.getCategories();
 
       categories.assignAll([
-        {'code': 'ALL', 'name': 'ทั้งหมด'},
-        ...parsedCategories,
+        CategoryLocal()
+          ..id = 0
+          ..code = 'ALL'
+          ..name = 'ทั้งหมด',
+        ...rawData,
       ]);
-      selectedCategoryCode.value = categories.first['code'];
+
+      selectedCategoryCode.value = categories.first.code!;
       log('🎯 Selected category: ${selectedCategoryCode.value}');
 
       // โหลดสินค้าทั้งหมด (categoryId = 0 สำหรับทั้งหมด)
@@ -304,84 +277,21 @@ class HomeController extends GetxController {
       await getProductByCategory(categoryId: 0, branchId: 0);
     } catch (e) {
       log('❌ Error loading categories: $e');
-
-      // ✅ แจ้งเตือนเมื่อเกิดข้อผิดพลาดในการโหลดหมวดหมู่
-      Get.snackbar(
-        'เกิดข้อผิดพลาด',
-        'ไม่สามารถโหลดข้อมูลหมวดหมู่สินค้าได้: ${e.toString()}',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 4),
-        icon: const Icon(Icons.error, color: Colors.white),
-      );
-
-      // ✅ ตั้งค่าหมวดหมู่เริ่มต้นเมื่อเกิดข้อผิดพลาด
-      categories.assignAll([
-        {'code': 'ALL', 'name': 'ทั้งหมด'},
-      ]);
-      selectedCategoryCode.value = 'ALL';
     }
   }
 
   // ดึงข้อมูล Product ตาม Category
   Future<void> getProductByCategory({required int categoryId, required int branchId}) async {
     try {
-      log('🔄 Loading products for category: $categoryId, branch: $branchId');
-
-      // ✅ เพิ่ม timeout 10 วินาที สำหรับ API call
-      final rawData = await Homeservice.getProduct(categoryId: categoryId, branchId: branchId).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('การเชื่อมต่อหมดเวลา กรุณาตรวจสอบอินเทอร์เน็ต');
-        },
-      );
-
-      // ✅ ตรวจสอบว่าได้ข้อมูลมาหรือไม่
-      if (rawData == null) {
-        log('⚠️ No data received from API');
-        Get.snackbar(
-          'ไม่พบข้อมูล',
-          'ไม่สามารถโหลดข้อมูลสินค้าได้',
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 3),
-          icon: const Icon(Icons.warning, color: Colors.white),
-        );
-        return;
-      }
-
-      // แปลงข้อมูลเป็น List<Product>
-      final List<Map<String, dynamic>> parsedProducts = List<Map<String, dynamic>>.from(rawData);
-      final List<Product> productList = parsedProducts.map((productData) => Product.fromJson(productData)).toList();
-
-      products.assignAll(productList);
-
-      log('✅ Successfully loaded ${productList.length} products');
-
-      // ✅ แจ้งเตือนถ้าไม่มีสินค้าในหมวดหมู่นี้
-      if (productList.isEmpty) {
-        Get.snackbar(
-          'ไม่มีสินค้า',
-          'ไม่พบสินค้าในหมวดหมู่นี้',
-          backgroundColor: Colors.blue,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-          icon: const Icon(Icons.info, color: Colors.white),
-        );
-      }
+      final List<ProductLocal> parsedProducts = await _isarService.getProducts(categoryId: categoryId);
+      products.assignAll(parsedProducts);
     } catch (e) {
-      log('❌ Error loading products: $e');
-
-      // ✅ ล้างข้อมูลสินค้าเมื่อเกิดข้อผิดพลาด
-      products.clear();
-
-      // ✅ ส่งต่อ error เพื่อให้ UI จัดการได้
-      rethrow;
+      log('Error loading products: $e');
     }
   }
 
   // เพิ่มสินค้าลงตะกร้า
-  void addToCart(Product product) {
+  void addToCart(ProductLocal product) {
     final existingIndex = cartItems.indexWhere((item) => item['id'] == product.id);
 
     if (existingIndex >= 0) {

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/services/isar_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:posashastd/constants.dart';
 
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   final _databaseService = DatebaseService();
+  final _isarService = IsarService();
 
   bool _isLoading = false;
   bool _isCheckingLogin = true; // ✅ สำหรับ loading ตอน check existing login
@@ -55,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final isLoggedIn = await _authService.checkLoginStatus();
       if (isLoggedIn && mounted) {
-        await _databaseService.loadDataSync();
+        await _isarService.loadData();
         Get.offAll(HomePage());
       }
     } catch (e) {
@@ -88,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // โหลดข้อมูลจาก database
         log('🔄 Loading data sync...');
-        await _databaseService.loadDataSync();
+        await _isarService.loadData();
         log('✅ Data sync completed');
 
         // ✅ ตรวจสอบ deviceId หลังจากล็อกอินสำเร็จ
@@ -298,17 +300,11 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
 
             // ชื่ออุปกรณ์
-            TextField(
-              controller: deviceNameController,
-              decoration: const InputDecoration(labelText: 'ชื่ออุปกรณ์', hintText: 'เช่น POS-001, เครื่องหน้าร้าน', border: OutlineInputBorder()),
-            ),
+            TextField(controller: deviceNameController, decoration: const InputDecoration(labelText: 'ชื่ออุปกรณ์', hintText: 'เช่น POS-001, เครื่องหน้าร้าน', border: OutlineInputBorder())),
             const SizedBox(height: 12),
 
             // ตำแหน่ง/สถานที่
-            TextField(
-              controller: locationController,
-              decoration: const InputDecoration(labelText: 'ตำแหน่ง/สถานที่', hintText: 'เช่น หน้าร้าน, เคาน์เตอร์ 1', border: OutlineInputBorder()),
-            ),
+            TextField(controller: locationController, decoration: const InputDecoration(labelText: 'ตำแหน่ง/สถานที่', hintText: 'เช่น หน้าร้าน, เคาน์เตอร์ 1', border: OutlineInputBorder())),
           ],
         ),
         actions: [
@@ -346,11 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
       log('📝 Registering device: $deviceId - $deviceName at $location');
 
       // เรียกใช้ API สำหรับลงทะเบียน device
-      final deviceData = await Homeservice.registerDevice(
-        deviceId: deviceId,
-        name: deviceName,
-        description: location.isNotEmpty ? location : 'POS Device',
-      );
+      final deviceData = await Homeservice.registerDevice(deviceId: deviceId, name: deviceName, description: location.isNotEmpty ? location : 'POS Device');
 
       // เก็บข้อมูล device ที่ได้รับจาก API
       await _saveDeviceData(deviceData);
@@ -438,21 +430,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Container(
                       width: 360,
                       padding: EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                      ),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
                           const SizedBox(height: 16),
-                          const Text(
-                            'POS System',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
-                          ),
+                          const Text('POS System', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
                           const SizedBox(height: 16),
                           // ช่องกรอกอีเมล
                           TextFormField(

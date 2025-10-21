@@ -1,0 +1,356 @@
+import 'dart:convert';
+import 'package:isar_community/isar.dart';
+import 'package:path_provider/path_provider.dart'
+    show getApplicationDocumentsDirectory;
+import 'package:posashastd/constants.dart';
+import 'package:posashastd/helpers/image_local.dart';
+import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/local_db/order_local.dart';
+import 'package:posashastd/local_db/panel_local.dart';
+import 'package:posashastd/local_db/panel_product_local.dart';
+import 'package:posashastd/local_db/product_local.dart';
+import 'package:posashastd/local_db/shift_local.dart';
+import 'package:posashastd/services/auth_service.dart';
+import 'package:http/http.dart' as http;
+
+class IsarService {
+  // Singleton pattern
+  static final IsarService _instance = IsarService._internal();
+  factory IsarService() => _instance;
+  IsarService._internal();
+
+  Isar? _isar;
+
+  // Getter
+  Isar? get isar => _isar;
+
+  final _authService = AuthService();
+
+  // เปิด Isar instance
+  Future<Isar> openIsar() async {
+    final dir = await getApplicationDocumentsDirectory();
+    _isar = await Isar.open(
+      [
+        CategoryLocalSchema,
+        OrderItemLocalSchema,
+        OrderLocalSchema,
+        PanelLocalSchema,
+        PanelProductLocalSchema,
+        ProductLocalSchema,
+        ShiftLocalSchema,
+      ],
+      directory: dir.path,
+      inspector: true, // เปิด true เวลา debug ก็ได้
+    );
+    return _isar!;
+  }
+
+  Future<void> loadData() async {
+    final data = await getData();
+
+    // ---------- 1) Categories ----------
+    final categories = <CategoryLocal>[];
+    for (final c in (data['categories'] as List? ?? const [])) {
+      categories.add(
+        CategoryLocal()
+          ..id = c['id'] as int
+          ..code = (c['code'] ?? '').toString()
+          ..name = (c['name'] ?? '').toString()
+          ..createdAt =
+              c['createdAt'] != null ? DateTime.parse(c['createdAt']) : null
+          ..updatedAt =
+              c['updatedAt'] != null ? DateTime.parse(c['updatedAt']) : null
+          ..deletedAt =
+              c['deletedAt'] != null ? DateTime.parse(c['deletedAt']) : null,
+      );
+    }
+
+    // ---------- 2) Products + Images ----------
+    final products = <ProductLocal>[];
+    final productCategoryIds =
+        <int?>[]; // เก็บ categoryId ของแต่ละ product ตาม index
+    final imageFutures = <Future<String?>>[];
+
+    for (final p in (data['products'] as List? ?? const [])) {
+      final product =
+          ProductLocal()
+            ..id = p['id'] as int
+            ..code = (p['code'] ?? '').toString()
+            ..name = (p['name'] ?? '').toString()
+            ..imageUrl = (p['imageUrl'] as String?)
+            ..price = (p['price'] as num?)?.toDouble()
+            ..showType = (p['showType'] as String?)
+            ..color = (p['color'] as String?)
+            ..createdAt =
+                p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
+            ..updatedAt =
+                p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
+            ..deletedAt =
+                p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null;
+
+      products.add(product);
+      productCategoryIds.add((p['category'] as Map?)?['id'] as int?);
+
+      imageFutures.add(
+        cacheImageLocal(p['imageUrl']?.toString()),
+      );
+    }
+
+    // --- โหลดรูปแบบ chunk (ครั้งละ 10 งาน) ---
+    const chunkSize = 10;
+    var start = 0;
+    while (start < imageFutures.length) {
+      final end =
+          (start + chunkSize < imageFutures.length)
+              ? start + chunkSize
+              : imageFutures.length;
+
+      final batch = imageFutures.sublist(start, end);
+      final results = await Future.wait(batch);
+
+      for (var i = 0; i < results.length; i++) {
+        final r = results[i];
+        final idx = start + i;
+        products[idx].imageLocal = r;
+      }
+
+      start = end;
+    }
+
+    // ---------- 3) Panels ----------
+    final panelsIncoming = <PanelLocal>[];
+    for (final p in (data['panels'] as List? ?? const [])) {
+      panelsIncoming.add(
+        PanelLocal()
+          ..name = (p['name'] ?? '').toString()
+          ..createdAt =
+              p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
+          ..updatedAt =
+              p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
+          ..deletedAt =
+              p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null,
+      );
+    }
+
+    final panelProductsJson = (data['panelProducts'] as List?) ?? const [];
+
+    // ---------- 4) เข้าธุรกรรมครั้งเดียว ----------
+    await _isar!.writeTxn(() async {
+      // 4.1) Upsert Categories
+      await _isar!.categoryLocals.putAll(categories);
+      final categoryById = {for (final c in categories) c.id: c};
+
+      // 4.2) Upsert Products + set category link
+      await _isar!.productLocals.putAll(products);
+      for (var i = 0; i < products.length; i++) {
+        final catId = productCategoryIds[i];
+        if (catId != null) {
+          final cat = categoryById[catId];
+          if (cat != null) {
+            products[i].category.value = cat;
+          }
+        }
+      }
+      for (final p in products) {
+        await p.category.save();
+      }
+
+      // 4.3) Upsert Panels (by name)
+      await _isar!.panelLocals.putAll(panelsIncoming);
+
+      // โหลดแผนที่ panel ตามชื่อ (สมมติ name เป็น unique)
+      final allPanels = await _isar!.panelLocals.where().findAll();
+      final panelByName = <String, PanelLocal>{
+        for (final pan in allPanels) (pan.name ?? '').trim(): pan,
+      };
+
+      // 4.4) Upsert PanelProducts
+      final codes = <String>{};
+      for (final pp in panelProductsJson) {
+        final prod = pp['product'] as Map<String, dynamic>?;
+        final c = (prod?['code'] ?? '').toString().trim();
+        if (c.isNotEmpty) codes.add(c);
+      }
+
+      // โหลด products ทั้งหมดใน DB แล้วทำ map ตาม code (ถ้าตารางใหญ่ แนะนำทำ query ตามชุด codes)
+      final prodsAll = await _isar!.productLocals.where().findAll();
+      final productByCode = <String, ProductLocal>{
+        for (final pr in prodsAll) (pr.code ?? '').trim(): pr,
+      };
+
+      for (final pp in panelProductsJson) {
+        final prod = pp['product'] as Map<String, dynamic>?;
+        if (prod == null) continue;
+        final code = (prod['code'] ?? '').toString().trim();
+        if (code.isEmpty) continue;
+
+        final product =
+            productByCode[code] ?? ProductLocal()
+              ..code = code
+              ..name = (prod['name'] ?? '').toString()
+              ..imageUrl = (prod['imageUrl'] as String?)
+              ..price = (prod['price'] as num?)?.toDouble()
+              ..showType = (prod['showType'] as String?)
+              ..color = (prod['color'] as String?)
+              ..createdAt =
+                  prod['createdAt'] != null
+                      ? DateTime.parse(prod['createdAt'])
+                      : null
+              ..updatedAt =
+                  prod['updatedAt'] != null
+                      ? DateTime.parse(prod['updatedAt'])
+                      : DateTime.now()
+              ..deletedAt =
+                  prod['deletedAt'] != null
+                      ? DateTime.parse(prod['deletedAt'])
+                      : null;
+
+        final productId = await _isar!.productLocals.put(product);
+        productByCode[code] = product..id = productId;
+
+        final pan = pp['panel'] as Map<String, dynamic>?;
+        if (pan == null) continue;
+        final panelName = (pan['name'] ?? '').toString().trim();
+        if (panelName.isEmpty) continue;
+
+        final panel =
+            panelByName[panelName] ??
+            (PanelLocal()
+              ..name = panelName
+              ..createdAt =
+                  pan['createdAt'] != null
+                      ? DateTime.parse(pan['createdAt'])
+                      : DateTime.now()
+              ..updatedAt =
+                  pan['updatedAt'] != null
+                      ? DateTime.parse(pan['updatedAt'])
+                      : DateTime.now()
+              ..deletedAt =
+                  pan['deletedAt'] != null
+                      ? DateTime.parse(pan['deletedAt'])
+                      : null);
+
+        if (panel.id == 0) {
+          final pid = await _isar!.panelLocals.put(panel);
+          panel.id = pid;
+          panelByName[panelName] = panel;
+        }
+
+        final uniqueKey = '${panel.id}:$productId';
+
+        PanelProductLocal? panelProduct =
+            await _isar!.panelProductLocals
+                .filter()
+                .uniqueKeyEqualTo(uniqueKey)
+                .findFirst();
+        panelProduct ??= PanelProductLocal();
+
+        panelProduct
+          ..uniqueKey = uniqueKey
+          ..color = (pp['color'] as String?)
+          ..sequence = (pp['sequence'] as int?) ?? 0
+          ..createdAt =
+              pp['createdAt'] != null
+                  ? DateTime.parse(pp['createdAt'])
+                  : panelProduct.createdAt
+          ..updatedAt =
+              pp['updatedAt'] != null
+                  ? DateTime.parse(pp['updatedAt'])
+                  : DateTime.now()
+          ..deletedAt =
+              pp['deletedAt'] != null ? DateTime.parse(pp['deletedAt']) : null;
+
+        panelProduct.panel.value = panel;
+        panelProduct.product.value = product;
+
+        await _isar!.panelProductLocals.put(panelProduct);
+        await panelProduct.panel.save();
+        await panelProduct.product.save();
+      }
+    });
+  }
+
+  Future<List<CategoryLocal>> getCategories() async {
+    return await _isar!.categoryLocals.where().findAll();
+  }
+
+  //get panel
+  Future<List<PanelLocal>> getPanels() async {
+    return await _isar!.panelLocals.where().findAll();
+  }
+
+  Future<List<ProductLocal>> getProducts({int? categoryId}) async {
+    if (categoryId != null && categoryId > 0) {
+      return await _isar!.productLocals
+          .filter()
+          .category((q) => q.idEqualTo(categoryId))
+          .findAll();
+    } else {
+      return await _isar!.productLocals.where().findAll();
+    }
+  }
+
+  // ใช้สำหรับหน้า POS: ดึงสินค้าตาม Panel เรียง sequence
+  Future<List<ProductLocal>> getProductsOfPanel(String panelName) async {
+    final panel =
+        await isar!.panelLocals.filter().nameEqualTo(panelName).findFirst();
+    if (panel == null) return [];
+    await panel.panelProducts.load();
+
+    final pps =
+        panel.panelProducts.where((pp) => pp.deletedAt == null).toList()
+          ..sort((a, b) => a.sequence.compareTo(b.sequence));
+
+    final result = <ProductLocal>[];
+    for (final pp in pps) {
+      await pp.product.load();
+      final p = pp.product.value;
+      if (p != null && p.deletedAt == null) result.add(p);
+    }
+    return result;
+  }
+
+  /// ดึงข้อมูลจาก API สำหรับ Sync
+  Future getData() async {
+    try {
+      final url = Uri.https(publicUrl, '/api/load-data');
+
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'api-key':
+                  'c7ef38a0594617d91138899ca6f43884724b828047b22a2d16d706d32ed58040',
+              'Authorization': 'Bearer ${_authService.currentToken}',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'),
+          );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 401) {
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+        // );
+      } else if (response.statusCode == 429) {
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง',
+        // );
+      } else {
+        // return LoginResponse(
+        //   success: false,
+        //   message: loginResponse.message ?? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ',
+        // );
+      }
+    } catch (e) {
+      // return LoginResponse(success: false, message: _handleError(e));
+    }
+  }
+}
