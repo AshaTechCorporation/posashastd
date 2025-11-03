@@ -308,11 +308,17 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
 
             // ชื่ออุปกรณ์
-            TextField(controller: deviceNameController, decoration: const InputDecoration(labelText: 'ชื่ออุปกรณ์', hintText: 'เช่น POS-001, เครื่องหน้าร้าน', border: OutlineInputBorder())),
+            TextField(
+              controller: deviceNameController,
+              decoration: const InputDecoration(labelText: 'ชื่ออุปกรณ์', hintText: 'เช่น POS-001, เครื่องหน้าร้าน', border: OutlineInputBorder()),
+            ),
             const SizedBox(height: 12),
 
             // ตำแหน่ง/สถานที่
-            TextField(controller: locationController, decoration: const InputDecoration(labelText: 'ตำแหน่ง/สถานที่', hintText: 'เช่น หน้าร้าน, เคาน์เตอร์ 1', border: OutlineInputBorder())),
+            TextField(
+              controller: locationController,
+              decoration: const InputDecoration(labelText: 'ตำแหน่ง/สถานที่', hintText: 'เช่น หน้าร้าน, เคาน์เตอร์ 1', border: OutlineInputBorder()),
+            ),
           ],
         ),
         actions: [
@@ -350,7 +356,11 @@ class _LoginScreenState extends State<LoginScreen> {
       log('📝 Registering device: $deviceId - $deviceName at $location');
 
       // เรียกใช้ API สำหรับลงทะเบียน device
-      final deviceData = await Homeservice.registerDevice(deviceId: deviceId, name: deviceName, description: location.isNotEmpty ? location : 'POS Device');
+      final deviceData = await Homeservice.registerDevice(
+        deviceId: deviceId,
+        name: deviceName,
+        description: location.isNotEmpty ? location : 'POS Device',
+      );
 
       // เก็บข้อมูล device ที่ได้รับจาก API
       await _saveDeviceData(deviceData);
@@ -366,11 +376,20 @@ class _LoginScreenState extends State<LoginScreen> {
   // ✅ เก็บข้อมูล device ลง SharedPreferences
   Future<void> _saveDeviceData(Map<String, dynamic> deviceData) async {
     try {
-      // ใช้ HomeController เพื่อเก็บข้อมูล device
-      final homeController = Get.find<HomeController>();
-      await homeController.saveDeviceInfo(deviceData);
+      log('💾 Attempting to save device data: ${deviceData['deviceId']}');
 
-      log('💾 Device data saved: ${deviceData['deviceId']}');
+      // ตรวจสอบว่า HomeController มีอยู่หรือไม่
+      HomeController homeController;
+      if (Get.isRegistered<HomeController>()) {
+        homeController = Get.find<HomeController>();
+        log('✅ Found existing HomeController');
+      } else {
+        homeController = Get.put(HomeController());
+        log('✅ Created new HomeController');
+      }
+
+      await homeController.saveDeviceInfo(deviceData);
+      log('💾 Device data saved successfully: ${deviceData['deviceId']}');
     } catch (e) {
       log('❌ Error saving device data: $e');
       // ไม่ throw error เพราะการลงทะเบียนสำเร็จแล้ว
@@ -438,13 +457,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Container(
                       width: 360,
                       padding: EdgeInsets.all(24),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
                           const SizedBox(height: 16),
-                          const Text('POS System', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
+                          const Text(
+                            'POS System',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue),
+                          ),
                           const SizedBox(height: 16),
                           // ช่องกรอกอีเมล
                           TextFormField(
@@ -495,9 +522,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(backgroundColor: kTabColor, padding: EdgeInsets.symmetric(vertical: 14)),
-                              child: _isLoading
-                                  ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 16, color: Colors.white)),
+                              child:
+                                  _isLoading
+                                      ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                      : Text('ลงชื่อเข้าใช้', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
                           ),
                           SizedBox(height: 12),

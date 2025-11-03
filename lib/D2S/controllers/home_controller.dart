@@ -154,7 +154,12 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       log('❌ Error opening shift: $e');
-      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถเปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
       return false;
     }
   }
@@ -199,12 +204,22 @@ class HomeController extends GetxController {
         return true;
       } else {
         log('❌ Failed to close shift - no response');
-        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
         return false;
       }
     } catch (e) {
       log('❌ Error closing shift: $e');
-      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
       return false;
     }
   }
@@ -248,7 +263,12 @@ class HomeController extends GetxController {
       } else {
         log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
-        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        Get.snackbar(
+          'ไม่มีการเชื่อมต่อ',
+          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
       }
     } catch (e) {
       log('❌ Error checking connectivity: $e');
@@ -342,14 +362,18 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
 
       // เก็บข้อมูล device แต่ละฟิลด์
-      await prefs.setString('device_id', deviceData['deviceId'] ?? '');
-      await prefs.setString('device_name', deviceData['name'] ?? '');
-      await prefs.setString('device_description', deviceData['description'] ?? '');
-      await prefs.setBool('device_active', deviceData['active'] ?? true);
-      await prefs.setInt('device_store_id', deviceData['store']?['id'] ?? 1);
-      await prefs.setInt('device_internal_id', deviceData['id'] ?? 0);
-      await prefs.setString('device_created_at', deviceData['createdAt'] ?? '');
-      await prefs.setString('device_updated_at', deviceData['updatedAt'] ?? '');
+      await prefs.setString('device_id', deviceData['device']['deviceId'] ?? '');
+      await prefs.setString('device_name', deviceData['device']['name'] ?? '');
+      await prefs.setString('device_description', deviceData['device']['description'] ?? '');
+      await prefs.setBool('device_active', deviceData['device']['active'] ?? true);
+      await prefs.setInt('device_store_id', deviceData['device']['store']?['id'] ?? 1);
+      await prefs.setInt('device_internal_id', deviceData['device']['id'] ?? 0);
+      await prefs.setString('device_created_at', deviceData['device']['createdAt'] ?? '');
+      await prefs.setString('device_updated_at', deviceData['device']['updatedAt'] ?? '');
+      //เพิ่มเก็บชิปไอดี กรณีที่กะมันถูกเปิดอยู่
+      if (deviceData['shift'] != null && deviceData['shift']['status'] == "open") {
+        await prefs.setString('shift_id', deviceData['shift']['id'].toString());
+      }
 
       // อัปเดต observable
       deviceInfo.value = deviceData;

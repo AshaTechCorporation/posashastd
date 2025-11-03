@@ -36,7 +36,7 @@ const ShiftLocalSchema = CollectionSchema(
   getId: _shiftLocalGetId,
   getLinks: _shiftLocalGetLinks,
   attach: _shiftLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _shiftLocalEstimateSize(

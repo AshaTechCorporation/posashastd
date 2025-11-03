@@ -1,5 +1,6 @@
-import 'package:sunmi_printer_plus/core/enums/enums.dart';
-import 'package:sunmi_printer_plus/core/sunmi/sunmi_printer.dart';
+// import 'package:sunmi_printer_plus/core/enums/enums.dart';
+// import 'package:sunmi_printer_plus/core/sunmi/sunmi_printer.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
 
 Future<void> printReceipt() async {
   await SunmiPrinter.bindingPrinter();

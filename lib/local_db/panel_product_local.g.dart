@@ -93,7 +93,7 @@ const PanelProductLocalSchema = CollectionSchema(
   getId: _panelProductLocalGetId,
   getLinks: _panelProductLocalGetLinks,
   attach: _panelProductLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _panelProductLocalEstimateSize(

@@ -57,7 +57,7 @@ const OrderLocalSchema = CollectionSchema(
   getId: _orderLocalGetId,
   getLinks: _orderLocalGetLinks,
   attach: _orderLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _orderLocalEstimateSize(
@@ -1816,7 +1816,7 @@ const OrderItemLocalSchema = CollectionSchema(
   getId: _orderItemLocalGetId,
   getLinks: _orderItemLocalGetLinks,
   attach: _orderItemLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _orderItemLocalEstimateSize(

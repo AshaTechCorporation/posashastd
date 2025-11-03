@@ -72,7 +72,7 @@ const ProductLocalSchema = CollectionSchema(
   getId: _productLocalGetId,
   getLinks: _productLocalGetLinks,
   attach: _productLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _productLocalEstimateSize(

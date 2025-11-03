@@ -54,7 +54,7 @@ const PanelLocalSchema = CollectionSchema(
   getId: _panelLocalGetId,
   getLinks: _panelLocalGetLinks,
   attach: _panelLocalAttach,
-  version: '3.3.0-dev.2',
+  version: '3.2.0-dev.4',
 );
 
 int _panelLocalEstimateSize(
