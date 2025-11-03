@@ -154,12 +154,7 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       log('❌ Error opening shift: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'ไม่สามารถเปิดกะได้: ${e.toString()}',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       return false;
     }
   }
@@ -204,22 +199,12 @@ class HomeController extends GetxController {
         return true;
       } else {
         log('❌ Failed to close shift - no response');
-        Get.snackbar(
-          'ข้อผิดพลาด',
-          'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์',
-          backgroundColor: Get.theme.colorScheme.error,
-          colorText: Get.theme.colorScheme.onError,
-        );
+        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
         return false;
       }
     } catch (e) {
       log('❌ Error closing shift: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'ไม่สามารถปิดกะได้: ${e.toString()}',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       return false;
     }
   }
@@ -263,12 +248,7 @@ class HomeController extends GetxController {
       } else {
         log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
-        Get.snackbar(
-          'ไม่มีการเชื่อมต่อ',
-          'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
-          backgroundColor: Get.theme.colorScheme.error,
-          colorText: Get.theme.colorScheme.onError,
-        );
+        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       }
     } catch (e) {
       log('❌ Error checking connectivity: $e');
