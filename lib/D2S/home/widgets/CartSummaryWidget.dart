@@ -44,13 +44,7 @@ class CartSummaryWidget extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '$name x $qty (฿${price.toStringAsFixed(2)})',
-                          style: const TextStyle(fontSize: 18),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                      Expanded(child: Text('$name x $qty (฿${price.toStringAsFixed(2)})', style: const TextStyle(fontSize: 18), overflow: TextOverflow.ellipsis)),
                       Text('฿${totalItem.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
                     ],
                   ),
@@ -66,10 +60,7 @@ class CartSummaryWidget extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('ยอดรวม', style: TextStyle(fontSize: 18)),
-                Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
-              ],
+              children: [const Text('ยอดรวม', style: TextStyle(fontSize: 18)), Text('฿${originalTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18))],
             ),
           ),
 
@@ -94,10 +85,7 @@ class CartSummaryWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('รวมทั้งหมด', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-                Text(
-                  '฿${totalWithDiscount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green),
-                ),
+                Text('฿${totalWithDiscount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green)),
               ],
             ),
           ),
