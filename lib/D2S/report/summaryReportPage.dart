@@ -254,9 +254,13 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                           icon: const Icon(Icons.sync, color: Colors.white, size: 18),
                           label: const Text('ซิ้งค์ข้อมูล', style: TextStyle(color: Colors.white)),
                           onPressed: () async {
-                            await Homeservice.orderSendOffline(orders: homeController.orders);
-                            await homeController.clearOrders2();
-                            Get.offAllNamed('/home');
+                            try {
+                              await Homeservice.orderSendOffline(orders: homeController.orders);
+                              await homeController.clearOrders2();
+                              Get.offAllNamed('/home');
+                            } catch (e) {
+                              Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาด $e', backgroundColor: Colors.red, colorText: Colors.white);
+                            }
                           },
                         ),
                         const SizedBox(width: 8),

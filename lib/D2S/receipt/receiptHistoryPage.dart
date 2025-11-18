@@ -119,7 +119,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('local', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Text(vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                                   Switch(
                                     value: vehicleCheck,
                                     inactiveThumbColor: Colors.grey,
@@ -358,7 +358,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('local', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Text(vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                                   Switch(
                                     value: vehicleCheck,
                                     inactiveThumbColor: Colors.grey,
