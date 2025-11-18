@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:isar_community/isar.dart';
-import 'package:path_provider/path_provider.dart'
-    show getApplicationDocumentsDirectory;
+import 'package:path_provider/path_provider.dart' show getApplicationDocumentsDirectory;
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/helpers/image_local.dart';
 import 'package:posashastd/local_db/category_local.dart';
@@ -30,15 +29,7 @@ class IsarService {
   Future<Isar> openIsar() async {
     final dir = await getApplicationDocumentsDirectory();
     _isar = await Isar.open(
-      [
-        CategoryLocalSchema,
-        OrderItemLocalSchema,
-        OrderLocalSchema,
-        PanelLocalSchema,
-        PanelProductLocalSchema,
-        ProductLocalSchema,
-        ShiftLocalSchema,
-      ],
+      [CategoryLocalSchema, OrderItemLocalSchema, OrderLocalSchema, PanelLocalSchema, PanelProductLocalSchema, ProductLocalSchema, ShiftLocalSchema],
       directory: dir.path,
       inspector: true, // เปิด true เวลา debug ก็ได้
     );
@@ -56,19 +47,15 @@ class IsarService {
           ..id = c['id'] as int
           ..code = (c['code'] ?? '').toString()
           ..name = (c['name'] ?? '').toString()
-          ..createdAt =
-              c['createdAt'] != null ? DateTime.parse(c['createdAt']) : null
-          ..updatedAt =
-              c['updatedAt'] != null ? DateTime.parse(c['updatedAt']) : null
-          ..deletedAt =
-              c['deletedAt'] != null ? DateTime.parse(c['deletedAt']) : null,
+          ..createdAt = c['createdAt'] != null ? DateTime.parse(c['createdAt']) : null
+          ..updatedAt = c['updatedAt'] != null ? DateTime.parse(c['updatedAt']) : null
+          ..deletedAt = c['deletedAt'] != null ? DateTime.parse(c['deletedAt']) : null,
       );
     }
 
     // ---------- 2) Products + Images ----------
     final products = <ProductLocal>[];
-    final productCategoryIds =
-        <int?>[]; // เก็บ categoryId ของแต่ละ product ตาม index
+    final productCategoryIds = <int?>[]; // เก็บ categoryId ของแต่ละ product ตาม index
     final imageFutures = <Future<String?>>[];
 
     for (final p in (data['products'] as List? ?? const [])) {
@@ -81,29 +68,21 @@ class IsarService {
             ..price = (p['price'] as num?)?.toDouble()
             ..showType = (p['showType'] as String?)
             ..color = (p['color'] as String?)
-            ..createdAt =
-                p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
-            ..updatedAt =
-                p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
-            ..deletedAt =
-                p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null;
+            ..createdAt = p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
+            ..updatedAt = p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
+            ..deletedAt = p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null;
 
       products.add(product);
       productCategoryIds.add((p['category'] as Map?)?['id'] as int?);
 
-      imageFutures.add(
-        cacheImageLocal(p['imageUrl']?.toString()),
-      );
+      imageFutures.add(cacheImageLocal(p['imageUrl']?.toString()));
     }
 
     // --- โหลดรูปแบบ chunk (ครั้งละ 10 งาน) ---
     const chunkSize = 10;
     var start = 0;
     while (start < imageFutures.length) {
-      final end =
-          (start + chunkSize < imageFutures.length)
-              ? start + chunkSize
-              : imageFutures.length;
+      final end = (start + chunkSize < imageFutures.length) ? start + chunkSize : imageFutures.length;
 
       final batch = imageFutures.sublist(start, end);
       final results = await Future.wait(batch);
@@ -123,12 +102,9 @@ class IsarService {
       panelsIncoming.add(
         PanelLocal()
           ..name = (p['name'] ?? '').toString()
-          ..createdAt =
-              p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
-          ..updatedAt =
-              p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
-          ..deletedAt =
-              p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null,
+          ..createdAt = p['createdAt'] != null ? DateTime.parse(p['createdAt']) : null
+          ..updatedAt = p['updatedAt'] != null ? DateTime.parse(p['updatedAt']) : null
+          ..deletedAt = p['deletedAt'] != null ? DateTime.parse(p['deletedAt']) : null,
       );
     }
 
@@ -160,9 +136,7 @@ class IsarService {
 
       // โหลดแผนที่ panel ตามชื่อ (สมมติ name เป็น unique)
       final allPanels = await _isar!.panelLocals.where().findAll();
-      final panelByName = <String, PanelLocal>{
-        for (final pan in allPanels) (pan.name ?? '').trim(): pan,
-      };
+      final panelByName = <String, PanelLocal>{for (final pan in allPanels) (pan.name ?? '').trim(): pan};
 
       // 4.4) Upsert PanelProducts
       final codes = <String>{};
@@ -174,9 +148,7 @@ class IsarService {
 
       // โหลด products ทั้งหมดใน DB แล้วทำ map ตาม code (ถ้าตารางใหญ่ แนะนำทำ query ตามชุด codes)
       final prodsAll = await _isar!.productLocals.where().findAll();
-      final productByCode = <String, ProductLocal>{
-        for (final pr in prodsAll) (pr.code ?? '').trim(): pr,
-      };
+      final productByCode = <String, ProductLocal>{for (final pr in prodsAll) (pr.code ?? '').trim(): pr};
 
       for (final pp in panelProductsJson) {
         final prod = pp['product'] as Map<String, dynamic>?;
@@ -192,18 +164,9 @@ class IsarService {
               ..price = (prod['price'] as num?)?.toDouble()
               ..showType = (prod['showType'] as String?)
               ..color = (prod['color'] as String?)
-              ..createdAt =
-                  prod['createdAt'] != null
-                      ? DateTime.parse(prod['createdAt'])
-                      : null
-              ..updatedAt =
-                  prod['updatedAt'] != null
-                      ? DateTime.parse(prod['updatedAt'])
-                      : DateTime.now()
-              ..deletedAt =
-                  prod['deletedAt'] != null
-                      ? DateTime.parse(prod['deletedAt'])
-                      : null;
+              ..createdAt = prod['createdAt'] != null ? DateTime.parse(prod['createdAt']) : null
+              ..updatedAt = prod['updatedAt'] != null ? DateTime.parse(prod['updatedAt']) : DateTime.now()
+              ..deletedAt = prod['deletedAt'] != null ? DateTime.parse(prod['deletedAt']) : null;
 
         final productId = await _isar!.productLocals.put(product);
         productByCode[code] = product..id = productId;
@@ -217,18 +180,9 @@ class IsarService {
             panelByName[panelName] ??
             (PanelLocal()
               ..name = panelName
-              ..createdAt =
-                  pan['createdAt'] != null
-                      ? DateTime.parse(pan['createdAt'])
-                      : DateTime.now()
-              ..updatedAt =
-                  pan['updatedAt'] != null
-                      ? DateTime.parse(pan['updatedAt'])
-                      : DateTime.now()
-              ..deletedAt =
-                  pan['deletedAt'] != null
-                      ? DateTime.parse(pan['deletedAt'])
-                      : null);
+              ..createdAt = pan['createdAt'] != null ? DateTime.parse(pan['createdAt']) : DateTime.now()
+              ..updatedAt = pan['updatedAt'] != null ? DateTime.parse(pan['updatedAt']) : DateTime.now()
+              ..deletedAt = pan['deletedAt'] != null ? DateTime.parse(pan['deletedAt']) : null);
 
         if (panel.id == 0) {
           final pid = await _isar!.panelLocals.put(panel);
@@ -238,27 +192,16 @@ class IsarService {
 
         final uniqueKey = '${panel.id}:$productId';
 
-        PanelProductLocal? panelProduct =
-            await _isar!.panelProductLocals
-                .filter()
-                .uniqueKeyEqualTo(uniqueKey)
-                .findFirst();
+        PanelProductLocal? panelProduct = await _isar!.panelProductLocals.filter().uniqueKeyEqualTo(uniqueKey).findFirst();
         panelProduct ??= PanelProductLocal();
 
         panelProduct
           ..uniqueKey = uniqueKey
           ..color = (pp['color'] as String?)
           ..sequence = (pp['sequence'] as int?) ?? 0
-          ..createdAt =
-              pp['createdAt'] != null
-                  ? DateTime.parse(pp['createdAt'])
-                  : panelProduct.createdAt
-          ..updatedAt =
-              pp['updatedAt'] != null
-                  ? DateTime.parse(pp['updatedAt'])
-                  : DateTime.now()
-          ..deletedAt =
-              pp['deletedAt'] != null ? DateTime.parse(pp['deletedAt']) : null;
+          ..createdAt = pp['createdAt'] != null ? DateTime.parse(pp['createdAt']) : panelProduct.createdAt
+          ..updatedAt = pp['updatedAt'] != null ? DateTime.parse(pp['updatedAt']) : DateTime.now()
+          ..deletedAt = pp['deletedAt'] != null ? DateTime.parse(pp['deletedAt']) : null;
 
         panelProduct.panel.value = panel;
         panelProduct.product.value = product;
@@ -279,12 +222,26 @@ class IsarService {
     return await _isar!.panelLocals.where().findAll();
   }
 
+  Future<List<OrderLocal>> getOrders() async {
+    return await _isar!.orderLocals.where().findAll();
+  }
+
+  Future clearOrders() async {
+    return _isar!.writeTxn(() async {
+      await _isar!.shiftLocals.clear();
+      await _isar!.orderLocals.clear();
+    });
+  }
+
+  Future clearOrders2() async {
+    return _isar!.writeTxn(() async {
+      await _isar!.orderLocals.clear();
+    });
+  }
+
   Future<List<ProductLocal>> getProducts({int? categoryId}) async {
     if (categoryId != null && categoryId > 0) {
-      return await _isar!.productLocals
-          .filter()
-          .category((q) => q.idEqualTo(categoryId))
-          .findAll();
+      return await _isar!.productLocals.filter().category((q) => q.idEqualTo(categoryId)).findAll();
     } else {
       return await _isar!.productLocals.where().findAll();
     }
@@ -292,14 +249,11 @@ class IsarService {
 
   // ใช้สำหรับหน้า POS: ดึงสินค้าตาม Panel เรียง sequence
   Future<List<ProductLocal>> getProductsOfPanel(String panelName) async {
-    final panel =
-        await isar!.panelLocals.filter().nameEqualTo(panelName).findFirst();
+    final panel = await isar!.panelLocals.filter().nameEqualTo(panelName).findFirst();
     if (panel == null) return [];
     await panel.panelProducts.load();
 
-    final pps =
-        panel.panelProducts.where((pp) => pp.deletedAt == null).toList()
-          ..sort((a, b) => a.sequence.compareTo(b.sequence));
+    final pps = panel.panelProducts.where((pp) => pp.deletedAt == null).toList()..sort((a, b) => a.sequence.compareTo(b.sequence));
 
     final result = <ProductLocal>[];
     for (final pp in pps) {
@@ -321,15 +275,11 @@ class IsarService {
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
-              'api-key':
-                  'c7ef38a0594617d91138899ca6f43884724b828047b22a2d16d706d32ed58040',
+              'api-key': 'c7ef38a0594617d91138899ca6f43884724b828047b22a2d16d706d32ed58040',
               'Authorization': 'Bearer ${_authService.currentToken}',
             },
           )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'),
-          );
+          .timeout(const Duration(seconds: 30), onTimeout: () => throw Exception('การเชื่อมต่อหมดเวลา'));
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);

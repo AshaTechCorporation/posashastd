@@ -1,18 +1,22 @@
 import 'dart:async';
 import 'dart:developer';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItems.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/order_local.dart';
 import 'package:posashastd/models/order.dart';
 import 'package:intl/intl.dart';
 import 'package:posashastd/D2S/home/widgets/ReceiptPreviewWidget.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReceiptHistoryPage extends StatefulWidget {
   const ReceiptHistoryPage({super.key});
@@ -23,18 +27,66 @@ class ReceiptHistoryPage extends StatefulWidget {
 
 class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   late OrderController orderController;
+  late HomeController homeController;
+  RxBool isConnected = false.obs;
+  late SharedPreferences prefs;
+  OrderLocal? order;
 
   @override
   void initState() {
     super.initState();
+    fristLoad();
     log('🏠 ReceiptHistoryPage initState called');
     orderController = Get.put(OrderController());
+    homeController = Get.put(HomeController());
     log('📱 OrderController created: ${orderController.hashCode}');
     // เรียก API เมื่อหน้าโหลด
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await checkConnectivityAndLoadData();
+      await _loadOrders();
       log('⏰ PostFrameCallback: calling fetchOrders');
       orderController.fetchOrders();
     });
+  }
+
+  Future<void> _loadOrders() async {
+    await homeController.getOrders();
+    setState(() {});
+  }
+
+  // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและโหลดข้อมูล
+  Future<void> checkConnectivityAndLoadData() async {
+    try {
+      log('🌐 Checking connectivity and loading data...');
+      final connectivityResult = await Connectivity().checkConnectivity();
+      isConnected.value = !connectivityResult.contains(ConnectivityResult.none);
+      log('📶 Connected: ${isConnected.value}');
+
+      if (isConnected.value) {
+        log('🔄 Loading categories...');
+        log('✅ Categories loaded successfully');
+      } else {
+        log('❌ No internet connection');
+        // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
+        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+      }
+      setState(() {});
+    } catch (e) {
+      log('❌ Error checking connectivity: $e');
+    }
+  }
+
+  bool vehicleCheck = false;
+
+  Future<void> fristLoad() async {
+    prefs = await SharedPreferences.getInstance();
+    final vehicleCheck1 = prefs.getBool('vehicle');
+
+    if (mounted) {
+      setState(() {
+        vehicleCheck = vehicleCheck1 ?? false;
+      });
+    }
   }
 
   @override
@@ -44,40 +96,297 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const AppDrawer(),
-      body: Row(
-        children: [
-          // ฝั่งซ้าย (40%)
-          SizedBox(
-            width: screenWidth * 0.4,
-            child: Column(
-              children: [
-                Container(
-                  height: 50,
-                  color: kTabColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    children: [
-                      Builder(
-                        builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer()),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                    ],
+      body:
+          vehicleCheck == true
+              ? Row(
+                children: [
+                  // ฝั่งซ้าย (40%)
+                  SizedBox(
+                    width: screenWidth * 0.4,
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 50,
+                          color: kTabColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              Builder(builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer())),
+                              const SizedBox(width: 4),
+                              const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                              Spacer(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('local', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Switch(
+                                    value: vehicleCheck,
+                                    inactiveThumbColor: Colors.grey,
+                                    inactiveTrackColor: const Color.fromARGB(137, 158, 158, 158),
+                                    activeColor: Colors.green,
+                                    onChanged: (value) async {
+                                      vehicleCheck = value;
+                                      await prefs.setBool('vehicle', vehicleCheck);
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              // Padding(
+                              //   padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                              //   child: SizedBox(
+                              //     height: 40,
+                              //     child: Row(
+                              //       children: [
+                              //         const Icon(Icons.search, color: Colors.grey),
+                              //         const SizedBox(width: 8),
+                              //         Expanded(
+                              //           child: TextField(
+                              //             decoration: const InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
+                              //             style: const TextStyle(fontSize: 16),
+                              //             onChanged: (value) {
+                              //               // orderController.searchQuery.value = value;
+                              //             },
+                              //           ),
+                              //         ),
+                              //       ],
+                              //     ),
+                              //   ),
+                              // ),
+                              // const Divider(thickness: 2),
+                              Container(
+                                // color: Colors.amber,
+                                height: MediaQuery.of(context).size.height * 0.9,
+                                child: Obx(() {
+                                  // if (orderController.isLoading.value) {
+                                  //   return const Center(child: CircularProgressIndicator());
+                                  // }
+
+                                  final groupedOrders = homeController.orders;
+                                  if (groupedOrders.isEmpty) {
+                                    return const Center(child: Text('ไม่มีข้อมูลออเดอร์', style: TextStyle(color: Colors.grey)));
+                                  }
+
+                                  return SingleChildScrollView(
+                                    child: Column(
+                                      children:
+                                          List.generate(
+                                            homeController.orders.length,
+                                            (index) => ListTile(
+                                              leading: Icon(Icons.receipt_long, color: Colors.green),
+                                              title: Text('฿${homeController.orders[index].total!.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                                              subtitle: Text(DateFormat('HH:mm น.').format(homeController.orders[index].date!), style: TextStyle(color: Colors.black)),
+                                              // trailing: SizedBox(
+                                              //   width: screenWidth * 0.1,
+                                              //   child: Text(homeController.orders[index].localNo ?? '#-', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                              // ),
+                                              onTap: () {
+                                                order = homeController.orders[index];
+                                                setState(() {});
+                                              },
+                                            ),
+                                          ).reversed.toList(),
+                                    ),
+                                  );
+
+                                  // return ListView.builder(
+                                  //   padding: const EdgeInsets.only(left: 8),
+                                  //   itemCount: homeController.orders.length,
+                                  //   itemBuilder: (context, index) {
+                                  //     return ListTile(
+                                  //       leading: Icon(Icons.receipt_long, color: Colors.green),
+                                  //       title: Text('฿${homeController.orders[index].total!.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                                  //       subtitle: Text(DateFormat('HH:mm น.').format(homeController.orders[index].date!), style: TextStyle(color: Colors.black)),
+                                  //       // trailing: SizedBox(
+                                  //       //   width: screenWidth * 0.1,
+                                  //       //   child: Text(homeController.orders[index].localNo ?? '#-', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                  //       // ),
+                                  //       onTap: () {
+                                  //         order = homeController.orders[index];
+                                  //         setState(() {});
+                                  //       },
+                                  //     );
+                                  //   },
+                                  // );
+                                }),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: _buildReceiptList(orderController)),
-              ],
-            ),
-          ),
+                  // เส้นแบ่งกลาง
+                  const VerticalDivider(width: 1, color: Colors.grey),
+                  // ฝั่งขวา (60%)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Obx(() {
+                          return Container(
+                            height: 50,
+                            color: kTabColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                // // Text(order?.localNo ?? '#-', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                // const Spacer(),
+                                // // Text(order?.remark ?? 'ไม่ระบุ', style: const TextStyle(color: Colors.white, fontSize: 18)),
+                                // // const SizedBox(width: 8),
+                                // // ✅ ปุ่มแก้ไข
+                                // GestureDetector(
+                                //   // onTap: selectedOrder != null ? () => _editOrder(selectedOrder) : null,
+                                //   child: Container(
+                                //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                //     decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(6)),
+                                //     child: Row(
+                                //       mainAxisSize: MainAxisSize.min,
+                                //       children: const [Icon(Icons.edit, color: Colors.white, size: 18), SizedBox(width: 4), Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14))],
+                                //     ),
+                                //   ),
+                                // ),
+                                // const SizedBox(width: 8),
+                                // // ✅ ปุ่มปริ๊นแทนไอคอน more_vert
+                                // GestureDetector(
+                                //   // onTap: selectedOrder != null ? () => _printOrderReceipt(selectedOrder) : null,
+                                //   child: Container(
+                                //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                //     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
+                                //     child: Row(
+                                //       mainAxisSize: MainAxisSize.min,
+                                //       children: const [Icon(Icons.print, color: Colors.white, size: 18), SizedBox(width: 4), Text('ปริ๊น', style: TextStyle(color: Colors.white, fontSize: 14))],
+                                //     ),
+                                //   ),
+                                // ),
+                              ],
+                            ),
+                          );
+                        }),
+                        order == null
+                            ? SizedBox.shrink()
+                            : Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                                child: Container(
+                                  width: double.infinity,
+                                  constraints: const BoxConstraints(maxWidth: 400),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Center(child: Text('฿${order!.total!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+                                        const SizedBox(height: 4),
+                                        const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
+                                        const SizedBox(height: 16),
+                                        Text('พนักงาน: ${order!.shiftId!.toString()}', style: const TextStyle(fontSize: 18)),
+                                        const SizedBox(height: 4),
+                                        // Text('ระบบขาย: $deviceName', style: const TextStyle(fontSize: 18)),
+                                        // const SizedBox(height: 16),
 
-          // เส้นแบ่งกลาง
-          const VerticalDivider(width: 1, color: Colors.grey),
+                                        // แสดงรายการสินค้า
+                                        if (order!.orderItems.isNotEmpty) ...[
+                                          ...order!.orderItems.map((item) {
+                                            final quantity = item.quantity ?? 0;
+                                            final unitPrice = item.price ?? 0;
+                                            final totalPrice = quantity * unitPrice;
 
-          // ฝั่งขวา (60%)
-          Expanded(child: _buildReceiptDetail(orderController)),
-        ],
-      ),
+                                            return Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Expanded(child: Text(item.productName ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18))),
+                                                    Text('฿${totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                                Text('$quantity x ฿${unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                                                const SizedBox(height: 8),
+                                              ],
+                                            );
+                                          }),
+                                        ],
+
+                                        const Divider(height: 24),
+                                        _buildRow('รวมทั้งหมด', '฿${order!.total!.toStringAsFixed(2)}'),
+                                        _buildRow('ชำระแล้ว', '฿${(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
+                                        _buildRow('เงินทอน', '฿${order!.change?.toStringAsFixed(2) ?? '0'}'),
+                                        const SizedBox(height: 16),
+                                        _buildRow(DateFormat('d/M/yy HH:mm น.').format(order!.date!), ''),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+              : Row(
+                children: [
+                  // ฝั่งซ้าย (40%)
+                  SizedBox(
+                    width: screenWidth * 0.4,
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 50,
+                          color: kTabColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              Builder(builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer())),
+                              const SizedBox(width: 4),
+                              const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                              Spacer(),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('local', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Switch(
+                                    value: vehicleCheck,
+                                    inactiveThumbColor: Colors.grey,
+                                    inactiveTrackColor: const Color.fromARGB(137, 158, 158, 158),
+                                    activeColor: Colors.green,
+                                    onChanged: (value) async {
+                                      vehicleCheck = value;
+                                      await prefs.setBool('vehicle', vehicleCheck);
+                                      setState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(child: _buildReceiptList(orderController)),
+                      ],
+                    ),
+                  ),
+
+                  // เส้นแบ่งกลาง
+                  const VerticalDivider(width: 1, color: Colors.grey),
+
+                  // ฝั่งขวา (60%)
+                  Expanded(child: _buildReceiptDetail(orderController)),
+                ],
+              ),
     );
   }
 
@@ -131,15 +440,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildDateGroup(dateKey),
-                      ...orders.map(
-                        (order) => Obx(
-                          () => _buildReceiptItem(
-                            order: order,
-                            orderController: orderController,
-                            selected: orderController.selectedOrder.value?.id == order.id,
-                          ),
-                        ),
-                      ),
+                      ...orders.map((order) => Obx(() => _buildReceiptItem(order: order, orderController: orderController, selected: orderController.selectedOrder.value?.id == order.id))),
                     ],
                   );
                 },
@@ -174,11 +475,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(6)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.edit, color: Colors.white, size: 18),
-                        SizedBox(width: 4),
-                        Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      ],
+                      children: const [Icon(Icons.edit, color: Colors.white, size: 18), SizedBox(width: 4), Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14))],
                     ),
                   ),
                 ),
@@ -191,11 +488,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.print, color: Colors.white, size: 18),
-                        SizedBox(width: 4),
-                        Text('ปริ๊น', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      ],
+                      children: const [Icon(Icons.print, color: Colors.white, size: 18), SizedBox(width: 4), Text('ปริ๊น', style: TextStyle(color: Colors.white, fontSize: 14))],
                     ),
                   ),
                 ),
@@ -216,11 +509,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
               child: Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 400),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
                 child: Padding(padding: EdgeInsets.all(20), child: _buildOrderDetails(selectedOrder)),
               ),
             );
@@ -283,17 +572,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   }
 
   Widget _buildRow(String left, String right) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]));
   }
 
   Widget _buildDateGroup(String date) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-      child: Text(date, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12), child: Text(date, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)));
   }
 
   Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
@@ -311,15 +594,9 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       ),
       child: ListTile(
         leading: Icon(Icons.receipt_long, color: selected ? Colors.green : Colors.grey),
-        title: Text(
-          '฿${grandTotal.toStringAsFixed(2)}',
-          style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, color: selected ? Colors.black : Colors.grey[800]),
-        ),
+        title: Text('฿${grandTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, color: selected ? Colors.black : Colors.grey[800])),
         subtitle: Text(timeString, style: TextStyle(color: selected ? Colors.black : Colors.grey)),
-        trailing: Text(
-          order.orderNo ?? '#-',
-          style: TextStyle(color: selected ? Colors.green : Colors.black, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
-        ),
+        trailing: Text(order.orderNo ?? '#-', style: TextStyle(color: selected ? Colors.green : Colors.black, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
         onTap: () {
           orderController.selectOrder(order);
         },
@@ -348,12 +625,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
     if (order.orderItems != null && order.orderItems!.isNotEmpty) {
       for (final orderItem in order.orderItems!) {
-        cartItems.add({
-          'id': orderItem.product?.id ?? 0,
-          'name': orderItem.product?.name ?? 'ไม่มีชื่อ',
-          'price': (orderItem.price ?? 0).toDouble(),
-          'qty': orderItem.quantity ?? 1,
-        });
+        cartItems.add({'id': orderItem.product?.id ?? 0, 'name': orderItem.product?.name ?? 'ไม่มีชื่อ', 'price': (orderItem.price ?? 0).toDouble(), 'qty': orderItem.quantity ?? 1});
       }
     }
 
@@ -449,22 +721,10 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       log('✅ Receipt printed successfully');
 
       // แสดงข้อความยืนยัน
-      Get.snackbar(
-        'ปริ๊นสำเร็จ',
-        'ปริ๊นใบเสร็จ ${order.orderNo} เรียบร้อยแล้ว',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 2),
-      );
+      Get.snackbar('ปริ๊นสำเร็จ', 'ปริ๊นใบเสร็จ ${order.orderNo} เรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
     } catch (e) {
       log('❌ Error printing to Sunmi: $e');
-      Get.snackbar(
-        'เกิดข้อผิดพลาด',
-        'ไม่สามารถปริ๊นใบเสร็จได้: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
+      Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถปริ๊นใบเสร็จได้: $e', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 3));
     }
   }
 
@@ -474,12 +734,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
     if (order.orderItems != null) {
       for (final orderItem in order.orderItems!) {
-        cartItems.add({
-          'id': orderItem.product?.id ?? 0,
-          'name': orderItem.product?.name ?? 'ไม่มีชื่อ',
-          'price': (orderItem.price ?? 0).toDouble(),
-          'qty': orderItem.quantity ?? 1,
-        });
+        cartItems.add({'id': orderItem.product?.id ?? 0, 'name': orderItem.product?.name ?? 'ไม่มีชื่อ', 'price': (orderItem.price ?? 0).toDouble(), 'qty': orderItem.quantity ?? 1});
       }
     }
 
@@ -523,11 +778,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 child: SingleChildScrollView(
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
+                    decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)),
                     child: RepaintBoundary(
                       key: previewKey,
                       child: ReceiptPreviewWidget(
@@ -555,11 +806,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                   },
                   icon: const Icon(Icons.print),
                   label: const Text('ปริ๊น'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
                 ),
               ),
             ],

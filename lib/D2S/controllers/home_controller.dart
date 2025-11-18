@@ -4,6 +4,7 @@ import 'package:flutter/material.dart'; // ✅ เพิ่ม import สำห�
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/local_db/order_local.dart';
 import 'package:posashastd/local_db/panel_local.dart';
 import 'package:posashastd/local_db/panel_product_local.dart';
 import 'package:posashastd/local_db/product_local.dart';
@@ -21,6 +22,7 @@ class HomeController extends GetxController {
   // RxList<Panel> panels = <Panel>[].obs;
   // RxList<Map<String, dynamic>> categories = <Map<String, dynamic>>[].obs;
   // RxList<Map<String, dynamic>> cartItems = <Map<String, dynamic>>[].obs;
+  RxList<OrderLocal> orders = <OrderLocal>[].obs;
   RxList<ProductLocal> products = <ProductLocal>[].obs;
   RxList<PanelLocal> panels = <PanelLocal>[].obs;
   RxList<CategoryLocal> categories = <CategoryLocal>[].obs;
@@ -246,6 +248,7 @@ class HomeController extends GetxController {
         await getlistCategory();
         log('✅ Categories loaded successfully');
       } else {
+        await getlistCategory();
         log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
         Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
@@ -285,6 +288,32 @@ class HomeController extends GetxController {
     try {
       final List<ProductLocal> parsedProducts = await _isarService.getProducts(categoryId: categoryId);
       products.assignAll(parsedProducts);
+    } catch (e) {
+      log('Error loading products: $e');
+    }
+  }
+
+  // ดึงข้อมูล Product ตาม Category
+  Future<void> getOrders() async {
+    try {
+      final List<OrderLocal> parsedOrders = await _isarService.getOrders();
+      orders.assignAll(parsedOrders);
+    } catch (e) {
+      log('Error loading products: $e');
+    }
+  }
+
+  Future<void> clearOrders() async {
+    try {
+      await _isarService.clearOrders();
+    } catch (e) {
+      log('Error loading products: $e');
+    }
+  }
+
+  Future<void> clearOrders2() async {
+    try {
+      await _isarService.clearOrders2();
     } catch (e) {
       log('Error loading products: $e');
     }

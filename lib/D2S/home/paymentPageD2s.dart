@@ -21,6 +21,7 @@ import 'package:screenshot/screenshot.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
+import 'package:uuid/uuid.dart';
 
 class PaymentPageD2s extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -896,7 +897,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       print('📱 Current device internal ID: $currentDeviceInternalId');
       print('📱 Using device ID for order: $deviceIdToUse');
 
+      var uuid = Uuid();
       final formattedOrder = {
+        "localNo": uuid.v1(),
         "deviceId": deviceIdToUse,
         "shiftId": homeController.currentShiftId.value,
         "branchId": 1,

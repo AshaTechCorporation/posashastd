@@ -6,6 +6,7 @@ import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/report_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/services/homeService.dart';
 
 class SummaryReportPage extends StatefulWidget {
   const SummaryReportPage({super.key});
@@ -46,7 +47,14 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
 
       // โหลดข้อมูลสรุปรายงานด้วย shift ID ที่ถูกต้อง
       await _loadSummaryReport();
+      await _loadOrders();
     });
+  }
+
+  // ✅ โหลดข้อมูลสรุปรายงาน
+  Future<void> _loadOrders() async {
+    await homeController.getOrders();
+    setState(() {});
   }
 
   // ✅ โหลดข้อมูลสรุปรายงาน
@@ -77,6 +85,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
           ElevatedButton(
             onPressed: () async {
               Get.back(); // ปิด dialog ยืนยัน
+
               await _closeShift(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -110,7 +119,8 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
 
       // แสดง loading
       Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
-
+      await Homeservice.orderSendOffline(orders: homeController.orders);
+      await homeController.clearOrders();
       final success = await homeController.closeShift();
 
       // 🔍 Debug: ตรวจสอบผลลัพธ์
@@ -155,13 +165,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
           AlertDialog(
             title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ปิดกะไม่สำเร็จ')]),
             content: const Text('ไม่สามารถปิดกะได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 18)),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Get.back(),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
-              ),
-            ],
+            actions: [ElevatedButton(onPressed: () => Get.back(), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('ตกลง', style: TextStyle(color: Colors.white)))],
           ),
           barrierDismissible: false,
         );
@@ -196,11 +200,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
               children: [
                 Row(
                   children: [
-                    Builder(
-                      builder:
-                          (context) =>
-                              IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
-                    ),
+                    Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer())),
                     const SizedBox(width: 4),
                     const Text('กะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                   ],
@@ -249,6 +249,16 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                         //     // TODO: แสดงหน้าจัดการเงินสด
                         //   },
                         // ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                          icon: const Icon(Icons.sync, color: Colors.white, size: 18),
+                          label: const Text('ซิ้งค์ข้อมูล', style: TextStyle(color: Colors.white)),
+                          onPressed: () async {
+                            await Homeservice.orderSendOffline(orders: homeController.orders);
+                            await homeController.clearOrders2();
+                            Get.offAllNamed('/home');
+                          },
+                        ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -267,10 +277,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                       child: Obx(() {
                         if (reportController.isLoading.value) {
                           return const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังโหลดข้อมูลสรุปรายงาน...')],
-                            ),
+                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังโหลดข้อมูลสรุปรายงาน...')]),
                           );
                         }
 
@@ -293,20 +300,12 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
 
                         return ListView(
                           children: [
-                            Center(
-                              child: Text(
-                                'การสรุปรายรับยอดขาย',
-                                style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                            Center(child: Text('การสรุปรายรับยอดขาย', style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold))),
                             const SizedBox(height: 12),
 
                             // แสดงข้อมูลจาก API
                             if (reportController.summary.isNotEmpty) ...[
-                              const Text(
-                                'สรุปยอดขายตามประเภทการชำระ',
-                                style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
+                              const Text('สรุปยอดขายตามประเภทการชำระ', style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 12),
 
                               // แสดงข้อมูลแต่ละประเภทการชำระ
@@ -335,6 +334,52 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                         );
                       }),
                     ),
+
+                    // Expanded(
+                    //   child: ListView.builder(
+                    //     // controller: _cartScrollController, // ✅ เพิ่ม ScrollController
+                    //     itemCount: homeController.orders.length,
+                    //     itemBuilder: (context, index) {
+                    //       final item = homeController.orders[index];
+                    //       final name = item.total ?? 'ไม่มีชื่อ';
+                    //       final qty = item.orderItems.length ?? 1;
+                    //       final price = item.total ?? 0;
+                    //       return GestureDetector(
+                    //         onLongPress: () {
+                    //           // ✅ แสดง dialog ยืนยันการลบเมื่อกดค้าง
+                    //           // _showDeleteItemDialog(context, item, index);
+                    //         },
+                    //         child: Container(
+                    //           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    //           padding: const EdgeInsets.all(12),
+                    //           decoration: BoxDecoration(
+                    //             color: Colors.white,
+                    //             borderRadius: BorderRadius.circular(8),
+                    //             border: Border.all(color: Colors.grey[300]!),
+                    //             boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 1))],
+                    //           ),
+                    //           child: Row(
+                    //             children: [
+                    //               // ข้อมูลสินค้า
+                    //               Expanded(
+                    //                 flex: 3,
+                    //                 child: Column(
+                    //                   crossAxisAlignment: CrossAxisAlignment.start,
+                    //                   children: [
+                    //                     // Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    //                     const SizedBox(height: 4),
+                    //                     Text('${item.orderItems.length.toStringAsFixed(2)} / ชิ้น', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                    //                     Text('รวม${(price).toStringAsFixed(2)} ฿', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green), textAlign: TextAlign.right),
+                    //                   ],
+                    //                 ),
+                    //               ),
+                    //             ],
+                    //           ),
+                    //         ),
+                    //       );
+                    //     },
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -378,10 +423,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('จำนวนรายการ: $totalTransactions', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                Text(
-                  'เฉลี่ย: ฿${totalTransactions != '0' ? (amount / int.parse(totalTransactions)).toStringAsFixed(2) : '0.00'}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
+                Text('เฉลี่ย: ฿${totalTransactions != '0' ? (amount / int.parse(totalTransactions)).toStringAsFixed(2) : '0.00'}', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
               ],
             ),
           ],
@@ -410,10 +452,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
   Widget _buildRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Flexible(child: Text(label, overflow: TextOverflow.ellipsis)), Text(value)],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Flexible(child: Text(label, overflow: TextOverflow.ellipsis)), Text(value)]),
     );
   }
 
@@ -422,10 +461,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
+        children: [Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))), Text(value, style: const TextStyle(fontWeight: FontWeight.bold))],
       ),
     );
   }

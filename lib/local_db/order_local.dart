@@ -5,6 +5,7 @@ part 'order_local.g.dart';
 @collection
 class OrderLocal {
   Id id = Isar.autoIncrement;
+  String? localNo;
   int? deviceId;
   int? shiftId;
   int? branchId;
@@ -18,6 +19,24 @@ class OrderLocal {
   String? remark;
 
   final orderItems = IsarLinks<OrderItemLocal>();
+
+  Map<String, dynamic> toJson() {
+    return {
+      'localNo': localNo,
+      'deviceId': deviceId,
+      'shiftId': shiftId,
+      'branchId': branchId,
+      'total': total,
+      'memberId': memberId,
+      'date': date?.toIso8601String(),
+      'paymentMethodId': paymentMethodId,
+      'paid': paid,
+      'change': change,
+      'discount': discount,
+      'remark': remark,
+      'orderItems': orderItems.map((item) => item.toJson()).toList(),
+    };
+  }
 }
 
 @collection
@@ -28,4 +47,14 @@ class OrderItemLocal {
   double? price;
   int? quantity;
   double? total;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'productId': productId,
+      'productName': productName,
+      'price': price,
+      'quantity': quantity,
+      'total': total,
+    };
+  }
 }

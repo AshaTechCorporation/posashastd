@@ -26,16 +26,17 @@ const OrderLocalSchema = CollectionSchema(
       name: r'discount',
       type: IsarType.double,
     ),
-    r'memberId': PropertySchema(id: 5, name: r'memberId', type: IsarType.long),
-    r'paid': PropertySchema(id: 6, name: r'paid', type: IsarType.double),
+    r'localNo': PropertySchema(id: 5, name: r'localNo', type: IsarType.string),
+    r'memberId': PropertySchema(id: 6, name: r'memberId', type: IsarType.long),
+    r'paid': PropertySchema(id: 7, name: r'paid', type: IsarType.double),
     r'paymentMethodId': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'paymentMethodId',
       type: IsarType.long,
     ),
-    r'remark': PropertySchema(id: 8, name: r'remark', type: IsarType.string),
-    r'shiftId': PropertySchema(id: 9, name: r'shiftId', type: IsarType.long),
-    r'total': PropertySchema(id: 10, name: r'total', type: IsarType.double),
+    r'remark': PropertySchema(id: 9, name: r'remark', type: IsarType.string),
+    r'shiftId': PropertySchema(id: 10, name: r'shiftId', type: IsarType.long),
+    r'total': PropertySchema(id: 11, name: r'total', type: IsarType.double),
   },
 
   estimateSize: _orderLocalEstimateSize,
@@ -67,6 +68,12 @@ int _orderLocalEstimateSize(
 ) {
   var bytesCount = offsets.last;
   {
+    final value = object.localNo;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.remark;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -86,12 +93,13 @@ void _orderLocalSerialize(
   writer.writeDateTime(offsets[2], object.date);
   writer.writeLong(offsets[3], object.deviceId);
   writer.writeDouble(offsets[4], object.discount);
-  writer.writeLong(offsets[5], object.memberId);
-  writer.writeDouble(offsets[6], object.paid);
-  writer.writeLong(offsets[7], object.paymentMethodId);
-  writer.writeString(offsets[8], object.remark);
-  writer.writeLong(offsets[9], object.shiftId);
-  writer.writeDouble(offsets[10], object.total);
+  writer.writeString(offsets[5], object.localNo);
+  writer.writeLong(offsets[6], object.memberId);
+  writer.writeDouble(offsets[7], object.paid);
+  writer.writeLong(offsets[8], object.paymentMethodId);
+  writer.writeString(offsets[9], object.remark);
+  writer.writeLong(offsets[10], object.shiftId);
+  writer.writeDouble(offsets[11], object.total);
 }
 
 OrderLocal _orderLocalDeserialize(
@@ -107,12 +115,13 @@ OrderLocal _orderLocalDeserialize(
   object.deviceId = reader.readLongOrNull(offsets[3]);
   object.discount = reader.readDoubleOrNull(offsets[4]);
   object.id = id;
-  object.memberId = reader.readLongOrNull(offsets[5]);
-  object.paid = reader.readDoubleOrNull(offsets[6]);
-  object.paymentMethodId = reader.readLongOrNull(offsets[7]);
-  object.remark = reader.readStringOrNull(offsets[8]);
-  object.shiftId = reader.readLongOrNull(offsets[9]);
-  object.total = reader.readDoubleOrNull(offsets[10]);
+  object.localNo = reader.readStringOrNull(offsets[5]);
+  object.memberId = reader.readLongOrNull(offsets[6]);
+  object.paid = reader.readDoubleOrNull(offsets[7]);
+  object.paymentMethodId = reader.readLongOrNull(offsets[8]);
+  object.remark = reader.readStringOrNull(offsets[9]);
+  object.shiftId = reader.readLongOrNull(offsets[10]);
+  object.total = reader.readDoubleOrNull(offsets[11]);
   return object;
 }
 
@@ -134,16 +143,18 @@ P _orderLocalDeserializeProp<P>(
     case 4:
       return (reader.readDoubleOrNull(offset)) as P;
     case 5:
-      return (reader.readLongOrNull(offset)) as P;
-    case 6:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 7:
-      return (reader.readLongOrNull(offset)) as P;
-    case 8:
       return (reader.readStringOrNull(offset)) as P;
-    case 9:
+    case 6:
       return (reader.readLongOrNull(offset)) as P;
+    case 7:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 8:
+      return (reader.readLongOrNull(offset)) as P;
+    case 9:
+      return (reader.readStringOrNull(offset)) as P;
     case 10:
+      return (reader.readLongOrNull(offset)) as P;
+    case 11:
       return (reader.readDoubleOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -711,6 +722,171 @@ extension OrderLocalQueryFilter
           upper: upper,
           includeUpper: includeUpper,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'localNo'),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition>
+  localNoIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'localNo'),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition>
+  localNoGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'localNo',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoContains(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'localNo',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoMatches(
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'localNo',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition> localNoIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'localNo', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterFilterCondition>
+  localNoIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'localNo', value: ''),
       );
     });
   }
@@ -1410,6 +1586,18 @@ extension OrderLocalQuerySortBy
     });
   }
 
+  QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> sortByLocalNo() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localNo', Sort.asc);
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> sortByLocalNoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localNo', Sort.desc);
+    });
+  }
+
   QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> sortByMemberId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'memberId', Sort.asc);
@@ -1558,6 +1746,18 @@ extension OrderLocalQuerySortThenBy
     });
   }
 
+  QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> thenByLocalNo() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localNo', Sort.asc);
+    });
+  }
+
+  QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> thenByLocalNoDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localNo', Sort.desc);
+    });
+  }
+
   QueryBuilder<OrderLocal, OrderLocal, QAfterSortBy> thenByMemberId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'memberId', Sort.asc);
@@ -1664,6 +1864,14 @@ extension OrderLocalQueryWhereDistinct
     });
   }
 
+  QueryBuilder<OrderLocal, OrderLocal, QDistinct> distinctByLocalNo({
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'localNo', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<OrderLocal, OrderLocal, QDistinct> distinctByMemberId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'memberId');
@@ -1738,6 +1946,12 @@ extension OrderLocalQueryProperty
   QueryBuilder<OrderLocal, double?, QQueryOperations> discountProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'discount');
+    });
+  }
+
+  QueryBuilder<OrderLocal, String?, QQueryOperations> localNoProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'localNo');
     });
   }
 

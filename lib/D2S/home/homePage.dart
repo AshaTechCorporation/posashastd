@@ -9,6 +9,8 @@ import 'package:posashastd/D2S/home/widgets/GridContentWidget.dart';
 import 'package:posashastd/D2S/home/widgets/ShiftClosedWidget.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/local_db/category_local.dart';
+import 'package:posashastd/services/homeService.dart';
+import 'package:uuid/uuid.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/order_controller.dart';
@@ -393,7 +395,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Overlay.of(context).insert(overlayEntry);
 
                 try {
+                  var uuid = Uuid();
                   final success = await homeController.openShift(change: change, cash: cash, remark: remark);
+                  final formattedOrder = {"shiftId": homeController.currentShiftId.value, "uuid": uuid.v1(), "change": change, "cash": cash, "remark": remark, "status": 'true'};
+                  print("📦 JSON ที่จะส่ง: $formattedOrder");
+                  final order = await Homeservice.createOpenShiftOffline(formattedOrder: formattedOrder);
 
                   // ✅ ปิด loading overlay
                   overlayEntry.remove();

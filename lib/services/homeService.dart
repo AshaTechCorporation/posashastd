@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/local_db/order_local.dart';
+import 'package:posashastd/local_db/shift_local.dart';
 import 'package:posashastd/main.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -128,6 +129,27 @@ class Homeservice {
     }
   }
 
+  //เปิดกะงาน
+  static Future orderSendOffline({required List<OrderLocal> orders}) async {
+    final _authService = AuthService();
+    final url = Uri.https(publicUrl, '/api/order/offline-mode');
+    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final ordersPayload = <Map<String, dynamic>>[];
+    for (final order in orders) {
+      await order.orderItems.load();
+      ordersPayload.add(order.toJson());
+    }
+
+    final response = await http.post(url, headers: headers, body: convert.jsonEncode({"orders": ordersPayload}));
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = convert.jsonDecode(response.body);
+      return data;
+    } else {
+      final data = convert.jsonDecode(response.body);
+      throw Exception(data['message']);
+    }
+  }
+
   //เช็คยูสเซอร์ที่ล็อกอินอยู่
   static Future checkLogin() async {
     final _authService = AuthService();
@@ -163,11 +185,7 @@ class Homeservice {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/device');
     var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: convert.jsonEncode({"deviceId": deviceId, "name": name, "description": description, "active": true}),
-    );
+    final response = await http.post(url, headers: headers, body: convert.jsonEncode({"deviceId": deviceId, "name": name, "description": description, "active": true}));
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
       return data;
@@ -178,38 +196,80 @@ class Homeservice {
   }
 
   //สร้างออเดอร์ Offline
-  static Future createOrderOffline({
-    required Map<String, dynamic> formattedOrder,
-  }) async {
+  static Future createOrderOffline({required Map<String, dynamic> formattedOrder}) async {
     await isar.writeTxn(() async {
-      final order = OrderLocal()
-        ..branchId = formattedOrder['branchId']
-        ..deviceId = formattedOrder['deviceId']
-        ..shiftId = int.parse(formattedOrder['shiftId'])
-        ..total = formattedOrder['total']
-        ..memberId = formattedOrder['memberId']
-        ..date = DateTime.parse(formattedOrder['date'])
-        ..paymentMethodId = formattedOrder['paymentMethodId'];
+      final order =
+          OrderLocal()
+            ..localNo = formattedOrder['localNo']
+            ..branchId = formattedOrder['branchId']
+            ..deviceId = formattedOrder['deviceId']
+            ..shiftId = int.parse(formattedOrder['shiftId'])
+            ..total = formattedOrder['total']
+            ..memberId = formattedOrder['memberId']
+            ..date = DateTime.parse(formattedOrder['date'])
+            ..paymentMethodId = formattedOrder['paymentMethodId']
+            ..paid = formattedOrder['paid'] != null ? double.tryParse(formattedOrder['paid'].toString()) : null
+            ..change = formattedOrder['change'] != null ? double.tryParse(formattedOrder['change'].toString()) : null
+            ..discount = formattedOrder['discount'] != null ? double.tryParse(formattedOrder['discount'].toString()) : null
+            ..remark = formattedOrder['remark'];
       print('📦 Saving order to Isar');
       final orderId = await isar.orderLocals.put(order);
 
       final rawItems = (formattedOrder['orderItems'] as List<dynamic>).cast<Map<String, dynamic>>();
-      final orderItems = rawItems
-          .map(
-            (item) => OrderItemLocal()
-              ..productId = item['productId']
-              ..productName = item['productName']
-              ..price = double.parse(item['price'].toString())
-              ..quantity = item['quantity']
-              ..total = double.parse(item['total'].toString()),
-          )
-          .toList();
+      final orderItems =
+          rawItems
+              .map(
+                (item) =>
+                    OrderItemLocal()
+                      ..productId = item['productId']
+                      ..productName = item['productName']
+                      ..price = double.parse(item['price'].toString())
+                      ..quantity = item['quantity']
+                      ..total = double.parse(item['total'].toString()),
+              )
+              .toList();
 
       await isar.orderItemLocals.putAll(orderItems);
       order.orderItems.addAll(orderItems);
       await order.orderItems.save();
 
       inspect({'orderId': orderId, 'items': orderItems.length});
+    });
+  }
+
+  //สร้างออเดอร์ Offline
+  static Future createOpenShiftOffline({required Map<String, dynamic> formattedOrder}) async {
+    await isar.writeTxn(() async {
+      final shiftOffline =
+          ShiftLocal()
+            ..id = int.parse(formattedOrder['shiftId'])
+            ..uuid = formattedOrder['uuid']
+            ..change = formattedOrder['change']
+            ..cash = formattedOrder['cash']
+            ..remark = formattedOrder['remark']
+            ..status = formattedOrder['status'];
+      print('📦 Saving order to Isar');
+      final shiftId = await isar.shiftLocals.put(shiftOffline);
+
+      // final rawItems = (formattedOrder['orderItems'] as List<dynamic>).cast<Map<String, dynamic>>();
+      // final orderItems =
+      //     rawItems
+      //         .map(
+      //           (item) =>
+      //               OrderItemLocal()
+      //                 ..productId = item['productId']
+      //                 ..productName = item['productName']
+      //                 ..price = double.parse(item['price'].toString())
+      //                 ..quantity = item['quantity']
+      //                 ..total = double.parse(item['total'].toString()),
+      //         )
+      //         .toList();
+
+      // await isar.orderItemLocals.putAll(orderItems);
+      // order.orderItems.addAll(orderItems);
+      // await order.orderItems.save();
+
+      // inspect({'orderId': orderId, 'items': orderItems.length});
     });
   }
 }
