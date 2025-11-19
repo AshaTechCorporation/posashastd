@@ -325,7 +325,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                         _buildRow('ชำระแล้ว', '฿${(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
                                         _buildRow('เงินทอน', '฿${order!.change?.toStringAsFixed(2) ?? '0'}'),
                                         const SizedBox(height: 16),
-                                        _buildRow(DateFormat('d/M/yy HH:mm น.').format(order!.date!), ''),
+                                        _buildRow('วันที่', DateFormat('d/M/yy HH:mm น.').format(order!.date!)),
                                       ],
                                     ),
                                   ),
