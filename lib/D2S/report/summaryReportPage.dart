@@ -249,20 +249,22 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                         //     // TODO: แสดงหน้าจัดการเงินสด
                         //   },
                         // ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                          icon: const Icon(Icons.sync, color: Colors.white, size: 18),
-                          label: const Text('ซิ้งค์ข้อมูล', style: TextStyle(color: Colors.white)),
-                          onPressed: () async {
-                            try {
-                              await Homeservice.orderSendOffline(orders: homeController.orders);
-                              await homeController.clearOrders2();
-                              Get.offAllNamed('/home');
-                            } catch (e) {
-                              Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาด $e', backgroundColor: Colors.red, colorText: Colors.white);
-                            }
-                          },
-                        ),
+                        homeController.orders.isEmpty
+                            ? SizedBox.shrink()
+                            : ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                              icon: const Icon(Icons.sync, color: Colors.white, size: 18),
+                              label: const Text('ซิ้งค์ข้อมูล', style: TextStyle(color: Colors.white)),
+                              onPressed: () async {
+                                try {
+                                  await Homeservice.orderSendOffline(orders: homeController.orders);
+                                  await homeController.clearOrders2();
+                                  Get.offAllNamed('/home');
+                                } catch (e) {
+                                  Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาด $e', backgroundColor: Colors.red, colorText: Colors.white);
+                                }
+                              },
+                            ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

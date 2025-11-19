@@ -182,7 +182,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                             (index) => ListTile(
                                               leading: Icon(Icons.receipt_long, color: Colors.green),
                                               title: Text('฿${homeController.orders[index].total!.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                              subtitle: Text(DateFormat('HH:mm น.').format(homeController.orders[index].date!), style: TextStyle(color: Colors.black)),
+                                              subtitle: Text(DateFormat('dd-MMM-yy HH:mm น.').format(homeController.orders[index].date!), style: TextStyle(color: Colors.black)),
                                               // trailing: SizedBox(
                                               //   width: screenWidth * 0.1,
                                               //   child: Text(homeController.orders[index].localNo ?? '#-', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),

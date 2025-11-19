@@ -251,7 +251,7 @@ class HomeController extends GetxController {
         await getlistCategory();
         log('❌ No internet connection');
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
-        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        // Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       }
     } catch (e) {
       log('❌ Error checking connectivity: $e');
