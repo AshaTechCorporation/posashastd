@@ -30,6 +30,9 @@ class HomeController extends GetxController {
   RxString selectedCategoryCode = ''.obs;
   RxBool isConnected = false.obs;
 
+  // ✅ เก็บ products ของแต่ละ panel (key = panel name)
+  RxMap<String, List<ProductLocal>> panelProductsMap = <String, List<ProductLocal>>{}.obs;
+
   // ตัวแปรสำหรับจัดการ shift
   RxBool isShiftOpen = false.obs;
   RxString currentShiftId = ''.obs;
@@ -156,7 +159,12 @@ class HomeController extends GetxController {
       }
     } catch (e) {
       log('❌ Error opening shift: $e');
-      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถเปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
       return false;
     }
   }
@@ -201,12 +209,22 @@ class HomeController extends GetxController {
         return true;
       } else {
         log('❌ Failed to close shift - no response');
-        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่สามารถปิดกะได้ - ไม่ได้รับการตอบกลับจากเซิร์ฟเวอร์',
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
         return false;
       }
     } catch (e) {
       log('❌ Error closing shift: $e');
-      Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถปิดกะได้: ${e.toString()}', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'ไม่สามารถปิดกะได้: ${e.toString()}',
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
+      );
       return false;
     }
   }
@@ -219,6 +237,17 @@ class HomeController extends GetxController {
       final panel = await _isarService.getPanels();
       // final panel = await _databaseService.getPanels();
       panels.assignAll(panel);
+
+      // ✅ โหลด panelProducts สำหรับแต่ละ panel
+      log('🔄 Loading panel products for ${panel.length} panels...');
+      for (final p in panel) {
+        if (p.name != null) {
+          final products = await _isarService.getProductsOfPanel(p.name!);
+          panelProductsMap[p.name!] = products;
+          log('✅ Loaded ${products.length} products for panel: ${p.name}');
+        }
+      }
+      log('✅ All panel products loaded');
     } catch (e) {
       log('Fetch Products Error: $e');
       // handle error
@@ -253,6 +282,11 @@ class HomeController extends GetxController {
         // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
         // Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
       }
+
+      // ✅ โหลด Panels หลังจากโหลด Categories เสร็จ
+      log('🎯 Loading panels...');
+      fetchProducts();
+      log('✅ Panels loaded: ${panels.length} panels');
     } catch (e) {
       log('❌ Error checking connectivity: $e');
     }

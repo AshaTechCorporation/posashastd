@@ -255,39 +255,33 @@ class _LoginScreenState extends State<LoginScreen> {
   // ✅ ตรวจสอบการลงทะเบียน device
   Future<void> _checkDeviceRegistration() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       // ดึง deviceId จากเครื่อง
       final deviceId = await _getDeviceId();
 
       // เรียกใช้ฟังก์ชัน checkDevice จาก HomeService
       final isRegistered = await Homeservice.checkDevice(deviceId: deviceId);
-      // await prefs.setInt('apiDeviceID', isRegistered['id']);
 
-      // if (isRegistered) {
-      // Device ลงทะเบียนแล้ว - ไปหน้า HomePage ตามปกติ
-      log('✅ Device is registered, navigating to HomePage');
-      // if (mounted) {
-      await _saveDeviceData(isRegistered['device']);
-      Get.offAll(HomePage());
-      // }
-      // } else {
-      //   // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
-      //   log('⚠️ Device not registered, showing registration dialog');
-      //   if (mounted) {
-      //     await _showDeviceRegistrationDialog();
-      //   }
-      // }
+      if (isRegistered != null) {
+        // Device ลงทะเบียนแล้ว - ไปหน้า HomePage ตามปกติ
+        log('✅ Device is registered, navigating to HomePage');
+        await _saveDeviceData(isRegistered);
+        Get.offAll(HomePage());
+        // if (mounted) {
+        //   Get.offAll(HomePage());
+        // }
+      } else {
+        // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
+        log('⚠️ Device not registered, showing registration dialog');
+        if (mounted) {
+          await _showDeviceRegistrationDialog();
+        }
+      }
     } catch (e) {
       log('❌ Error checking device registration: $e');
       // ถ้าเกิดข้อผิดพลาด ให้ไปหน้า HomePage ตามปกติ
-      if (e.toString() == 'Exception: Device not found') {
-        if (mounted) {
-          await _showDeviceRegistrationDialog();
-          // _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
-          // Get.offAll(HomePage());
-        }
-      } else {
+      if (mounted) {
         _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
+        Get.offAll(HomePage());
       }
     }
   }

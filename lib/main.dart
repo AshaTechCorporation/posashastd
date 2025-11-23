@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:isar_community/isar.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/home/homePage.dart';
+import 'package:posashastd/D2S/receipt/receiptHistoryPage.dart';
 import 'package:posashastd/V2S/home/homev2s.dart';
 import 'package:posashastd/V2S/login/loginPageV2s.dart';
 import 'package:posashastd/login/loginPage.dart';
@@ -73,6 +74,7 @@ class MyApp extends StatelessWidget {
         GetPage(name: '/loginV2s', page: () => const LoginPageV2s()),
         GetPage(name: '/home', page: () => const HomePage()),
         GetPage(name: '/homev2s', page: () => const Homev2s()),
+        GetPage(name: '/receipt-history', page: () => const ReceiptHistoryPage()),
       ],
     );
   }
@@ -105,6 +107,10 @@ class BlockedMobilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('แอปรองรับเฉพาะบน Desktop หรือ Tablet เท่านั้น', style: TextStyle(fontSize: 18, color: Colors.red), textAlign: TextAlign.center)));
+    return const Scaffold(
+      body: Center(
+        child: Text('แอปรองรับเฉพาะบน Desktop หรือ Tablet เท่านั้น', style: TextStyle(fontSize: 18, color: Colors.red), textAlign: TextAlign.center),
+      ),
+    );
   }
 }

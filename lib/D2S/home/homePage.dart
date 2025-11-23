@@ -83,7 +83,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _tabController.dispose();
     _cartScrollController.dispose(); // ✅ ทำลาย ScrollController สำหรับตะกร้า
     _gridScrollController.dispose(); // ✅ ทำลาย ScrollController สำหรับ GridView
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown, DeviceOrientation.landscapeRight, DeviceOrientation.landscapeLeft]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
     super.dispose();
   }
 
@@ -94,7 +99,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       Get.dialog(
         const Center(
           child: Card(
-            child: Padding(padding: EdgeInsets.all(20), child: Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังรีโหลดข้อมูล...')])),
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังรีโหลดข้อมูล...')],
+              ),
+            ),
           ),
         ),
         barrierDismissible: false,
@@ -119,21 +130,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // ปิด loading dialog
       Get.back();
 
-      // แสดงข้อความสำเร็จ
-      Get.snackbar('รีโหลดสำเร็จ', 'ข้อมูลได้รับการอัพเดทแล้ว', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
+      // ✅ แสดงข้อความสำเร็จเฉพาะเมื่อมีเน็ต
+      if (homeController.isConnected.value) {
+        Get.snackbar(
+          'รีโหลดสำเร็จ',
+          'ข้อมูลได้รับการอัพเดทแล้ว',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
     } catch (e) {
       // ปิด loading dialog
       Get.back();
 
       log('❌ Error reloading data: $e');
-      Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถรีโหลดข้อมูลได้: $e', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 3));
+      // ✅ ไม่แสดง Snackbar error เมื่อไม่มีเน็ต
+      // Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถรีโหลดข้อมูลได้: $e', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 3));
     }
   }
 
   // ✅ ฟังก์ชันเลื่อนตะกร้าลงด้านล่างสุด
   void _scrollCartToBottom() {
     if (_cartScrollController.hasClients) {
-      _cartScrollController.animateTo(_cartScrollController.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _cartScrollController.animateTo(
+        _cartScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -255,7 +279,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Get.back();
 
               // แสดงข้อความยืนยัน
-              Get.snackbar('ลบสำเร็จ', 'ลบ "$itemName" ออกจากตะกร้าแล้ว', backgroundColor: kTabColor, colorText: Colors.white, duration: const Duration(seconds: 2));
+              Get.snackbar(
+                'ลบสำเร็จ',
+                'ลบ "$itemName" ออกจากตะกร้าแล้ว',
+                backgroundColor: kTabColor,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 2),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('ลบ', style: TextStyle(color: Colors.white, fontSize: 18)),
@@ -283,7 +313,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return AlertDialog(
           titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-          title: Row(children: const [Icon(Icons.access_time, color: Colors.green), SizedBox(width: 8), Text('เปิดกะ', style: TextStyle(fontWeight: FontWeight.bold))]),
+          title: Row(
+            children: const [
+              Icon(Icons.access_time, color: Colors.green),
+              SizedBox(width: 8),
+              Text('เปิดกะ', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
           content: SizedBox(
             width: screenWidth * 0.5,
             child: Form(
@@ -386,7 +422,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           child: Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                            child: const Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังเปิดกะ...')]),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังเปิดกะ...')],
+                            ),
                           ),
                         ),
                       ),
@@ -397,7 +436,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 try {
                   var uuid = Uuid();
                   final success = await homeController.openShift(change: change, cash: cash, remark: remark);
-                  final formattedOrder = {"shiftId": homeController.currentShiftId.value, "uuid": uuid.v1(), "change": change, "cash": cash, "remark": remark, "status": 'true'};
+                  final formattedOrder = {
+                    "shiftId": homeController.currentShiftId.value,
+                    "uuid": uuid.v1(),
+                    "change": change,
+                    "cash": cash,
+                    "remark": remark,
+                    "status": 'true',
+                  };
                   print("📦 JSON ที่จะส่ง: $formattedOrder");
                   final order = await Homeservice.createOpenShiftOffline(formattedOrder: formattedOrder);
 
@@ -405,16 +451,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   overlayEntry.remove();
 
                   if (success) {
-                    Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: kTabColor, colorText: Colors.white, duration: const Duration(seconds: 3));
+                    Get.snackbar(
+                      'สำเร็จ',
+                      'เปิดกะเรียบร้อยแล้ว',
+                      backgroundColor: kTabColor,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 3),
+                    );
                   } else {
-                    Get.snackbar('ไม่สำเร็จ', 'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 4));
+                    Get.snackbar(
+                      'ไม่สำเร็จ',
+                      'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง',
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 4),
+                    );
                   }
                 } catch (e) {
                   // ✅ ปิด loading ในกรณี error
                   overlayEntry.remove();
 
                   // แสดง error message
-                  Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 5));
+                  Get.snackbar(
+                    'เกิดข้อผิดพลาด',
+                    'ไม่สามารถเปิดกะได้: ${e.toString()}',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                    duration: const Duration(seconds: 5),
+                  );
 
                   // Log error สำหรับ debugging
                   log('❌ Error opening shift: $e');
@@ -472,7 +536,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                 ? (value) async {
                                                   if (value != null) {
                                                     homeController.selectedCategoryCode.value = value;
-                                                    final selectedCategory = homeController.categories.firstWhere((cat) => cat.code == value, orElse: () => CategoryLocal()..id = 0);
+                                                    final selectedCategory = homeController.categories.firstWhere(
+                                                      (cat) => cat.code == value,
+                                                      orElse: () => CategoryLocal()..id = 0,
+                                                    );
                                                     final int categoryId = selectedCategory.id;
                                                     await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
 
@@ -500,7 +567,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         // ✅ รายการ dropdown
                                         items:
                                             homeController.categories.map((category) {
-                                              return DropdownMenuItem<String>(value: category.code, child: Text(category.name!, style: const TextStyle(color: Colors.black)));
+                                              return DropdownMenuItem<String>(
+                                                value: category.code,
+                                                child: Text(category.name!, style: const TextStyle(color: Colors.black)),
+                                              );
                                             }).toList(),
                                       ),
                                     ),
@@ -560,7 +630,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Obx(() {
                       return Container(
                         height: 48,
-                        decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 1))]),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(color: Colors.grey.withValues(alpha: 0.2), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 1)),
+                          ],
+                        ),
                         child: Row(
                           children: [
                             // ✅ แสดงจำนวนแท็บทั้งหมด
@@ -653,12 +728,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.blue[200]!)),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue[50],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.blue[200]!),
+                                  ),
                                   child: const Row(
                                     children: [
                                       Icon(Icons.info_outline, color: Colors.blue, size: 16),
                                       SizedBox(width: 8),
-                                      Expanded(child: Text('ใช้ปุ่ม +/- เพื่อเพิ่มลดจำนวน • กดค้างเพื่อลบสินค้า', style: TextStyle(color: Colors.blue, fontSize: 14))),
+                                      Expanded(
+                                        child: Text(
+                                          'ใช้ปุ่ม +/- เพื่อเพิ่มลดจำนวน • กดค้างเพื่อลบสินค้า',
+                                          style: TextStyle(color: Colors.blue, fontSize: 14),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -685,7 +769,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                             color: Colors.white,
                                             borderRadius: BorderRadius.circular(8),
                                             border: Border.all(color: Colors.grey[300]!),
-                                            boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), spreadRadius: 1, blurRadius: 2, offset: const Offset(0, 1))],
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.grey.withValues(alpha: 0.1),
+                                                spreadRadius: 1,
+                                                blurRadius: 2,
+                                                offset: const Offset(0, 1),
+                                              ),
+                                            ],
                                           ),
                                           child: Row(
                                             children: [
@@ -695,9 +786,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
-                                                    Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                                    Text(
+                                                      name,
+                                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
                                                     const SizedBox(height: 4),
-                                                    Text('฿${price.toStringAsFixed(2)} / ชิ้น', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                                                    Text(
+                                                      '฿${price.toStringAsFixed(2)} / ชิ้น',
+                                                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                                                    ),
                                                     Text(
                                                       '฿${(price * qty).toStringAsFixed(2)}',
                                                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
@@ -717,7 +816,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                     Container(
                                                       width: 32,
                                                       height: 32,
-                                                      decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red[200]!)),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red[50],
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.red[200]!),
+                                                      ),
                                                       child: IconButton(
                                                         padding: EdgeInsets.zero,
                                                         onPressed: () {
@@ -735,14 +838,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                     Container(
                                                       width: 40,
                                                       margin: const EdgeInsets.symmetric(horizontal: 8),
-                                                      child: Text('$qty', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                                                      child: Text(
+                                                        '$qty',
+                                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                        textAlign: TextAlign.center,
+                                                      ),
                                                     ),
 
                                                     // ปุ่มเพิ่ม
                                                     Container(
                                                       width: 32,
                                                       height: 32,
-                                                      decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.green[200]!)),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green[50],
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.green[200]!),
+                                                      ),
                                                       child: IconButton(
                                                         padding: EdgeInsets.zero,
                                                         onPressed: () {
@@ -776,12 +887,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ? Container(
                             padding: const EdgeInsets.all(16.0),
                             margin: const EdgeInsets.symmetric(horizontal: 8.0),
-                            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('ยอดรวม:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                Text('฿${homeController.totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                                Text(
+                                  '฿${homeController.totalPrice.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
                               ],
                             ),
                           )

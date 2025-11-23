@@ -44,14 +44,26 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await checkConnectivityAndLoadData();
       await _loadOrders();
-      log('⏰ PostFrameCallback: calling fetchOrders');
-      orderController.fetchOrders();
+
+      // ✅ เรียก fetchOrders เฉพาะเมื่อมีอินเทอร์เน็ต
+      if (isConnected.value) {
+        log('⏰ PostFrameCallback: calling fetchOrders (online mode)');
+        orderController.fetchOrders();
+      } else {
+        log('⏰ PostFrameCallback: skipping fetchOrders (offline mode)');
+      }
     });
   }
 
   Future<void> _loadOrders() async {
     await homeController.getOrders();
     setState(() {});
+  }
+
+  // ✅ ฟังก์ชันจัดรูปแบบตัวเลข (เพิ่ม comma คั่นหลักพัน)
+  String _formatPrice(num price) {
+    final formatter = NumberFormat('#,##0.00', 'en_US');
+    return formatter.format(price);
   }
 
   // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและโหลดข้อมูล
@@ -65,14 +77,39 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       if (isConnected.value) {
         log('🔄 Loading categories...');
         log('✅ Categories loaded successfully');
+
+        // ✅ มีเน็ต → ตั้งเป็นออนไลน์ (vehicleCheck = false)
+        if (mounted) {
+          setState(() {
+            vehicleCheck = false;
+          });
+          await prefs.setBool('vehicle', false);
+          log('✅ Online mode - vehicleCheck = false');
+        }
       } else {
         log('❌ No internet connection');
-        // แสดงข้อความแจ้งเตือนไม่มีอินเทอร์เน็ต
-        Get.snackbar('ไม่มีการเชื่อมต่อ', 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต', backgroundColor: Get.theme.colorScheme.error, colorText: Get.theme.colorScheme.onError);
+
+        // ✅ ไม่มีเน็ต → ตั้งเป็นออฟไลน์ (vehicleCheck = true)
+        if (mounted) {
+          setState(() {
+            vehicleCheck = true;
+          });
+          await prefs.setBool('vehicle', true);
+          log('✅ Offline mode - vehicleCheck = true');
+        }
       }
       setState(() {});
     } catch (e) {
       log('❌ Error checking connectivity: $e');
+
+      // ✅ ถ้า error ให้ตั้งเป็นออฟไลน์เพื่อความปลอดภัย
+      if (mounted) {
+        setState(() {
+          vehicleCheck = true;
+        });
+        await prefs.setBool('vehicle', true);
+        log('✅ Error - set to offline mode');
+      }
     }
   }
 
@@ -112,14 +149,21 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                           alignment: Alignment.centerLeft,
                           child: Row(
                             children: [
-                              Builder(builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer())),
+                              Builder(
+                                builder:
+                                    (c) =>
+                                        IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer()),
+                              ),
                               const SizedBox(width: 4),
                               const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                               Spacer(),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Text(
+                                    vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                  ),
                                   Switch(
                                     value: vehicleCheck,
                                     inactiveThumbColor: Colors.grey,
@@ -181,8 +225,14 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                             homeController.orders.length,
                                             (index) => ListTile(
                                               leading: Icon(Icons.receipt_long, color: Colors.green),
-                                              title: Text('฿${homeController.orders[index].total!.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                                              subtitle: Text(DateFormat('dd-MMM-yy HH:mm น.').format(homeController.orders[index].date!), style: TextStyle(color: Colors.black)),
+                                              title: Text(
+                                                '฿${homeController.orders[index].total!.toStringAsFixed(2)}',
+                                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                                              ),
+                                              subtitle: Text(
+                                                DateFormat('dd-MMM-yy HH:mm น.').format(homeController.orders[index].date!),
+                                                style: TextStyle(color: Colors.black),
+                                              ),
                                               // trailing: SizedBox(
                                               //   width: screenWidth * 0.1,
                                               //   child: Text(homeController.orders[index].localNo ?? '#-', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
@@ -253,7 +303,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                 //   ),
                                 // ),
                                 // const SizedBox(width: 8),
-                                // // ✅ ปุ่มปริ๊นแทนไอคอน more_vert
+                                // // ✅ ปุ่มพิมพ์แทนไอคอน more_vert
                                 // GestureDetector(
                                 //   // onTap: selectedOrder != null ? () => _printOrderReceipt(selectedOrder) : null,
                                 //   child: Container(
@@ -261,7 +311,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                 //     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                                 //     child: Row(
                                 //       mainAxisSize: MainAxisSize.min,
-                                //       children: const [Icon(Icons.print, color: Colors.white, size: 18), SizedBox(width: 4), Text('ปริ๊น', style: TextStyle(color: Colors.white, fontSize: 14))],
+                                //       children: const [Icon(Icons.print, color: Colors.white, size: 18), SizedBox(width: 4), Text('พิมพ์', style: TextStyle(color: Colors.white, fontSize: 14))],
                                 //     ),
                                 //   ),
                                 // ),
@@ -287,7 +337,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Center(child: Text('฿${order!.total!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+                                        Center(
+                                          child: Text(
+                                            '฿${order!.total!.toStringAsFixed(2)}',
+                                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
                                         const SizedBox(height: 4),
                                         const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
                                         const SizedBox(height: 16),
@@ -309,11 +364,19 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                                 Row(
                                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                   children: [
-                                                    Expanded(child: Text(item.productName ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18))),
-                                                    Text('฿${totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                                    Expanded(
+                                                      child: Text(item.productName ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18)),
+                                                    ),
+                                                    Text(
+                                                      '฿${totalPrice.toStringAsFixed(2)}',
+                                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                                    ),
                                                   ],
                                                 ),
-                                                Text('$quantity x ฿${unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                                                Text(
+                                                  '$quantity x ฿${unitPrice.toStringAsFixed(2)}',
+                                                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                                ),
                                                 const SizedBox(height: 8),
                                               ],
                                             );
@@ -322,7 +385,10 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
                                         const Divider(height: 24),
                                         _buildRow('รวมทั้งหมด', '฿${order!.total!.toStringAsFixed(2)}'),
-                                        _buildRow('ชำระแล้ว', '฿${(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
+                                        _buildRow(
+                                          'ชำระแล้ว',
+                                          '฿${(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}',
+                                        ),
                                         _buildRow('เงินทอน', '฿${order!.change?.toStringAsFixed(2) ?? '0'}'),
                                         const SizedBox(height: 16),
                                         _buildRow('วันที่', DateFormat('d/M/yy HH:mm น.').format(order!.date!)),
@@ -351,14 +417,21 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                           alignment: Alignment.centerLeft,
                           child: Row(
                             children: [
-                              Builder(builder: (c) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer())),
+                              Builder(
+                                builder:
+                                    (c) =>
+                                        IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(c).openDrawer()),
+                              ),
                               const SizedBox(width: 4),
                               const Text('ใบเสร็จรับเงิน', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                               Spacer(),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                                  Text(
+                                    vehicleCheck == true ? 'ออฟไลน์' : 'ออนไลน์',
+                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                  ),
                                   Switch(
                                     value: vehicleCheck,
                                     inactiveThumbColor: Colors.grey,
@@ -440,7 +513,15 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildDateGroup(dateKey),
-                      ...orders.map((order) => Obx(() => _buildReceiptItem(order: order, orderController: orderController, selected: orderController.selectedOrder.value?.id == order.id))),
+                      ...orders.map(
+                        (order) => Obx(
+                          () => _buildReceiptItem(
+                            order: order,
+                            orderController: orderController,
+                            selected: orderController.selectedOrder.value?.id == order.id,
+                          ),
+                        ),
+                      ),
                     ],
                   );
                 },
@@ -475,12 +556,16 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(6)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [Icon(Icons.edit, color: Colors.white, size: 18), SizedBox(width: 4), Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14))],
+                      children: const [
+                        Icon(Icons.edit, color: Colors.white, size: 18),
+                        SizedBox(width: 4),
+                        Text('แก้ไข', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                // ✅ ปุ่มปริ๊นแทนไอคอน more_vert
+                // ✅ ปุ่มพิมพ์แทนไอคอน more_vert
                 GestureDetector(
                   onTap: selectedOrder != null ? () => _printOrderReceipt(selectedOrder) : null,
                   child: Container(
@@ -488,7 +573,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [Icon(Icons.print, color: Colors.white, size: 18), SizedBox(width: 4), Text('ปริ๊น', style: TextStyle(color: Colors.white, fontSize: 14))],
+                      children: const [
+                        Icon(Icons.print, color: Colors.white, size: 18),
+                        SizedBox(width: 4),
+                        Text('พิมพ์', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
                     ),
                   ),
                 ),
@@ -509,7 +598,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
               child: Container(
                 width: double.infinity,
                 constraints: const BoxConstraints(maxWidth: 400),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))]),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                ),
                 child: Padding(padding: EdgeInsets.all(20), child: _buildOrderDetails(selectedOrder)),
               ),
             );
@@ -528,7 +621,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(child: Text('฿${grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
+        Center(child: Text('฿${_formatPrice(grandTotal)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold))),
         const SizedBox(height: 4),
         const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
         const SizedBox(height: 16),
@@ -551,10 +644,10 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(child: Text(item.product?.name ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18))),
-                    Text('฿${totalPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('฿${_formatPrice(totalPrice)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                Text('$quantity x ฿${unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                Text('$quantity x ฿${_formatPrice(unitPrice)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 8),
               ],
             );
@@ -562,9 +655,9 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         ],
 
         const Divider(height: 24),
-        _buildRow('รวมทั้งหมด', '฿${grandTotal.toStringAsFixed(2)}'),
-        _buildRow('ชำระแล้ว', '฿${(order.paid != null ? double.tryParse(order.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
-        _buildRow('เงินทอน', '฿${change.toStringAsFixed(2)}'),
+        _buildRow('รวมทั้งหมด', '฿${_formatPrice(grandTotal)}'),
+        _buildRow('ชำระแล้ว', '฿${_formatPrice(order.paid != null ? double.tryParse(order.paid!.toString()) ?? 0 : 0)}'),
+        _buildRow('เงินทอน', '฿${_formatPrice(change)}'),
         const SizedBox(height: 16),
         _buildRow(orderDate != null ? DateFormat('d/M/yy HH:mm น.').format(orderDate) : 'ไม่ระบุวันที่', order.orderNo ?? '#-'),
       ],
@@ -572,11 +665,17 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   }
 
   Widget _buildRow(String left, String right) {
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]),
+    );
   }
 
   Widget _buildDateGroup(String date) {
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12), child: Text(date, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      child: Text(date, style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+    );
   }
 
   Widget _buildReceiptItem({required Order order, required OrderController orderController, bool selected = false}) {
@@ -594,9 +693,15 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       ),
       child: ListTile(
         leading: Icon(Icons.receipt_long, color: selected ? Colors.green : Colors.grey),
-        title: Text('฿${grandTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, color: selected ? Colors.black : Colors.grey[800])),
+        title: Text(
+          '฿${_formatPrice(grandTotal)}',
+          style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, color: selected ? Colors.black : Colors.grey[800]),
+        ),
         subtitle: Text(timeString, style: TextStyle(color: selected ? Colors.black : Colors.grey)),
-        trailing: Text(order.orderNo ?? '#-', style: TextStyle(color: selected ? Colors.green : Colors.black, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+        trailing: Text(
+          order.orderNo ?? '#-',
+          style: TextStyle(color: selected ? Colors.green : Colors.black, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+        ),
         onTap: () {
           orderController.selectOrder(order);
         },
@@ -625,7 +730,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
     if (order.orderItems != null && order.orderItems!.isNotEmpty) {
       for (final orderItem in order.orderItems!) {
-        cartItems.add({'id': orderItem.product?.id ?? 0, 'name': orderItem.product?.name ?? 'ไม่มีชื่อ', 'price': (orderItem.price ?? 0).toDouble(), 'qty': orderItem.quantity ?? 1});
+        cartItems.add({
+          'id': orderItem.product?.id ?? 0,
+          'name': orderItem.product?.name ?? 'ไม่มีชื่อ',
+          'price': (orderItem.price ?? 0).toDouble(),
+          'qty': orderItem.quantity ?? 1,
+        });
       }
     }
 
@@ -645,23 +755,23 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     );
   }
 
-  // ✅ ฟังก์ชันปริ๊นใบเสร็จจาก Order
+  // ✅ ฟังก์ชันพิมพ์ใบเสร็จจาก Order
   Future<void> _printOrderReceipt(Order order) async {
     try {
       log('🖨️ Starting to print receipt for order: ${order.orderNo}');
 
-      // ✅ ตรวจสอบการเชื่อมต่อปริ๊นเตอร์ก่อนปริ๊น
+      // ✅ ตรวจสอบการเชื่อมต่อพิมพ์เตอร์ก่อนพิมพ์
       final printerController = Get.find<PrinterController>();
 
-      // ✅ โหลดข้อมูลปริ๊นเตอร์ก่อนตรวจสอบ
+      // ✅ โหลดข้อมูลพิมพ์เตอร์ก่อนตรวจสอบ
       await printerController.loadSavedPrinters();
 
-      // ✅ ตรวจสอบปริ๊นเตอร์เริ่มต้นทันที
+      // ✅ ตรวจสอบพิมพ์เตอร์เริ่มต้นทันที
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
         log('🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})');
 
-        // ✅ เช็คเร็วๆ ว่าเป็นปริ๊นเตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
+        // ✅ เช็คเร็วๆ ว่าเป็นพิมพ์เตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
         bool isBuiltInPrinter =
             defaultPrinter.name.toLowerCase().contains('sunmi') ||
             defaultPrinter.name.toLowerCase().contains('built') ||
@@ -690,7 +800,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ ปริ๊นไปยัง Sunmi โดยตรง
+  // ✅ พิมพ์ไปยัง Sunmi โดยตรง
   Future<void> _printToSunmi(Order order) async {
     try {
       // แปลงข้อมูล OrderItems เป็น cartItems format
@@ -707,7 +817,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
       log('💰 Payment info - Total: $grandTotal, Paid: $paid, Change: $change, Discount: $discount');
 
-      // เรียกใช้ฟังก์ชันปริ๊นเดียวกับ PaymentPageD2s
+      // เรียกใช้ฟังก์ชันพิมพ์เดียวกับ PaymentPageD2s
       await printReceiptFromCartItems(
         cartItems,
         receivedAmount: paid,
@@ -721,10 +831,22 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       log('✅ Receipt printed successfully');
 
       // แสดงข้อความยืนยัน
-      Get.snackbar('ปริ๊นสำเร็จ', 'ปริ๊นใบเสร็จ ${order.orderNo} เรียบร้อยแล้ว', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
+      Get.snackbar(
+        'พิมพ์สำเร็จ',
+        'พิมพ์ใบเสร็จ ${order.orderNo} เรียบร้อยแล้ว',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
     } catch (e) {
       log('❌ Error printing to Sunmi: $e');
-      Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถปริ๊นใบเสร็จได้: $e', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 3));
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถพิมพ์ใบเสร็จได้: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
     }
   }
 
@@ -734,7 +856,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
 
     if (order.orderItems != null) {
       for (final orderItem in order.orderItems!) {
-        cartItems.add({'id': orderItem.product?.id ?? 0, 'name': orderItem.product?.name ?? 'ไม่มีชื่อ', 'price': (orderItem.price ?? 0).toDouble(), 'qty': orderItem.quantity ?? 1});
+        cartItems.add({
+          'id': orderItem.product?.id ?? 0,
+          'name': orderItem.product?.name ?? 'ไม่มีชื่อ',
+          'price': (orderItem.price ?? 0).toDouble(),
+          'qty': orderItem.quantity ?? 1,
+        });
       }
     }
 
@@ -778,7 +905,11 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 child: SingleChildScrollView(
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
                     child: RepaintBoundary(
                       key: previewKey,
                       child: ReceiptPreviewWidget(
@@ -802,11 +933,15 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _captureAndPrintReceipt(previewKey, order); // แคปภาพและปริ๊นก่อน
+                    await _captureAndPrintReceipt(previewKey, order); // แคปภาพและพิมพ์ก่อน
                   },
                   icon: const Icon(Icons.print),
-                  label: const Text('ปริ๊น'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  label: const Text('พิมพ์'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
             ],
@@ -817,7 +952,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     );
   }
 
-  // ✅ แคปภาพจาก Widget และส่งไปปริ๊น
+  // ✅ แคปภาพจาก Widget และส่งไปพิมพ์
   Future<void> _captureAndPrintReceipt(GlobalKey key, Order order) async {
     try {
       log('📸 Starting capture and print process for order: ${order.orderNo}');
@@ -877,7 +1012,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                   const SizedBox(height: 16),
                   const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blue), strokeWidth: 3),
                   const SizedBox(height: 16),
-                  const Text('กำลังปริ๊น...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87)),
+                  const Text('กำลังพิมพ์...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87)),
                   const SizedBox(height: 8),
                   Text('กรุณารอสักครู่', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                 ],
@@ -896,7 +1031,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         }
       });
 
-      // ✅ เช็คจำนวนรายการก่อนตัดสินใจวิธีปริ๊น
+      // ✅ เช็คจำนวนรายการก่อนตัดสินใจวิธีพิมพ์
       final itemCount = order.orderItems?.length ?? 0;
       final isLongReceipt = itemCount > 20; // ถ้ามีรายการมากกว่า 20 รายการถือว่ายาว
 
@@ -910,15 +1045,15 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         await _captureAndPrintSingleImage(boundary, order);
       }
 
-      Get.back(); // ปิด loading dialog เมื่อปริ๊นสำเร็จ
+      Get.back(); // ปิด loading dialog เมื่อพิมพ์สำเร็จ
     } catch (e) {
       log('❌ Error in capture and print: $e');
       Get.back(); // ปิด loading
-      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการพิมพ์: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
-  // ✅ ปริ๊นแบบภาพเดียว (สำหรับใบเสร็จสั้น)
+  // ✅ พิมพ์แบบภาพเดียว (สำหรับใบเสร็จสั้น)
   Future<void> _captureAndPrintSingleImage(RenderRepaintBoundary boundary, Order order) async {
     try {
       log('📄 Capturing single image for normal receipt');
@@ -942,17 +1077,17 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ ปริ๊นแบบแบ่งเป็นแถบ (สำหรับใบเสร็จยาว)
+  // ✅ พิมพ์แบบแบ่งเป็นแถบต่อเนื่อง (สำหรับใบเสร็จยาว)
   Future<void> _captureAndPrintInStrips(RenderRepaintBoundary boundary, Order order) async {
     try {
-      log('📏 Capturing image in strips for long receipt');
+      log('� Capturing full image for long receipt (single sheet)');
 
       // สร้างภาพเต็มก่อน
       ui.Image fullImage = await boundary.toImage(pixelRatio: 1.0);
 
       final imageWidth = fullImage.width;
       final imageHeight = fullImage.height;
-      final stripHeight = 400; // ความสูงของแต่ละแถบ (pixels)
+      final stripHeight = 1000; // ความสูงของแต่ละแถบ (pixels)
 
       log('📐 Full image size: ${imageWidth}x${imageHeight}');
       log('📏 Strip height: $stripHeight pixels');
@@ -960,7 +1095,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       final numberOfStrips = (imageHeight / stripHeight).ceil();
       log('🔢 Number of strips: $numberOfStrips');
 
-      // แบ่งและส่งทีละแถบ
+      // แบ่งและส่งทีละแถบแบบต่อเนื่อง
       for (int i = 0; i < numberOfStrips; i++) {
         final startY = i * stripHeight;
         final endY = ((i + 1) * stripHeight).clamp(0, imageHeight);
@@ -989,11 +1124,18 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
           final stripBytes = stripByteData.buffer.asUint8List();
           log('✅ Strip ${i + 1} captured: ${stripBytes.length} bytes');
 
-          // ส่งแถบไปปริ๊นเตอร์
-          await _sendImageToPrinter(stripBytes, order, isStrip: true, stripNumber: i + 1, totalStrips: numberOfStrips);
+          // ส่งแถบไปพิมพ์เตอร์แบบต่อเนื่อง (ไม่ตัดกระดาษ)
+          await _sendImageToPrinter(
+            stripBytes,
+            order,
+            isStrip: true,
+            stripNumber: i + 1,
+            totalStrips: numberOfStrips,
+            isLastStrip: i == numberOfStrips - 1,
+          );
 
-          // รอสักครู่ระหว่างแถบ
-          await Future.delayed(const Duration(milliseconds: 100));
+          // รอสักครู่ระหว่างแถบ (ลดเวลาให้แถบติดกันมากขึ้น)
+          await Future.delayed(const Duration(milliseconds: 50));
         }
 
         // ปล่อย memory
@@ -1004,22 +1146,29 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       // ปล่อย memory ของภาพเต็ม
       fullImage.dispose();
 
-      log('✅ All strips sent successfully');
+      log('✅ All strips sent continuously');
     } catch (e) {
       log('❌ Error in _captureAndPrintInStrips: $e');
       throw e;
     }
   }
 
-  // ✅ ส่งภาพไปปริ๊นเตอร์
-  Future<void> _sendImageToPrinter(Uint8List imageBytes, Order order, {bool isStrip = false, int stripNumber = 1, int totalStrips = 1}) async {
+  // ✅ ส่งภาพไปพิมพ์เตอร์
+  Future<void> _sendImageToPrinter(
+    Uint8List imageBytes,
+    Order order, {
+    bool isStrip = false,
+    int stripNumber = 1,
+    int totalStrips = 1,
+    bool isLastStrip = false,
+  }) async {
     try {
       final printerController = Get.find<PrinterController>();
       final defaultPrinter = printerController.getDefaultPrinter();
 
       if (defaultPrinter == null) {
         log('❌ No default printer found');
-        throw Exception('ไม่พบเครื่องปริ๊นเตอร์เริ่มต้น');
+        throw Exception('ไม่พบเครื่องพิมพ์เตอร์เริ่มต้น');
       }
 
       if (isStrip) {
@@ -1028,30 +1177,35 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
         log('🖨️ Sending single image to printer: ${defaultPrinter.name}');
       }
 
-      // เชื่อมต่อปริ๊นเตอร์
+      // เชื่อมต่อพิมพ์เตอร์
       final connectSuccess = await _connectToPrinter(defaultPrinter, printerController);
       if (!connectSuccess) {
-        throw Exception('ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}');
+        throw Exception('ไม่สามารถเชื่อมต่อกับพิมพ์เตอร์ ${defaultPrinter.name}');
       }
 
-      // ส่งภาพไปปริ๊นเตอร์
-      final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
+      // ส่งภาพไปพิมพ์เตอร์ (ตัดกระดาษเฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
+      final printSuccess = await printerController.printImage(defaultPrinter, imageBytes, cutPaper: !isStrip || isLastStrip);
 
-      // ปิดการเชื่อมต่อ
-      await _disconnectFromPrinter(defaultPrinter, printerController);
+      // ปิดการเชื่อมต่อ (เฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
+      if (!isStrip || isLastStrip) {
+        await _disconnectFromPrinter(defaultPrinter, printerController);
+        log('🔌 Disconnected from printer after ${isStrip ? "last strip" : "single image"}');
+      } else {
+        log('🔗 Keeping connection for next strip ($stripNumber/$totalStrips)');
+      }
 
       if (!printSuccess) {
-        throw Exception('ไม่สามารถส่งภาพไปปริ๊นเตอร์ได้');
+        throw Exception('ไม่สามารถส่งภาพไปพิมพ์เตอร์ได้');
       }
 
       if (isStrip) {
         log('✅ Strip $stripNumber/$totalStrips sent successfully');
 
-        // แสดงข้อความสำเร็จเมื่อส่งแถบสุดท้าย
-        if (stripNumber == totalStrips) {
+        // แสดงข้อความสำเร็จเฉพาะเมื่อส่งแถบสุดท้าย
+        if (isLastStrip) {
           Get.snackbar(
-            'ปริ๊นสำเร็จ',
-            'ส่งใบเสร็จ ${order.orderNo} ไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว ($totalStrips แถบ)',
+            'พิมพ์สำเร็จ',
+            'ส่งใบเสร็จ ${order.orderNo} ไปยังเครื่องพิมพ์เตอร์ ${defaultPrinter.name} แล้ว ($totalStrips แถบต่อเนื่อง)',
             backgroundColor: Colors.green,
             colorText: Colors.white,
             icon: const Icon(Icons.check_circle, color: Colors.white),
@@ -1061,8 +1215,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       } else {
         log('✅ Single image sent successfully');
         Get.snackbar(
-          'ปริ๊นสำเร็จ',
-          'ส่งใบเสร็จ ${order.orderNo} ไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว',
+          'พิมพ์สำเร็จ',
+          'ส่งใบเสร็จ ${order.orderNo} ไปยังเครื่องพิมพ์เตอร์ ${defaultPrinter.name} แล้ว',
           backgroundColor: Colors.green,
           colorText: Colors.white,
           icon: const Icon(Icons.check_circle, color: Colors.white),
@@ -1075,8 +1229,8 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
       if (!isStrip || stripNumber == 1) {
         // แสดง error เฉพาะครั้งแรกสำหรับ strips
         Get.snackbar(
-          'ปริ๊นล้มเหลว',
-          'ไม่สามารถส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ได้: $e',
+          'พิมพ์ล้มเหลว',
+          'ไม่สามารถส่งใบเสร็จไปยังเครื่องพิมพ์เตอร์ได้: $e',
           backgroundColor: Colors.red,
           colorText: Colors.white,
           icon: const Icon(Icons.error, color: Colors.white),
@@ -1088,7 +1242,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
+  // ✅ เชื่อมต่อพิมพ์เตอร์เฉพาะตอนพิมพ์ (ประหยัด RAM)
   Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
     try {
       log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
@@ -1119,12 +1273,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ ปิดการเชื่อมต่อปริ๊นเตอร์เพื่อประหยัด RAM
+  // ✅ ปิดการเชื่อมต่อพิมพ์เตอร์เพื่อประหยัด RAM
   Future<void> _disconnectFromPrinter(PrinterInfo printer, PrinterController printerController) async {
     try {
       log('🔌 Disconnecting from printer: ${printer.name}');
 
-      // ปิดการเชื่อมต่อตามประเภทปริ๊นเตอร์
+      // ปิดการเชื่อมต่อตามประเภทพิมพ์เตอร์
       switch (printer.type.toLowerCase()) {
         case 'wifi':
         case 'lan':
@@ -1158,7 +1312,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
     }
   }
 
-  // ✅ ลบฟังก์ชันเก่าทั้งหมด - ตอนนี้ใช้รูปภาพสำหรับทุกปริ๊นเตอร์
+  // ✅ ลบฟังก์ชันเก่าทั้งหมด - ตอนนี้ใช้รูปภาพสำหรับทุกพิมพ์เตอร์
   // ฟังก์ชันเหล่านี้ถูกลบแล้วเพราะใช้การแปลงเป็นรูปภาพแทน:
   // - _printTextToBARIGAN
   // - _convertToESCPOS

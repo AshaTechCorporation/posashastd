@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,7 @@ import 'package:posashastd/D2S/controllers/report_controller.dart';
 import 'package:posashastd/D2S/home/widgets/AppDrawer.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/services/homeService.dart';
+import 'package:http/http.dart' as http;
 
 class SummaryReportPage extends StatefulWidget {
   const SummaryReportPage({super.key});
@@ -72,6 +74,82 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
   Future<void> _refreshData() async {
     log('🔄 Refreshing summary report data...');
     await _loadSummaryReport();
+  }
+
+  // ✅ ฟังก์ชันซิงค์ข้อมูล
+  Future<void> _syncData() async {
+    try {
+      log('🔄 Starting data sync...');
+
+      // แสดง loading dialog
+      Get.dialog(
+        const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังซิงค์ข้อมูล...', style: TextStyle(fontSize: 16))],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // ซิงค์ข้อมูล
+      await Homeservice.orderSendOffline(orders: homeController.orders);
+      await homeController.clearOrders2();
+
+      // ปิด loading dialog
+      Get.back();
+
+      // แสดง dialog สำเร็จ
+      await Get.dialog(
+        AlertDialog(
+          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ซิงค์ข้อมูลสำเร็จ')]),
+          content: const Text('ข้อมูลได้รับการอัพเดทแล้ว', style: TextStyle(fontSize: 16)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Get.back(); // ปิด dialog
+                // ไปหน้า receiptHistoryPage
+                Get.offAllNamed('/receipt-history');
+              },
+              child: const Text('ตกลง', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+
+      log('✅ Data sync completed successfully');
+    } catch (e) {
+      log('❌ Error syncing data: $e');
+
+      // ปิด loading dialog (ถ้ายังเปิดอยู่)
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      // ✅ เช็คว่าเป็น ClientException หรือไม่
+      String errorMessage = 'ไม่สามารถซิงค์ข้อมูลได้';
+      if (e is SocketException || e is http.ClientException || e.toString().contains('ClientException')) {
+        errorMessage = 'ไม่มีอินเทอร์เน็ต\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else {
+        errorMessage = 'ไม่สามารถซิงค์ข้อมูลได้\nกรุณาลองใหม่อีกครั้ง';
+      }
+
+      // แสดง dialog ไม่สำเร็จ
+      await Get.dialog(
+        AlertDialog(
+          title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ซิงค์ข้อมูลไม่สำเร็จ')]),
+          content: Text(errorMessage, style: const TextStyle(fontSize: 16)),
+          actions: [TextButton(onPressed: () => Get.back(), child: const Text('ตกลง', style: TextStyle(fontSize: 16)))],
+        ),
+        barrierDismissible: false,
+      );
+    }
   }
 
   // ฟังก์ชันแสดง Dialog ปิดกะ
@@ -165,7 +243,13 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
           AlertDialog(
             title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ปิดกะไม่สำเร็จ')]),
             content: const Text('ไม่สามารถปิดกะได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 18)),
-            actions: [ElevatedButton(onPressed: () => Get.back(), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('ตกลง', style: TextStyle(color: Colors.white)))],
+            actions: [
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
           barrierDismissible: false,
         );
@@ -177,7 +261,16 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
       }
 
       log('❌ Error in _closeShift: $e');
-      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปิดกะ: $e', backgroundColor: Colors.red, colorText: Colors.white);
+
+      // ✅ เช็คว่าเป็น ClientException หรือไม่
+      String errorMessage = 'เกิดข้อผิดพลาดในการปิดกะ';
+      if (e is SocketException || e is http.ClientException || e.toString().contains('ClientException')) {
+        errorMessage = 'ไม่มีอินเทอร์เน็ต\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else {
+        errorMessage = 'เกิดข้อผิดพลาดในการปิดกะ\nกรุณาลองใหม่อีกครั้ง';
+      }
+
+      Get.snackbar('ข้อผิดพลาด', errorMessage, backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -200,7 +293,11 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
               children: [
                 Row(
                   children: [
-                    Builder(builder: (context) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer())),
+                    Builder(
+                      builder:
+                          (context) =>
+                              IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(context).openDrawer()),
+                    ),
                     const SizedBox(width: 4),
                     const Text('กะ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                   ],
@@ -255,15 +352,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                               icon: const Icon(Icons.sync, color: Colors.white, size: 18),
                               label: const Text('ซิ้งค์ข้อมูล', style: TextStyle(color: Colors.white)),
-                              onPressed: () async {
-                                try {
-                                  await Homeservice.orderSendOffline(orders: homeController.orders);
-                                  await homeController.clearOrders2();
-                                  Get.offAllNamed('/home');
-                                } catch (e) {
-                                  Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาด $e', backgroundColor: Colors.red, colorText: Colors.white);
-                                }
-                              },
+                              onPressed: _syncData,
                             ),
                         const SizedBox(width: 8),
                         ElevatedButton.icon(
@@ -283,11 +372,24 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                       child: Obx(() {
                         if (reportController.isLoading.value) {
                           return const Center(
-                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังโหลดข้อมูลสรุปรายงาน...')]),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังโหลดข้อมูลสรุปรายงาน...')],
+                            ),
                           );
                         }
 
                         if (reportController.errorMessage.value.isNotEmpty) {
+                          // ✅ เช็คว่าเป็น ClientException หรือไม่
+                          String displayMessage = reportController.errorMessage.value;
+                          if (displayMessage.contains('ClientException') ||
+                              displayMessage.contains('SocketException') ||
+                              displayMessage.contains('Failed host lookup') ||
+                              displayMessage.contains('Connection refused') ||
+                              displayMessage.contains('Network is unreachable')) {
+                            displayMessage = 'ไม่มีอินเทอร์เน็ต\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+                          }
+
                           return Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -296,7 +398,7 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
                                 const SizedBox(height: 16),
                                 Text('เกิดข้อผิดพลาด', style: TextStyle(fontSize: 18, color: Colors.red[600])),
                                 const SizedBox(height: 8),
-                                Text(reportController.errorMessage.value, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+                                Text(displayMessage, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
                                 const SizedBox(height: 16),
                                 ElevatedButton(onPressed: _refreshData, child: const Text('ลองใหม่')),
                               ],
@@ -306,12 +408,20 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
 
                         return ListView(
                           children: [
-                            Center(child: Text('การสรุปรายรับยอดขาย', style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold))),
+                            Center(
+                              child: Text(
+                                'การสรุปรายรับยอดขาย',
+                                style: TextStyle(color: Colors.green.shade700, fontSize: 24, fontWeight: FontWeight.bold),
+                              ),
+                            ),
                             const SizedBox(height: 12),
 
                             // แสดงข้อมูลจาก API
                             if (reportController.summary.isNotEmpty) ...[
-                              const Text('สรุปยอดขายตามประเภทการชำระ', style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                              const Text(
+                                'สรุปยอดขายตามประเภทการชำระ',
+                                style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
                               const SizedBox(height: 12),
 
                               // แสดงข้อมูลแต่ละประเภทการชำระ
@@ -429,7 +539,10 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('จำนวนรายการ: $totalTransactions', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                Text('เฉลี่ย: ฿${totalTransactions != '0' ? (amount / int.parse(totalTransactions)).toStringAsFixed(2) : '0.00'}', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                Text(
+                  'เฉลี่ย: ฿${totalTransactions != '0' ? (amount / int.parse(totalTransactions)).toStringAsFixed(2) : '0.00'}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
               ],
             ),
           ],
@@ -458,7 +571,10 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
   Widget _buildRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Flexible(child: Text(label, overflow: TextOverflow.ellipsis)), Text(value)]),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [Flexible(child: Text(label, overflow: TextOverflow.ellipsis)), Text(value)],
+      ),
     );
   }
 
@@ -467,7 +583,10 @@ class _SummaryReportPageState extends State<SummaryReportPage> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))), Text(value, style: const TextStyle(fontWeight: FontWeight.bold))],
+        children: [
+          Flexible(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

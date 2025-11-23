@@ -22,8 +22,6 @@ import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:uuid/uuid.dart';
-import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
-import 'package:intl/intl.dart';
 
 class PaymentPageD2s extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -52,12 +50,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   late HomeController homeController;
   late PrinterController printerController;
   late OrderController orderController; // ✅ เพื่อเข้าถึงข้อมูลส่วนลด
-
-  // ✅ ฟังก์ชันจัดรูปแบบตัวเลข (เพิ่ม comma คั่นหลักพัน)
-  String _formatPrice(num price) {
-    final formatter = NumberFormat('#,##0.00', 'en_US');
-    return formatter.format(price);
-  }
 
   @override
   void initState() {
@@ -101,146 +93,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // ✅ คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
       _calculateAutoDiscount();
 
-      // ✅ เช็คสถานะปริ๊นเตอร์ตั้งแต่เข้าหน้า
-      await _checkPrinterStatus();
-
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
     });
-  }
-
-  // ✅ เช็คสถานะปริ๊นเตอร์ตั้งแต่เข้าหน้า
-  Future<void> _checkPrinterStatus() async {
-    try {
-      log('🖨️ Checking printer status on page load...');
-
-      // เช็คว่ามีปริ๊นเตอร์เริ่มต้นหรือไม่
-      final defaultPrinter = printerController.getDefaultPrinter();
-      if (defaultPrinter == null) {
-        log('⚠️ No default printer configured');
-        _showPrinterStatusSnackbar('ไม่พบการตั้งค่าปริ๊นเตอร์', 'กรุณาตั้งค่าปริ๊นเตอร์ในหน้าการตั้งค่า', Colors.orange);
-        return;
-      }
-
-      log('🔍 Found default printer: ${defaultPrinter.name} (${defaultPrinter.type})');
-
-      // เช็คว่าเป็น Sunmi printer หรือไม่
-      bool isSunmiPrinter =
-          defaultPrinter.name.toLowerCase().contains('sunmi') ||
-          defaultPrinter.name.toLowerCase().contains('built') ||
-          defaultPrinter.address.contains('sunmi') ||
-          defaultPrinter.address == 'sunmi://builtin';
-
-      if (isSunmiPrinter) {
-        // เช็ค Sunmi printer
-        await _checkSunmiPrinterStatus();
-      } else {
-        // เช็ค Network printer
-        await _checkNetworkPrinterStatus(defaultPrinter);
-      }
-    } catch (e) {
-      log('❌ Error checking printer status: $e');
-      _showPrinterStatusSnackbar('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบสถานะปริ๊นเตอร์ได้: $e', Colors.red);
-    }
-  }
-
-  // ✅ เช็คสถานะ Network printer
-  Future<void> _checkNetworkPrinterStatus(PrinterInfo printer) async {
-    try {
-      log('🌐 Checking network printer status: ${printer.address}');
-
-      final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
-
-      if (isConnected) {
-        log('✅ Network printer is ready');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น ${printer.name} พร้อมใช้งาน', Colors.green);
-      } else {
-        log('❌ Network printer not ready');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'ไม่สามารถเชื่อมต่อ ${printer.name} ได้ กรุณาตรวจสอบการเชื่อมต่อ', Colors.orange);
-      }
-    } catch (e) {
-      log('❌ Error checking network printer: $e');
-      _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'เกิดข้อผิดพลาดในการเชื่อมต่อ ${printer.name}: $e', Colors.red);
-    }
-  }
-
-  // ✅ เช็คสถานะ Sunmi printer จริงๆ
-  Future<void> _checkSunmiPrinterStatus() async {
-    try {
-      log('📱 Checking Sunmi printer status...');
-
-      // เรียกใช้ฟังก์ชัน helper เพื่อทดสอบ Sunmi printer จริงๆ
-      final isReady = await _testSunmiPrinterReady();
-
-      if (isReady) {
-        log('✅ Sunmi printer is ready and working');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น Sunmi พร้อมใช้งาน', Colors.green);
-      } else {
-        log('❌ Sunmi printer is not ready');
-        _showSunmiPrinterNotReadyDialog();
-      }
-    } catch (e) {
-      log('❌ Sunmi printer check error: $e');
-      _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'เครื่องปริ๊น Sunmi มีปัญหา: $e', Colors.red);
-    }
-  }
-
-  // ✅ ทดสอบ Sunmi printer จริงๆ โดยเรียกใช้ helper function
-  Future<bool> _testSunmiPrinterReady() async {
-    try {
-      log('🧪 Testing Sunmi printer with actual helper function...');
-
-      // ✅ ใช้วิธีเดียวกับที่ใช้ใน helper function เพื่อเช็คว่า Sunmi printer พร้อมหรือไม่
-      // เรียกใช้ฟังก์ชัน initialization เดียวกับที่ใช้ในการปริ๊นจริง
-      await _initializeSunmiPrinterForTest();
-
-      log('✅ Sunmi printer initialization test successful');
-
-      log('✅ Sunmi printer test successful - printer is ready');
-      return true;
-    } catch (e) {
-      log('❌ Sunmi printer test failed: $e');
-
-      // เช็คว่าเป็น lateinit property error หรือไม่
-      if (e.toString().contains('lateint property') || e.toString().contains('not been initialized')) {
-        log('⚠️ Detected lateinit property error - Sunmi printer not ready');
-        return false;
-      }
-
-      // ถ้าเป็น error เกี่ยวกับ empty cart หรือ TEST data แสดงว่า printer พร้อมใช้งาน
-      if (e.toString().contains('empty') || e.toString().contains('no items') || e.toString().contains('TEST')) {
-        log('✅ Sunmi printer is working (test error is expected for empty cart)');
-        return true;
-      }
-
-      // error อื่นๆ แสดงว่า printer ไม่พร้อม
-      log('❌ Sunmi printer has real issues: $e');
-      return false;
-    }
-  }
-
-  // ✅ ฟังก์ชัน initialization เดียวกับที่ใช้ใน helper (สำหรับทดสอบ)
-  Future<void> _initializeSunmiPrinterForTest() async {
-    try {
-      // ลองเรียกใช้ฟังก์ชันง่ายๆ เพื่อ trigger initialization (เดียวกับใน helper)
-      await SunmiPrinter.lineWrap(0); // ไม่ทำอะไร แต่จะ initialize plugin
-      log('✅ Sunmi Printer test initialized successfully');
-    } catch (e) {
-      // ถ้า error เป็น lateinit property ให้ลองใหม่ครั้งเดียว
-      if (e.toString().contains('lateint property') || e.toString().contains('not been initialized')) {
-        log('⚠️ Detected lateinit error, retrying test initialization once...');
-        await Future.delayed(const Duration(milliseconds: 200));
-        try {
-          await SunmiPrinter.lineWrap(0);
-          log('✅ Sunmi Printer test initialized on retry');
-        } catch (retryError) {
-          log('❌ Failed to initialize Sunmi Printer test after retry: $retryError');
-          throw retryError; // ส่งต่อ error เพื่อให้ _testSunmiPrinterReady รู้ว่าไม่พร้อม
-        }
-      } else {
-        log('❌ Sunmi Printer test initialization error: $e');
-        throw e; // ส่งต่อ error เพื่อให้ _testSunmiPrinterReady รู้ว่าไม่พร้อม
-      }
-    }
   }
 
   // ✅ คำนวณยอดรวมเดิม (ก่อนหักส่วนลด)
@@ -256,88 +110,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double calculateTotalWithDiscount() {
     final total = originalTotal - totalDiscountApplied;
     return total < 0 ? 0 : total; // ไม่ให้ติดลบ
-  }
-
-  // ✅ แสดง snackbar สถานะปริ๊นเตอร์
-  void _showPrinterStatusSnackbar(String title, String message, Color color) {
-    if (mounted) {
-      Get.snackbar(
-        title,
-        message,
-        backgroundColor: color,
-        colorText: Colors.white,
-        icon: Icon(
-          color == Colors.green
-              ? Icons.check_circle
-              : color == Colors.orange
-              ? Icons.warning
-              : Icons.error,
-          color: Colors.white,
-        ),
-        duration: const Duration(seconds: 3),
-        snackPosition: SnackPosition.TOP,
-      );
-    }
-  }
-
-  // ✅ แสดง dialog เมื่อ Sunmi printer ไม่พร้อม
-  void _showSunmiPrinterNotReadyDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.orange), SizedBox(width: 8), Text('เครื่องปริ๊น Sunmi ไม่พร้อม')]),
-        content: const Text('เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน\nกรุณาตรวจสอบและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
-          ElevatedButton.icon(
-            onPressed: () async {
-              Get.back(); // ปิด dialog
-              await _recheckSunmiPrinter(); // เช็คใหม่
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('ลองใหม่'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
-  }
-
-  // ✅ เช็ค Sunmi printer ใหม่อีกครั้ง
-  Future<void> _recheckSunmiPrinter() async {
-    try {
-      log('🔄 Rechecking Sunmi printer...');
-
-      // แสดง loading
-      Get.dialog(
-        const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังตรวจสอบปริ๊นเตอร์...', style: TextStyle(color: Colors.white))],
-          ),
-        ),
-        barrierDismissible: false,
-      );
-
-      // รอสักครู่เพื่อให้ Sunmi printer มีเวลา initialize
-      await Future.delayed(const Duration(seconds: 2));
-
-      final isReady = await _testSunmiPrinterReady();
-
-      Get.back(); // ปิด loading dialog
-
-      if (isReady) {
-        log('✅ Sunmi printer is now ready after recheck');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น Sunmi พร้อมใช้งานแล้ว', Colors.green);
-      } else {
-        log('❌ Sunmi printer still not ready after recheck');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์ยังไม่พร้อม', 'เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน กรุณาตรวจสอบอีกครั้ง', Colors.orange);
-      }
-    } catch (e) {
-      Get.back(); // ปิด loading dialog ถ้ายังเปิดอยู่
-      log('❌ Error rechecking Sunmi printer: $e');
-      _showPrinterStatusSnackbar('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบปริ๊นเตอร์ได้: $e', Colors.red);
-    }
   }
 
   // ✅ คำนวณส่วนลดจาก mix_match_multi_units
@@ -395,16 +167,14 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         // แสดงข้อความยืนยัน
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ลดเพิ่ม ฿${_formatPrice(discountToApply)} (รวมลดแล้ว ฿${_formatPrice(totalDiscountApplied)})'),
+            content: Text('ลดเพิ่ม ฿${discountToApply.toStringAsFixed(0)} (รวมลดแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)})'),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 2),
           ),
         );
       } else {
         log('⚠️ Cannot apply more discount, total is already 0');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)));
       }
     });
   }
@@ -418,9 +188,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       log('🧹 Cleared all discounts');
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('เคลียร์ส่วนลดแล้ว'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('เคลียร์ส่วนลดแล้ว'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
     });
 
     // คำนวณส่วนลดอัตโนมัติใหม่หลังจากเคลียร์
@@ -543,11 +311,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                 child: SingleChildScrollView(
                   child: Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
+                    decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey[300]!)),
                     child: RepaintBoundary(
                       key: previewKey,
                       child: Container(
@@ -579,11 +343,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                   },
                   icon: const Icon(Icons.print),
                   label: const Text('ปริ๊น'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
                 ),
               ),
             ],
@@ -729,7 +489,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       final imageWidth = fullImage.width;
       final imageHeight = fullImage.height;
-      final stripHeight = 1000; // ความสูงของแต่ละแถบ (pixels)
+      final stripHeight = 400; // ความสูงของแต่ละแถบ (pixels)
 
       log('� Full image size: ${imageWidth}x${imageHeight}');
       log('📏 Strip height: $stripHeight pixels');
@@ -766,11 +526,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
           final stripBytes = stripByteData.buffer.asUint8List();
           log('✅ Strip ${i + 1} captured: ${stripBytes.length} bytes');
 
-          // ส่งแถบไปปริ๊นเตอร์แบบต่อเนื่อง (ไม่ตัดกระดาษ)
-          await _sendImageToPrinter(stripBytes, isStrip: true, stripNumber: i + 1, totalStrips: numberOfStrips, isLastStrip: i == numberOfStrips - 1);
+          // ส่งแถบไปปริ๊นเตอร์
+          await _sendImageToPrinter(stripBytes, isStrip: true, stripNumber: i + 1, totalStrips: numberOfStrips);
 
-          // รอสักครู่ระหว่างแถบ (ลดเวลาให้แถบติดกันมากขึ้น)
-          await Future.delayed(const Duration(milliseconds: 50));
+          // รอสักครู่ระหว่างแถบ
+          await Future.delayed(const Duration(milliseconds: 100));
         }
 
         // ปล่อย memory
@@ -789,13 +549,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์
-  Future<void> _sendImageToPrinter(
-    Uint8List imageBytes, {
-    bool isStrip = false,
-    int stripNumber = 1,
-    int totalStrips = 1,
-    bool isLastStrip = false,
-  }) async {
+  Future<void> _sendImageToPrinter(Uint8List imageBytes, {bool isStrip = false, int stripNumber = 1, int totalStrips = 1}) async {
     try {
       final defaultPrinter = printerController.getDefaultPrinter();
 
@@ -816,16 +570,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         throw Exception('ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}');
       }
 
-      // ส่งภาพไปปริ๊นเตอร์ (ตัดกระดาษเฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
-      final printSuccess = await printerController.printImage(defaultPrinter, imageBytes, cutPaper: !isStrip || isLastStrip);
-
-      // ปิดการเชื่อมต่อ (เฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
-      if (!isStrip || isLastStrip) {
-        await _disconnectFromPrinter(defaultPrinter, printerController);
-        log('🔌 Disconnected from printer after ${isStrip ? "last strip" : "single image"}');
-      } else {
-        log('🔗 Keeping connection for next strip ($stripNumber/$totalStrips)');
-      }
+      // ส่งภาพไปปริ๊นเตอร์
+      final printSuccess = await printerController.printImage(defaultPrinter, imageBytes);
 
       if (!printSuccess) {
         throw Exception('ไม่สามารถส่งภาพไปปริ๊นเตอร์ได้');
@@ -834,11 +580,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       if (isStrip) {
         log('✅ Strip $stripNumber/$totalStrips sent successfully');
 
-        // แสดงข้อความสำเร็จเฉพาะเมื่อส่งแถบสุดท้าย
-        if (isLastStrip) {
+        // แสดงข้อความสำเร็จเมื่อส่งแถบสุดท้าย
+        if (stripNumber == totalStrips) {
           Get.snackbar(
             'ปริ๊นสำเร็จ',
-            'ส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว ($totalStrips แถบต่อเนื่อง)',
+            'ส่งใบเสร็จไปยังเครื่องปริ๊นเตอร์ ${defaultPrinter.name} แล้ว ($totalStrips แถบ)',
             backgroundColor: Colors.green,
             colorText: Colors.white,
             icon: const Icon(Icons.check_circle, color: Colors.white),
@@ -872,43 +618,6 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       }
 
       throw e;
-    }
-  }
-
-  // ✅ ปิดการเชื่อมต่อปริ๊นเตอร์เพื่อประหยัด RAM
-  Future<void> _disconnectFromPrinter(PrinterInfo printer, PrinterController printerController) async {
-    try {
-      log('🔌 Disconnecting from printer: ${printer.name}');
-
-      // ปิดการเชื่อมต่อตามประเภทปริ๊นเตอร์
-      switch (printer.type.toLowerCase()) {
-        case 'wifi':
-        case 'lan':
-          // สำหรับ Network printer ไม่ต้องทำอะไรเพิ่ม (Socket จะปิดเอง)
-          log('📡 Network printer connection will close automatically');
-          break;
-
-        case 'bluetooth':
-          // สำหรับ Bluetooth printer ควรปิดการเชื่อมต่อ
-          log('📱 Closing Bluetooth connection');
-          // TODO: เพิ่มการปิด Bluetooth connection เมื่อมี library
-          break;
-
-        case 'usb':
-          // สำหรับ USB printer ปิด USB connection
-          log('🔌 Closing USB connection');
-          // TODO: เพิ่มการปิด USB connection เมื่อมี library
-          break;
-
-        default:
-          log('🖨️ Generic printer - no specific disconnect needed');
-          break;
-      }
-
-      log('✅ Printer disconnection completed');
-    } catch (e) {
-      log('❌ Error disconnecting printer: $e');
-      // ไม่ throw error เพราะการปิดการเชื่อมต่อไม่สำคัญมาก
     }
   }
 
@@ -986,10 +695,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('ประเภท: ${printer.type}', style: const TextStyle(fontSize: 14)),
-                  Text('ที่อยู่: ${printer.address}', style: const TextStyle(fontSize: 14)),
-                ],
+                children: [Text('ประเภท: ${printer.type}', style: const TextStyle(fontSize: 14)), Text('ที่อยู่: ${printer.address}', style: const TextStyle(fontSize: 14))],
               ),
             ),
             const SizedBox(height: 12),
@@ -1081,9 +787,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('✅ Print completed successfully');
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จไปยัง ${printer.name} สำเร็จ'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จไปยัง ${printer.name} สำเร็จ'), backgroundColor: Colors.green));
       }
     } catch (e) {
       log('❌ Print failed: $e');
@@ -1144,9 +848,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     // Get.offAllNamed('/settings');
 
     // สำหรับตอนนี้ให้แสดงข้อความแทน
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
   }
 
   Future<void> createOrders({required int paymentMethodId}) async {
@@ -1168,13 +870,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               log('✅ Original order voided successfully');
               // แสดงข้อความแจ้งเตือน
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'), backgroundColor: Colors.green, duration: const Duration(seconds: 2)));
               }
             } else {
               throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus');
@@ -1210,19 +908,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         "date": DateTime.now().toIso8601String(),
         "orderItems":
             widget.cartItems.map((item) {
-              return {
-                "productId": item["id"] ?? 0,
-                "productName": item["name"] ?? 0,
-                "price": item["price"] ?? 0,
-                "quantity": item["qty"] ?? 0,
-                "total": item["price"] * item["qty"] ?? 0,
-              };
+              return {"productId": item["id"] ?? 0, "productName": item["name"] ?? 0, "price": item["price"] ?? 0, "quantity": item["qty"] ?? 0, "total": item["price"] * item["qty"] ?? 0};
             }).toList(),
         "paymentMethodId": paymentMethodId,
         "paid": receivedAmount,
         "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
         "discount": totalDiscountApplied,
-        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${_formatPrice(totalDiscountApplied)}" : "string",
+        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
@@ -1267,10 +959,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                   children: [
                     Icon(Icons.edit, color: Colors.orange, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'กำลังแก้ไขออเดอร์: ${widget.editOrderNumber ?? widget.editOrderId}',
-                      style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
+                    Text('กำลังแก้ไขออเดอร์: ${widget.editOrderNumber ?? widget.editOrderId}', style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
                 ),
               ),
@@ -1282,11 +971,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                   // ✅ ใช้ CartSummaryWidget แทน
                   Expanded(
                     flex: 2,
-                    child: CartSummaryWidget(
-                      cartItems: widget.cartItems,
-                      selectedDiscountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
-                      discountAmount: totalDiscountApplied,
-                    ),
+                    child: CartSummaryWidget(cartItems: widget.cartItems, selectedDiscountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null, discountAmount: totalDiscountApplied),
                   ),
 
                   Expanded(
@@ -1307,7 +992,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('฿${_formatPrice(receivedAmount)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+                                Text('฿${receivedAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
                                 OutlinedButton(
                                   onPressed: () async {
                                     final amount = await showDialog<double>(
@@ -1359,11 +1044,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                       receivedAmount = calculateTotalWithDiscount();
                                     });
                                   },
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: Colors.green),
-                                    backgroundColor: Colors.green[50],
-                                    fixedSize: Size(130, 48),
-                                  ),
+                                  style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.green), backgroundColor: Colors.green[50], fixedSize: Size(130, 48)),
                                   child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                                 ),
                                 // ปุ่มจำนวนเงินต่างๆ
@@ -1379,7 +1060,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                       backgroundColor: Colors.white,
                                       fixedSize: Size(130, 48), // ✅ เพิ่มความกว้างตรงนี้
                                     ),
-                                    child: Text('฿${_formatPrice(amount)}', style: const TextStyle(color: Colors.black)),
+                                    child: Text('฿${amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black)),
                                   ),
                               ],
                             ),
@@ -1423,9 +1104,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
                                               // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
                                               if (!autoSetAmount && receivedAmount < total) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red),
-                                                );
+                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
                                                 return;
                                               }
 
@@ -1438,9 +1117,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             },
                                           );
                                         } else {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(const SnackBar(content: Text('จำนวนที่ชำระไม่พอ'), backgroundColor: Colors.red));
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('จำนวนที่ชำระไม่พอ'), backgroundColor: Colors.red));
                                         }
                                       },
                                       borderRadius: BorderRadius.circular(12),
@@ -1493,9 +1170,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
                                             // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
                                             if (!autoSetAmount && receivedAmount < total) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
                                               return;
                                             }
 
@@ -1558,9 +1233,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
                                             // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
                                             if (!autoSetAmount && receivedAmount < total) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
                                               return;
                                             }
 
@@ -1600,15 +1273,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 if (totalDiscountApplied > 0) ...[
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade100,
-                                      borderRadius: BorderRadius.circular(15),
-                                      border: Border.all(color: Colors.red.shade300, width: 1.5),
-                                    ),
-                                    child: Text(
-                                      'ลดไปแล้ว ฿${_formatPrice(totalDiscountApplied)}',
-                                      style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 13),
-                                    ),
+                                    decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red.shade300, width: 1.5)),
+                                    child: Text('ลดไปแล้ว ฿${totalDiscountApplied.toStringAsFixed(0)}', style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 13)),
                                   ),
                                 ],
                               ],
@@ -1631,7 +1297,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           padding: const EdgeInsets.symmetric(vertical: 12),
                                         ),
-                                        child: Text('ลด ฿${_formatPrice(amount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        child: Text('ลด ฿${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                       ),
                                     ),
                                   ),
@@ -1654,11 +1320,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 icon: Icon(Icons.refresh, color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600, size: 20),
                                 label: Text(
                                   totalDiscountApplied > 0 ? 'เคลียร์ - กลับเป็นราคาเดิม' : 'ไม่มีส่วนลดที่จะเคลียร์',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600,
-                                  ),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600),
                                 ),
                               ),
                             ),
@@ -1694,18 +1356,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(
-                                          isConnected ? Icons.check_circle : Icons.warning,
-                                          color: isConnected ? Colors.green.shade600 : Colors.orange.shade600,
-                                          size: 16,
-                                        ),
+                                        Icon(isConnected ? Icons.check_circle : Icons.warning, color: isConnected ? Colors.green.shade600 : Colors.orange.shade600, size: 16),
                                         const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            connectionStatus,
-                                            style: TextStyle(fontSize: 12, color: isConnected ? Colors.green.shade700 : Colors.orange.shade700),
-                                          ),
-                                        ),
+                                        Expanded(child: Text(connectionStatus, style: TextStyle(fontSize: 12, color: isConnected ? Colors.green.shade700 : Colors.orange.shade700))),
                                       ],
                                     ),
                                   ),
@@ -1731,10 +1384,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             const SizedBox(width: 8),
                                             Text(
                                               'พิมพ์ใบเสร็จ',
-                                              style: TextStyle(
-                                                color: isConnected ? Colors.blue.shade700 : Colors.black,
-                                                fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
-                                              ),
+                                              style: TextStyle(color: isConnected ? Colors.blue.shade700 : Colors.black, fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal),
                                             ),
                                           ],
                                         ),
@@ -1750,10 +1400,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               width: double.infinity,
                               height: 48,
                               child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kTabColor,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
+                                style: ElevatedButton.styleFrom(backgroundColor: kTabColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                                 onPressed: () {
                                   // ✅ เคลียร์ข้อมูลออเดอร์ที่แก้ไขใน HomeController
                                   final homeController = Get.find<HomeController>();

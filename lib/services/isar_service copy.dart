@@ -39,11 +39,6 @@ class IsarService {
   Future<void> loadData() async {
     final data = await getData();
 
-    // ✅ ตรวจสอบว่า data เป็น null หรือไม่
-    if (data == null) {
-      return;
-    }
-
     // ---------- 1) Categories ----------
     final categories = <CategoryLocal>[];
     for (final c in (data['categories'] as List? ?? const [])) {
@@ -115,10 +110,6 @@ class IsarService {
 
     final panelProductsJson = (data['panelProducts'] as List?) ?? const [];
 
-    // ✅ Log เพื่อตรวจสอบข้อมูล
-    print('📊 Panels from API: ${panelsIncoming.length} items');
-    print('📊 PanelProducts from API: ${panelProductsJson.length} items');
-
     // ---------- 4) เข้าธุรกรรมครั้งเดียว ----------
     await _isar!.writeTxn(() async {
       // 4.1) Upsert Categories
@@ -159,18 +150,11 @@ class IsarService {
       final prodsAll = await _isar!.productLocals.where().findAll();
       final productByCode = <String, ProductLocal>{for (final pr in prodsAll) (pr.code ?? '').trim(): pr};
 
-      var savedPanelProductCount = 0;
       for (final pp in panelProductsJson) {
         final prod = pp['product'] as Map<String, dynamic>?;
-        if (prod == null) {
-          print('⚠️ PanelProduct skipped: product is null');
-          continue;
-        }
+        if (prod == null) continue;
         final code = (prod['code'] ?? '').toString().trim();
-        if (code.isEmpty) {
-          print('⚠️ PanelProduct skipped: product code is empty');
-          continue;
-        }
+        if (code.isEmpty) continue;
 
         final product =
             productByCode[code] ?? ProductLocal()
@@ -188,15 +172,9 @@ class IsarService {
         productByCode[code] = product..id = productId;
 
         final pan = pp['panel'] as Map<String, dynamic>?;
-        if (pan == null) {
-          print('⚠️ PanelProduct skipped: panel is null for product code: $code');
-          continue;
-        }
+        if (pan == null) continue;
         final panelName = (pan['name'] ?? '').toString().trim();
-        if (panelName.isEmpty) {
-          print('⚠️ PanelProduct skipped: panel name is empty for product code: $code');
-          continue;
-        }
+        if (panelName.isEmpty) continue;
 
         final panel =
             panelByName[panelName] ??
@@ -231,16 +209,7 @@ class IsarService {
         await _isar!.panelProductLocals.put(panelProduct);
         await panelProduct.panel.save();
         await panelProduct.product.save();
-
-        // ✅ เพิ่ม panelProduct เข้าไปใน panel.panelProducts (two-way relationship)
-        panel.panelProducts.add(panelProduct);
-        await panel.panelProducts.save();
-
-        savedPanelProductCount++;
-        print('✅ Saved PanelProduct: ${panelProduct.uniqueKey} (Panel: $panelName, Product: $code)');
       }
-
-      print('📊 Total PanelProducts saved: $savedPanelProductCount');
     });
   }
 
@@ -280,29 +249,18 @@ class IsarService {
 
   // ใช้สำหรับหน้า POS: ดึงสินค้าตาม Panel เรียง sequence
   Future<List<ProductLocal>> getProductsOfPanel(String panelName) async {
-    print('🔍 Getting products for panel: $panelName');
     final panel = await isar!.panelLocals.filter().nameEqualTo(panelName).findFirst();
-    if (panel == null) {
-      print('⚠️ Panel not found: $panelName');
-      return [];
-    }
-
+    if (panel == null) return [];
     await panel.panelProducts.load();
-    print('📦 Panel "$panelName" has ${panel.panelProducts.length} panelProducts');
 
     final pps = panel.panelProducts.where((pp) => pp.deletedAt == null).toList()..sort((a, b) => a.sequence.compareTo(b.sequence));
-    print('✅ After filtering deletedAt: ${pps.length} panelProducts');
 
     final result = <ProductLocal>[];
     for (final pp in pps) {
       await pp.product.load();
       final p = pp.product.value;
-      if (p != null && p.deletedAt == null) {
-        result.add(p);
-        print('  ✅ Product: ${p.name} (sequence: ${pp.sequence})');
-      }
+      if (p != null && p.deletedAt == null) result.add(p);
     }
-    print('📊 Total products for panel "$panelName": ${result.length}');
     return result;
   }
 
@@ -326,15 +284,23 @@ class IsarService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else if (response.statusCode == 401) {
-        throw Exception('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',
+        // );
       } else if (response.statusCode == 429) {
-        throw Exception('พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง');
+        // return LoginResponse(
+        //   success: false,
+        //   message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง',
+        // );
       } else {
-        throw Exception('เกิดข้อผิดพลาดในการโหลดข้อมูล: ${response.statusCode}');
+        // return LoginResponse(
+        //   success: false,
+        //   message: loginResponse.message ?? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ',
+        // );
       }
     } catch (e) {
-      // ✅ ถ้าเกิด error ให้ return ข้อมูลเปล่าแทน null
-      return {'categories': [], 'products': [], 'panels': [], 'panelProducts': []};
+      // return LoginResponse(success: false, message: _handleError(e));
     }
   }
 }

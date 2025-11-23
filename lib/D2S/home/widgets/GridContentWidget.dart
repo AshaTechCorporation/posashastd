@@ -1,13 +1,9 @@
-import 'dart:developer';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
-import 'package:posashastd/D2S/home/widgets/ProductGrid.dart';
 import 'package:posashastd/local_db/product_local.dart';
-import 'package:posashastd/models/product.dart';
 import 'package:posashastd/utils/color_utils.dart';
 
 class GridContentWidget extends StatelessWidget {
@@ -17,7 +13,14 @@ class GridContentWidget extends StatelessWidget {
   final HomeController homeController;
   final ScrollController? scrollController;
 
-  const GridContentWidget({super.key, required this.width, required this.height, required this.tabController, required this.homeController, this.scrollController});
+  const GridContentWidget({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.tabController,
+    required this.homeController,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +86,12 @@ class GridContentWidget extends StatelessWidget {
           controller: scrollController, // ✅ เพิ่ม ScrollController
           padding: const EdgeInsets.all(8),
           physics: const BouncingScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: (width * 0.7) / 5, mainAxisExtent: (height - 50 - 48 - 34) / 4, crossAxisSpacing: 8, mainAxisSpacing: 8),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: (width * 0.7) / 5,
+            mainAxisExtent: (height - 50 - 48 - 34) / 4,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+          ),
           itemCount: homeController.products.length,
           itemBuilder: (context, index) {
             final product = homeController.products[index];
@@ -104,9 +112,18 @@ class GridContentWidget extends StatelessWidget {
                   padding: const EdgeInsets.all(4),
                   child: Column(
                     children: [
-                      Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+                      Text(
+                        name,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 4),
-                      Text('฿${product.price ?? 0}', style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                      Text(
+                        '฿${product.price ?? 0}',
+                        style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 ),
@@ -122,7 +139,10 @@ class GridContentWidget extends StatelessWidget {
                 _showQuantityDialog(product, homeController);
               },
               child: Container(
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))]),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                ),
                 child: ClipRRect(borderRadius: BorderRadius.circular(6), child: content),
               ),
             );
@@ -134,31 +154,6 @@ class GridContentWidget extends StatelessWidget {
       final panelIndex = tabController.index - 1;
       return GetX<HomeController>(
         builder: (controller) {
-          // ✅ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตสำหรับแท็บพาเนล
-          if (!controller.isConnected.value) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.wifi_off, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text('ไม่มีการเชื่อมต่ออินเทอร์เน็ต', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text('กรุณาตรวจสอบการเชื่อมต่อและลองใหม่', style: TextStyle(fontSize: 14, color: Colors.grey[500])),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      controller.checkConnectivityAndLoadData();
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('ลองใหม่'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                  ),
-                ],
-              ),
-            );
-          }
-
           // ตรวจสอบว่ามีพาเนลในตำแหน่งนี้หรือไม่
           if (panelIndex < 0 || panelIndex >= controller.panels.length) {
             return Center(
@@ -169,31 +164,98 @@ class GridContentWidget extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text('ไม่มีข้อมูลพาเนล', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('พาเนลนี้ยังไม่มีข้อมูล\nหรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                  Text('พาเนลนี้ยังไม่มีข้อมูล', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
                 ],
               ),
             );
           }
 
-          return ProductGrid(
-            itemCount: controller.panels[panelIndex].panelProducts.length ?? 0,
-            panelProduct: controller.panels[panelIndex].panelProducts.toList(),
-            isMainTab: false,
-            width: width,
-            height: height,
-            onTap: (index, product) {
-              // เมื่อกดสินค้าในพาเนล ให้เพิ่มลงตะกร้าเหมือนกับแท็บสินค้าทั้งหมด
-              if (product != null) {
-                log("🛒 Adding product to cart from panel ${panelIndex + 1}: ${product.name}");
-                homeController.addToCart(product);
-              } else {
-                log("📝 Empty slot clicked at index: $index ของพาเนล ${panelIndex + 1}");
-                // TODO: เพิ่มฟังก์ชันเลือกสินค้าเพื่อเพิ่มลงพาเนล
-              }
-            },
-            onLongPress: (index) {
-              log("🔧 Long press at index: $index ของพาเนล ${panelIndex + 1}");
-              // TODO: เพิ่มฟังก์ชันแก้ไขหรือลบสินค้าจากพาเนล
+          final panel = controller.panels[panelIndex];
+          final panelName = panel.name ?? '';
+          final products = controller.panelProductsMap[panelName] ?? [];
+
+          // ✅ ตรวจสอบว่ามีสินค้าในพาเนลหรือไม่
+          if (products.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('ไม่มีสินค้าในพาเนล', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('พาเนล "$panelName" ยังไม่มีสินค้า', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                ],
+              ),
+            );
+          }
+
+          // ✅ แสดงสินค้าในพาเนล
+          return GridView.builder(
+            key: ValueKey("grid_panel_$panelName"),
+            controller: scrollController,
+            padding: const EdgeInsets.all(8),
+            physics: const BouncingScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: (width * 0.7) / 5,
+              mainAxisExtent: (height - 50 - 48 - 34) / 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              final String name = product.name ?? 'ไม่ระบุชื่อ';
+              final String? showType = product.showType;
+              final String? colorHex = product.color;
+              final String? imageUrl = product.imageUrl;
+
+              // สร้างส่วนแสดงผลสินค้าตาม showType
+              final Widget productVisual = _buildProductVisual(showType, colorHex, imageUrl);
+
+              final content = Column(
+                children: [
+                  Expanded(child: productVisual),
+                  Container(
+                    decoration: const BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.vertical(bottom: Radius.circular(6))),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '฿${product.price ?? 0}',
+                          style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              return GestureDetector(
+                onTap: () {
+                  homeController.addToCart(product);
+                },
+                onLongPress: () {
+                  // ✅ แสดง dialog สำหรับใส่จำนวนสินค้า
+                  _showQuantityDialog(product, homeController);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                  ),
+                  child: ClipRRect(borderRadius: BorderRadius.circular(6), child: content),
+                ),
+              );
             },
           );
         },
@@ -204,7 +266,10 @@ class GridContentWidget extends StatelessWidget {
   // ✅ สร้างส่วนแสดงผลสินค้าตาม showType
   Widget _buildProductVisual(String? showType, String? colorHex, String? imageUrl) {
     if (showType == 'color' && colorHex != null) {
-      return Container(width: double.infinity, decoration: BoxDecoration(color: hexToColor(colorHex), borderRadius: const BorderRadius.vertical(top: Radius.circular(6))));
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(color: hexToColor(colorHex), borderRadius: const BorderRadius.vertical(top: Radius.circular(6))),
+      );
     } else if (showType == 'image' && imageUrl != null) {
       return ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
@@ -212,8 +277,12 @@ class GridContentWidget extends StatelessWidget {
           imageUrl: imageUrl,
           width: double.infinity,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.image_outlined, size: 40, color: Colors.grey))),
-          errorWidget: (context, url, error) => Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey))),
+          placeholder:
+              (context, url) =>
+                  Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.image_outlined, size: 40, color: Colors.grey))),
+          errorWidget:
+              (context, url, error) =>
+                  Container(color: Colors.grey[300], child: const Center(child: Icon(Icons.broken_image_outlined, size: 40, color: Colors.grey))),
           memCacheWidth: 300, // ✅ จำกัดขนาด cache ใน memory
           memCacheHeight: 300, // ✅ จำกัดขนาด cache ใน memory
           maxWidthDiskCache: 600, // ✅ จำกัดขนาด cache ใน disk
@@ -251,7 +320,11 @@ class GridContentWidget extends StatelessWidget {
               controller: quantityController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(border: OutlineInputBorder(), hintText: 'ใส่จำนวน', contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'ใส่จำนวน',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
               autofocus: true,
               onTap: () {
                 // เลือกข้อความทั้งหมดเมื่อกดที่ TextField
@@ -273,7 +346,13 @@ class GridContentWidget extends StatelessWidget {
                 Get.back();
 
                 // แสดงข้อความยืนยัน
-                Get.snackbar('เพิ่มสินค้าสำเร็จ', 'เพิ่ม ${product.name} จำนวน $finalQuantity ชิ้น', backgroundColor: Colors.green, colorText: Colors.white, duration: Duration(seconds: 2));
+                Get.snackbar(
+                  'เพิ่มสินค้าสำเร็จ',
+                  'เพิ่ม ${product.name} จำนวน $finalQuantity ชิ้น',
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white,
+                  duration: Duration(seconds: 2),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),

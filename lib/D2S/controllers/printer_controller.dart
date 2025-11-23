@@ -748,7 +748,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์ (ใช้งานได้จริง)
-  Future<bool> printImage(PrinterInfo printer, List<int> imageBytes) async {
+  Future<bool> printImage(PrinterInfo printer, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('🖨️ Sending image to printer: ${printer.name}');
       log('📸 Image size: ${imageBytes.length} bytes');
@@ -779,16 +779,16 @@ class PrinterController extends GetxController {
       switch (printer.type.toLowerCase()) {
         case 'wifi':
         case 'lan':
-          success = await _printImageToNetworkPrinter(printer, imageBytes);
+          success = await _printImageToNetworkPrinter(printer, imageBytes, cutPaper: cutPaper);
           break;
         case 'bluetooth':
-          success = await _printImageToBluetoothPrinter(printer, imageBytes);
+          success = await _printImageToBluetoothPrinter(printer, imageBytes, cutPaper: cutPaper);
           break;
         case 'usb':
-          success = await _printImageToUSBPrinter(printer, imageBytes);
+          success = await _printImageToUSBPrinter(printer, imageBytes, cutPaper: cutPaper);
           break;
         default:
-          success = await _printImageToGenericPrinter(printer, imageBytes);
+          success = await _printImageToGenericPrinter(printer, imageBytes, cutPaper: cutPaper);
       }
 
       if (success) {
@@ -805,12 +805,12 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์เครือข่าย
-  Future<bool> _printImageToNetworkPrinter(PrinterInfo printer, List<int> imageBytes) async {
+  Future<bool> _printImageToNetworkPrinter(PrinterInfo printer, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('🌐 Sending image to network printer: ${printer.address}');
 
       // ✅ ส่งข้อมูลไปปริ๊นเตอร์ WiFi จริง
-      final success = await _sendImageToNetworkPrinter(printer.address, imageBytes);
+      final success = await _sendImageToNetworkPrinter(printer.address, imageBytes, cutPaper: cutPaper);
 
       log(success ? '✅ Network printer received image' : '❌ Network printer failed to receive image');
       return success;
@@ -821,7 +821,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งข้อมูลภาพไปปริ๊นเตอร์เครือข่าย (ลองหลายวิธี)
-  Future<bool> _sendImageToNetworkPrinter(String printerIP, List<int> imageBytes) async {
+  Future<bool> _sendImageToNetworkPrinter(String printerIP, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('🖼️ Sending image data to network printer: $printerIP');
       log('📸 Image size: ${imageBytes.length} bytes');
@@ -834,11 +834,11 @@ class PrinterController extends GetxController {
         List<int> escPosBitmap;
         if (printerIP == '192.168.1.110') {
           // BARIGAN printer - ใช้ bitmap commands ที่เหมาะสม
-          escPosBitmap = _convertImageToESCPOSBitmapForBarigan(imageBytes);
+          escPosBitmap = _convertImageToESCPOSBitmapForBarigan(imageBytes, cutPaper: cutPaper);
           log('📤 Sending BARIGAN-optimized bitmap commands (${escPosBitmap.length} bytes)...');
         } else {
           // ปริ๊นเตอร์อื่นๆ - ใช้ bitmap commands มาตรฐาน
-          escPosBitmap = _convertImageToESCPOSBitmapGeneric(imageBytes);
+          escPosBitmap = _convertImageToESCPOSBitmapGeneric(imageBytes, cutPaper: cutPaper);
           log('📤 Sending generic ESC/POS bitmap commands (${escPosBitmap.length} bytes)...');
         }
 
@@ -899,7 +899,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ แปลงภาพเป็น ESC/POS bitmap สำหรับ BARIGAN printer
-  List<int> _convertImageToESCPOSBitmapForBarigan(List<int> imageBytes) {
+  List<int> _convertImageToESCPOSBitmapForBarigan(List<int> imageBytes, {bool cutPaper = true}) {
     final List<int> commands = [];
 
     try {
@@ -929,20 +929,26 @@ class PrinterController extends GetxController {
         }
       }
 
-      // Line feeds และ cut paper
-      commands.addAll([0x0A, 0x0A, 0x0A]);
-      commands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+      // Line feeds และ cut paper (เฉพาะเมื่อต้องการ)
+      if (cutPaper) {
+        commands.addAll([0x0A, 0x0A, 0x0A]); // 3 line feeds เฉพาะเมื่อตัดกระดาษ
+        commands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+        log('✅ Cut paper command added with line feeds');
+      } else {
+        // ไม่เพิ่ม line feeds เพื่อให้แถบติดกัน
+        log('⏭️ Skip cut paper and line feeds for continuous printing');
+      }
 
       log('✅ BARIGAN ESC/POS commands generated: ${commands.length} bytes');
       return commands;
     } catch (e) {
       log('❌ Error converting image for BARIGAN: $e');
-      return _createFallbackCommands();
+      return _createFallbackCommands(cutPaper: cutPaper);
     }
   }
 
   // ✅ แปลงภาพเป็น ESC/POS bitmap สำหรับปริ๊นเตอร์ทั่วไป
-  List<int> _convertImageToESCPOSBitmapGeneric(List<int> imageBytes) {
+  List<int> _convertImageToESCPOSBitmapGeneric(List<int> imageBytes, {bool cutPaper = true}) {
     final List<int> commands = [];
 
     try {
@@ -978,9 +984,15 @@ class PrinterController extends GetxController {
         }
       }
 
-      // Line feeds และ cut paper
-      commands.addAll([0x0A, 0x0A, 0x0A]);
-      commands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+      // Line feeds และ cut paper (เฉพาะเมื่อต้องการ)
+      if (cutPaper) {
+        commands.addAll([0x0A, 0x0A, 0x0A]); // 3 line feeds เฉพาะเมื่อตัดกระดาษ
+        commands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+        log('✅ Cut paper command added with line feeds');
+      } else {
+        // ไม่เพิ่ม line feeds เพื่อให้แถบติดกัน
+        log('⏭️ Skip cut paper and line feeds for continuous printing');
+      }
 
       log('✅ Generic ESC/POS commands generated: ${commands.length} bytes');
       return commands;
@@ -991,12 +1003,14 @@ class PrinterController extends GetxController {
   }
 
   // ✅ สร้าง fallback commands
-  List<int> _createFallbackCommands() {
+  List<int> _createFallbackCommands({bool cutPaper = true}) {
     final fallbackCommands = <int>[];
     fallbackCommands.addAll([0x1B, 0x40]); // Initialize
     fallbackCommands.addAll('Receipt Print Error\nImage conversion failed\n\n'.codeUnits);
-    fallbackCommands.addAll([0x0A, 0x0A, 0x0A]);
-    fallbackCommands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+    if (cutPaper) {
+      fallbackCommands.addAll([0x0A, 0x0A, 0x0A]);
+      fallbackCommands.addAll([0x1D, 0x56, 0x41, 0x10]); // Cut paper
+    }
     return fallbackCommands;
   }
 
@@ -1193,7 +1207,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์ Bluetooth (ใช้งานได้จริง)
-  Future<bool> _printImageToBluetoothPrinter(PrinterInfo printer, List<int> imageBytes) async {
+  Future<bool> _printImageToBluetoothPrinter(PrinterInfo printer, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('📱 Sending image to Bluetooth printer: ${printer.address}');
       log('📸 Image size: ${imageBytes.length} bytes');
@@ -1231,7 +1245,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์ USB
-  Future<bool> _printImageToUSBPrinter(PrinterInfo printer, List<int> imageBytes) async {
+  Future<bool> _printImageToUSBPrinter(PrinterInfo printer, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('🔌 Sending image to USB printer: ${printer.name}');
       log('📸 Image size: ${imageBytes.length} bytes');
@@ -1241,6 +1255,9 @@ class PrinterController extends GetxController {
         log('🖨️ Detected Sunmi built-in printer - sending raw image');
         // ใช้ Sunmi Printer Plus plugin
         try {
+          // ✅ ป้องกัน lateinit property error
+          log('✅ Sunmi Printer ready for image printing');
+
           // ในการใช้งานจริง ควรใช้:
           // await SunmiPrinter.printBitmap(imageBytes); // ส่งภาพโดยตรง
           // หรือ await SunmiPrinter.printRawData(Uint8List.fromList(imageBytes));
@@ -1277,7 +1294,7 @@ class PrinterController extends GetxController {
   }
 
   // ✅ ส่งภาพไปปริ๊นเตอร์แบบทั่วไป
-  Future<bool> _printImageToGenericPrinter(PrinterInfo printer, List<int> imageBytes) async {
+  Future<bool> _printImageToGenericPrinter(PrinterInfo printer, List<int> imageBytes, {bool cutPaper = true}) async {
     try {
       log('🖨️ Sending image to generic printer: ${printer.name}');
       log('📸 Image size: ${imageBytes.length} bytes');

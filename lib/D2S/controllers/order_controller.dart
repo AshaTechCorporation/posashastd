@@ -44,12 +44,13 @@ class OrderController extends GetxController {
       log('✅ Orders fetched successfully');
     } catch (e) {
       log('❌ Error fetching orders: $e');
-      Get.snackbar(
-        'ข้อผิดพลาด',
-        'ไม่สามารถดึงข้อมูลออเดอร์ได้: ${e.toString()}',
-        backgroundColor: Get.theme.colorScheme.error,
-        colorText: Get.theme.colorScheme.onError,
-      );
+      // ✅ ไม่แสดง Snackbar เมื่อไม่มีเน็ต
+      // Get.snackbar(
+      //   'ข้อผิดพลาด',
+      //   'ไม่สามารถดึงข้อมูลออเดอร์ได้: ${e.toString()}',
+      //   backgroundColor: Get.theme.colorScheme.error,
+      //   colorText: Get.theme.colorScheme.onError,
+      // );
     } finally {
       isLoading.value = false;
       log('🏁 Fetch orders completed');
