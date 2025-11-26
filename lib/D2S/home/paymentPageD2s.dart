@@ -1149,7 +1149,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     ).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
   }
 
-  Future<void> createOrders({required int paymentMethodId}) async {
+  Future<void> createOrdersOffline({required int paymentMethodId}) async {
     try {
       final total = calculateTotalWithDiscount();
 
@@ -1240,6 +1240,95 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // handle error
       log('❌ Error creating order: $e');
       Get.snackbar('ข้อผิดพลาด', e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
+  Future<void> createOrders({required int paymentMethodId}) async {
+    try {
+      final total = calculateTotalWithDiscount();
+
+      // ✅ ตรวจสอบและ void ออเดอร์เดิมก่อน (ถ้าเป็นโหมดแก้ไข)
+      if (widget.editOrderId != null) {
+        log('🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}');
+
+        try {
+          final voidResult = await Homeservice.voidOrder(orderId: widget.editOrderId!);
+          log('📋 Void order result: $voidResult');
+
+          if (voidResult != null && voidResult is Map<String, dynamic>) {
+            final orderStatus = voidResult['orderStatus'] as String?;
+
+            if (orderStatus == 'void') {
+              log('✅ Original order voided successfully');
+              // แสดงข้อความแจ้งเตือน
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            } else {
+              throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus');
+            }
+          } else {
+            throw Exception('ไม่ได้รับข้อมูลการยกเลิกออเดอร์');
+          }
+        } catch (e) {
+          log('❌ Error voiding original order: $e');
+          throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้: $e');
+        }
+      }
+
+      // ✅ โหลดข้อมูล device ก่อนเพื่อให้แน่ใจว่ามี deviceId
+      await homeController.loadDeviceInfo();
+
+      // ✅ ใช้ device internal ID ที่บันทึกไว้แทนเลข 1
+      final currentDeviceInternalId = homeController.getCurrentDeviceInternalId();
+      final deviceIdToUse = currentDeviceInternalId ?? 1; // ใช้ 1 เป็น fallback
+
+      print('📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}');
+      print('📱 Current device internal ID: $currentDeviceInternalId');
+      print('📱 Using device ID for order: $deviceIdToUse');
+
+      final formattedOrder = {
+        "deviceId": deviceIdToUse,
+        "shiftId": homeController.currentShiftId.value,
+        "branchId": 1,
+        "total": total,
+        "memberId": null,
+        "date": DateTime.now().toIso8601String(),
+        "orderItems":
+            widget.cartItems.map((item) {
+              return {
+                "productId": item["id"] ?? 0,
+                "price": item["price"] ?? 0,
+                "quantity": item["qty"] ?? 0,
+                "total": item["price"] * item["qty"] ?? 0,
+              };
+            }).toList(),
+        "paymentMethodId": paymentMethodId,
+        "paid": receivedAmount,
+        "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
+        "discount": totalDiscountApplied,
+        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
+      };
+
+      print("📦 JSON ที่จะส่ง: $formattedOrder");
+      final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      if (!mounted) return;
+
+      // ✅ เก็บเลขที่ใบเสร็จจาก response
+      if (order != null && order['id'] != null) {
+        orderReceiptNumber = order['orderNo'].toString();
+        log('✅ Order created with receipt number: $orderReceiptNumber');
+      }
+
+      setState(() {});
+    } catch (e) {
+      // handle error
     }
   }
 
@@ -1434,7 +1523,14 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                                 isPaid = true;
                                               });
 
-                                              await createOrders(paymentMethodId: paymentMethodId);
+                                              // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
+                                              if (homeController.isConnected.value) {
+                                                log('🌐 Internet connected - calling createOrders (online)');
+                                                await createOrders(paymentMethodId: paymentMethodId);
+                                              } else {
+                                                log('📴 No internet - calling createOrdersOffline');
+                                                await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                              }
                                             },
                                           );
                                         } else {
@@ -1504,7 +1600,15 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               isPaid = true;
                                             });
 
-                                            await createOrders(paymentMethodId: paymentMethodId);
+                                            //await createOrders(paymentMethodId: paymentMethodId);
+                                            // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
+                                            if (homeController.isConnected.value) {
+                                              log('🌐 Internet connected - calling createOrders (online)');
+                                              await createOrders(paymentMethodId: paymentMethodId);
+                                            } else {
+                                              log('📴 No internet - calling createOrdersOffline');
+                                              await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                            }
                                           },
                                         );
                                       },
@@ -1569,7 +1673,15 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               isPaid = true;
                                             });
 
-                                            await createOrders(paymentMethodId: paymentMethodId);
+                                            //await createOrders(paymentMethodId: paymentMethodId);
+                                            // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
+                                            if (homeController.isConnected.value) {
+                                              log('🌐 Internet connected - calling createOrders (online)');
+                                              await createOrders(paymentMethodId: paymentMethodId);
+                                            } else {
+                                              log('📴 No internet - calling createOrdersOffline');
+                                              await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                            }
                                           },
                                         );
                                       },

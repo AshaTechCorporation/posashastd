@@ -140,8 +140,15 @@ class IsarService {
         await p.category.save();
       }
 
-      // 4.3) Upsert Panels (by name)
+      // 4.3) Clear Panels และ PanelProducts ก่อน แล้วค่อย Insert ใหม่
+      print('🗑️ Clearing existing Panels and PanelProducts...');
+      await _isar!.panelProductLocals.clear();
+      await _isar!.panelLocals.clear();
+      print('✅ Cleared Panels and PanelProducts');
+
+      // Insert Panels ใหม่ทั้งหมด
       await _isar!.panelLocals.putAll(panelsIncoming);
+      print('✅ Inserted ${panelsIncoming.length} new Panels');
 
       // โหลดแผนที่ panel ตามชื่อ (สมมติ name เป็น unique)
       final allPanels = await _isar!.panelLocals.where().findAll();
