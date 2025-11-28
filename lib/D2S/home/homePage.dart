@@ -10,6 +10,7 @@ import 'package:posashastd/D2S/home/widgets/ShiftClosedWidget.dart';
 import 'package:posashastd/constants.dart';
 import 'package:posashastd/local_db/category_local.dart';
 import 'package:posashastd/services/homeService.dart';
+import 'package:posashastd/services/isar_service.dart';
 import 'package:uuid/uuid.dart';
 
 import '../controllers/home_controller.dart';
@@ -147,6 +148,75 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       log('❌ Error reloading data: $e');
       // ✅ ไม่แสดง Snackbar error เมื่อไม่มีเน็ต
       // Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถรีโหลดข้อมูลได้: $e', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 3));
+    }
+  }
+
+  // ✅ ฟังก์ชันซิ้งข้อมูล (เรียก IsarService.loadData โดยตรง)
+  Future<void> _syncData() async {
+    try {
+      // แสดง loading dialog
+      Get.dialog(
+        const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังซิ้งข้อมูล...')],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      log('🔄 Starting data sync...');
+
+      // ✅ เรียก IsarService.loadData() โดยตรง (จะ clear Panels และ PanelProducts แล้ว insert ใหม่)
+      final isarService = IsarService();
+      await isarService.loadData();
+      log('✅ IsarService.loadData() completed');
+
+      // ✅ รีเซ็ตข้อมูลในตะกร้า
+      homeController.cartItems.clear();
+
+      // ✅ โหลดข้อมูลใหม่จาก Isar database เข้า HomeController
+      homeController.fetchProducts();
+      log('✅ Products reloaded from database');
+
+      await homeController.getlistCategory();
+      log('✅ Categories reloaded from database');
+
+      // โหลดข้อมูลส่วนลด
+      await orderController.checkDiscount();
+      log('✅ Discount data reloaded');
+
+      // อัพเดทแท็บ
+      _updateTabsFromPanels();
+
+      // ปิด loading dialog
+      Get.back();
+
+      // แสดงข้อความสำเร็จ
+      Get.snackbar(
+        'ซิ้งข้อมูลสำเร็จ',
+        'ข้อมูลได้รับการอัพเดทจาก API แล้ว',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      // ปิด loading dialog
+      Get.back();
+
+      log('❌ Error syncing data: $e');
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถซิ้งข้อมูลได้: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
     }
   }
 
@@ -578,6 +648,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 }),
 
                                 const Spacer(), // ✅ ดันให้ปุ่มค้นหาชิดขวาสุด
+                                // ✅ ปุ่มซิ้งข้อมูล (แสดงเฉพาะเมื่อเปิดกะแล้ว และมีอินเทอร์เน็ต)
+                                Obx(
+                                  () =>
+                                      homeController.isShiftOpen.value && homeController.isConnected.value
+                                          ? Container(
+                                            margin: const EdgeInsets.only(right: 8),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () async {
+                                                await _syncData();
+                                              },
+                                              icon: const Icon(Icons.sync, size: 18),
+                                              label: const Text('ซิ้งข้อมูล'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                              ),
+                                            ),
+                                          )
+                                          : const SizedBox.shrink(),
+                                ),
+
                                 // ✅ ปุ่มรีโหลดข้อมูล (แสดงเฉพาะเมื่อเปิดกะแล้ว)
                                 Obx(
                                   () =>

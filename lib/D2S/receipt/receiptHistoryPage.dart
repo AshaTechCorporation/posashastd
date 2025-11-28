@@ -32,6 +32,9 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   late SharedPreferences prefs;
   OrderLocal? order;
 
+  // ✅ เพิ่มตัวแปรสำหรับเก็บวันที่ที่เลือก
+  Rx<DateTime> selectedDate = DateTime.now().obs;
+
   @override
   void initState() {
     super.initState();
@@ -466,25 +469,69 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   Widget _buildReceiptList(OrderController orderController) {
     return Column(
       children: [
+        // ✅ ช่องค้นหาและเลือกวันที่
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          child: SizedBox(
-            height: 40,
-            child: Row(
-              children: [
-                const Icon(Icons.search, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
-                    style: const TextStyle(fontSize: 16),
-                    onChanged: (value) {
-                      orderController.searchQuery.value = value;
+          child: Column(
+            children: [
+              // ช่องค้นหา
+              SizedBox(
+                height: 40,
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        decoration: const InputDecoration(hintText: 'ค้นหา...', border: InputBorder.none, isCollapsed: true),
+                        style: const TextStyle(fontSize: 16),
+                        onChanged: (value) {
+                          orderController.searchQuery.value = value;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // ✅ ช่องเลือกวันที่
+              Obx(
+                () => Container(
+                  height: 40,
+                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                  child: InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate.value,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null && picked != selectedDate.value) {
+                        selectedDate.value = picked;
+                        // ✅ เรียก API ใหม่เมื่อเลือกวันที่
+                        if (isConnected.value) {
+                          log('📅 Date changed to: ${DateFormat('yyyy-MM-dd').format(picked)}');
+                          await orderController.fetchOrders(selectedDate: picked);
+                        }
+                      }
                     },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
+                          const SizedBox(width: 8),
+                          Text(DateFormat('dd/MM/yyyy').format(selectedDate.value), style: const TextStyle(fontSize: 16)),
+                          const Spacer(),
+                          const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const Divider(thickness: 2),

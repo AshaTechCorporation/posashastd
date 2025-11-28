@@ -18,12 +18,12 @@ class OrderController extends GetxController {
   }
 
   // ดึงข้อมูล orders จาก API
-  Future<void> fetchOrders() async {
+  Future<void> fetchOrders({DateTime? selectedDate}) async {
     try {
       log('🔄 Starting to fetch orders...');
       isLoading.value = true;
 
-      final rawData = await OrderService.getOrders();
+      final rawData = await OrderService.getOrders(selectedDate: selectedDate);
       log('📦 Raw data received: ${rawData.toString()}');
 
       // แปลงข้อมูลเป็น List<Order>
