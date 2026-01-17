@@ -171,7 +171,24 @@ class GridContentWidget extends StatelessWidget {
           }
 
           final panel = controller.panels[panelIndex];
-          final panelName = panel.name ?? '';
+
+          // ✅ ตรวจสอบว่า panel.name ไม่เป็น null และไม่เป็น empty string
+          if (panel.name == null || panel.name!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 60, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('ข้อมูลพาเนลไม่ถูกต้อง', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('พาเนลนี้ไม่มีชื่อ', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+                ],
+              ),
+            );
+          }
+
+          final panelName = panel.name!;
           final products = controller.panelProductsMap[panelName] ?? [];
 
           // ✅ ตรวจสอบว่ามีสินค้าในพาเนลหรือไม่

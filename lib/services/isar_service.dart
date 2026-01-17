@@ -121,11 +121,22 @@ class IsarService {
 
     // ---------- 4) เข้าธุรกรรมครั้งเดียว ----------
     await _isar!.writeTxn(() async {
-      // 4.1) Upsert Categories
+      // ✅ 4.0) ลบข้อมูลทั้งหมดก่อน (Clear All Data)
+      print('🗑️ Clearing all existing data from database...');
+      await _isar!.panelProductLocals.clear();
+      await _isar!.panelLocals.clear();
+      await _isar!.productLocals.clear();
+      await _isar!.categoryLocals.clear();
+      print('✅ Cleared all data: Categories, Products, Panels, PanelProducts');
+
+      // 4.1) Insert Categories ใหม่
+      print('📥 Inserting ${categories.length} new Categories...');
       await _isar!.categoryLocals.putAll(categories);
       final categoryById = {for (final c in categories) c.id: c};
+      print('✅ Inserted ${categories.length} Categories');
 
-      // 4.2) Upsert Products + set category link
+      // 4.2) Insert Products ใหม่ + set category link
+      print('📥 Inserting ${products.length} new Products...');
       await _isar!.productLocals.putAll(products);
       for (var i = 0; i < products.length; i++) {
         final catId = productCategoryIds[i];
@@ -139,14 +150,12 @@ class IsarService {
       for (final p in products) {
         await p.category.save();
       }
+      print('✅ Inserted ${products.length} Products');
 
-      // 4.3) Clear Panels และ PanelProducts ก่อน แล้วค่อย Insert ใหม่
-      print('🗑️ Clearing existing Panels and PanelProducts...');
-      await _isar!.panelProductLocals.clear();
-      await _isar!.panelLocals.clear();
-      print('✅ Cleared Panels and PanelProducts');
+      // 4.3) Insert Panels ใหม่
 
       // Insert Panels ใหม่ทั้งหมด
+      print('📥 Inserting ${panelsIncoming.length} new Panels...');
       await _isar!.panelLocals.putAll(panelsIncoming);
       print('✅ Inserted ${panelsIncoming.length} new Panels');
 
