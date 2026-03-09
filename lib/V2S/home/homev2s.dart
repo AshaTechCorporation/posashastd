@@ -11,6 +11,7 @@ import 'package:posashastd/utils/color_utils.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/V2S/home/widgets/ShiftClosedWidgetv2s.dart';
+import 'package:posashastd/services/isar_service.dart';
 
 class Homev2s extends StatefulWidget {
   const Homev2s({super.key});
@@ -53,13 +54,27 @@ class _Homev2sState extends State<Homev2s> {
 
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
+      log('📂 Categories loaded: ${homeController.categories.length} categories');
+      log('📦 Products loaded: ${homeController.products.length} products');
+      log('🎨 Panels loaded: ${homeController.panels.length} panels');
 
       // เรียก checkDiscount เพื่อดึงข้อมูลส่วนลด
       log('🎯 Loading discount data...');
       await orderController.checkDiscount();
       log('✅ Discount data loaded: ${orderController.discounts.length} discounts');
 
-      // ข้อมูลจะถูกโหลดผ่าน homeController แล้ว
+      // ✅ ถ้าไม่มีข้อมูล แสดงข้อความแนะนำให้ซิ้ง
+      if (homeController.categories.isEmpty || homeController.products.isEmpty) {
+        log('⚠️ No data found in database - user should sync data');
+        Get.snackbar(
+          'ไม่พบข้อมูล',
+          'กรุณากดปุ่ม Sync (ไอคอนวงกลม) เพื่อดึงข้อมูลจากเซิร์ฟเวอร์',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+          icon: const Icon(Icons.sync, color: Colors.white),
+        );
+      }
     });
   }
 
@@ -112,7 +127,11 @@ class _Homev2sState extends State<Homev2s> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(controller: remarkController, decoration: const InputDecoration(labelText: 'หมายเหตุ', hintText: 'ใส่หมายเหตุ (ถ้ามี)', border: OutlineInputBorder()), maxLines: 2),
+                TextFormField(
+                  controller: remarkController,
+                  decoration: const InputDecoration(labelText: 'หมายเหตุ', hintText: 'ใส่หมายเหตุ (ถ้ามี)', border: OutlineInputBorder()),
+                  maxLines: 2,
+                ),
               ],
             ),
           ),
@@ -131,12 +150,30 @@ class _Homev2sState extends State<Homev2s> {
                     final success = await homeController.openShift(change: change, cash: cash, remark: remark);
 
                     if (success) {
-                      Get.snackbar('สำเร็จ', 'เปิดกะเรียบร้อยแล้ว', backgroundColor: kTabColor, colorText: Colors.white, duration: const Duration(seconds: 3));
+                      Get.snackbar(
+                        'สำเร็จ',
+                        'เปิดกะเรียบร้อยแล้ว',
+                        backgroundColor: kTabColor,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 3),
+                      );
                     } else {
-                      Get.snackbar('ไม่สำเร็จ', 'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 4));
+                      Get.snackbar(
+                        'ไม่สำเร็จ',
+                        'ไม่สามารถเปิดกะได้ กรุณาลองใหม่อีกครั้ง',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                        duration: const Duration(seconds: 4),
+                      );
                     }
                   } catch (e) {
-                    Get.snackbar('เกิดข้อผิดพลาด', 'ไม่สามารถเปิดกะได้: ${e.toString()}', backgroundColor: Colors.red, colorText: Colors.white, duration: const Duration(seconds: 5));
+                    Get.snackbar(
+                      'เกิดข้อผิดพลาด',
+                      'ไม่สามารถเปิดกะได้: ${e.toString()}',
+                      backgroundColor: Colors.red,
+                      colorText: Colors.white,
+                      duration: const Duration(seconds: 5),
+                    );
                     log('❌ Error opening shift: $e');
                   }
                 }
@@ -193,7 +230,13 @@ class _Homev2sState extends State<Homev2s> {
                 Get.back();
 
                 // แสดงข้อความยืนยัน
-                Get.snackbar('เพิ่มสินค้าสำเร็จ', 'เพิ่ม ${product['name']} จำนวน $finalQuantity ชิ้น', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 2));
+                Get.snackbar(
+                  'เพิ่มสินค้าสำเร็จ',
+                  'เพิ่ม ${product['name']} จำนวน $finalQuantity ชิ้น',
+                  backgroundColor: Colors.green,
+                  colorText: Colors.white,
+                  duration: const Duration(seconds: 2),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
@@ -202,6 +245,72 @@ class _Homev2sState extends State<Homev2s> {
         ],
       ),
     );
+  }
+
+  // ✅ ฟังก์ชันซิ้งข้อมูล
+  Future<void> _syncData() async {
+    try {
+      // แสดง loading dialog
+      Get.dialog(
+        const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังซิ้งข้อมูล...')],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      log('🔄 Starting data sync...');
+
+      // ✅ เรียก IsarService.loadData() โดยตรง
+      final isarService = IsarService();
+      await isarService.loadData();
+      log('✅ IsarService.loadData() completed');
+
+      // ✅ รีเซ็ตข้อมูลในตะกร้า
+      homeController.cartItems.clear();
+
+      // ✅ โหลดข้อมูลใหม่จาก Isar database
+      homeController.fetchProducts();
+      log('✅ Products reloaded from database');
+
+      await homeController.getlistCategory();
+      log('✅ Categories reloaded from database');
+
+      // โหลดข้อมูลส่วนลด
+      await orderController.checkDiscount();
+      log('✅ Discount data reloaded');
+
+      // ปิด loading dialog
+      Get.back();
+
+      // แสดงข้อความสำเร็จ
+      Get.snackbar(
+        'ซิ้งข้อมูลสำเร็จ',
+        'ข้อมูลได้รับการอัพเดทแล้ว',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      // ปิด loading dialog
+      Get.back();
+
+      log('❌ Error syncing data: $e');
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถซิ้งข้อมูลได้: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   double getTotalAmount() {
@@ -272,6 +381,14 @@ class _Homev2sState extends State<Homev2s> {
 
                   const Spacer(),
 
+                  // ✅ ปุ่มซิ้งข้อมูล (แสดงเฉพาะเมื่อกะเปิดและมีเน็ต)
+                  Obx(() {
+                    if (homeController.isShiftOpen.value && homeController.isConnected.value) {
+                      return IconButton(onPressed: _syncData, icon: const Icon(Icons.sync, color: Colors.white), tooltip: 'ซิ้งข้อมูล');
+                    }
+                    return const SizedBox.shrink();
+                  }),
+
                   // 👤 ไอคอนรูปคน
                   // IconButton(
                   //   onPressed: () {
@@ -318,6 +435,14 @@ class _Homev2sState extends State<Homev2s> {
                       ),
                       padding: const EdgeInsets.only(bottom: 4), // ระยะห่างจากข้อความถึงเส้น
                       child: Obx(() {
+                        // ✅ Log จำนวน categories
+                        log('📂 Categories count: ${homeController.categories.length}');
+
+                        // ✅ ถ้าไม่มี categories แสดงข้อความ
+                        if (homeController.categories.isEmpty) {
+                          return const Text('ไม่มีหมวดหมู่ - กรุณาซิ้งข้อมูล', style: TextStyle(fontSize: 14, color: Colors.grey));
+                        }
+
                         return DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             isExpanded: true,
@@ -329,7 +454,9 @@ class _Homev2sState extends State<Homev2s> {
                                 final selectedCategory = homeController.categories.firstWhere((cat) => cat.code == value);
                                 final int categoryId = selectedCategory.id;
                                 // เรียก API สินค้า โดยใช้ branchId = 0
+                                log('🔄 Loading products for category: ${selectedCategory.name} (ID: $categoryId)');
                                 await homeController.getProductByCategory(categoryId: categoryId, branchId: 0);
+                                log('✅ Products loaded: ${homeController.products.length} items');
                               }
                             },
 
@@ -337,7 +464,10 @@ class _Homev2sState extends State<Homev2s> {
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'IBMPlexSansThai'),
                             items:
                                 homeController.categories.map((category) {
-                                  return DropdownMenuItem<String>(value: category.code, child: Text(category.name ?? '', style: const TextStyle(fontFamily: 'IBMPlexSansThai')));
+                                  return DropdownMenuItem<String>(
+                                    value: category.code,
+                                    child: Text(category.name ?? '', style: const TextStyle(fontFamily: 'IBMPlexSansThai')),
+                                  );
                                 }).toList(),
                           ),
                         );
@@ -362,9 +492,37 @@ class _Homev2sState extends State<Homev2s> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Obx(() {
+                  // ✅ Log จำนวนสินค้า
+                  log('📦 Products count: ${homeController.products.length}');
+
+                  // ✅ ถ้าไม่มีสินค้า แสดงข้อความ
+                  if (homeController.products.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text('ไม่พบสินค้า', style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            'กรุณาเลือกหมวดหมู่สินค้า\nหรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
                   return GridView.builder(
                     padding: const EdgeInsets.only(top: 8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 0.75),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 0.75,
+                    ),
                     itemCount: homeController.products.length,
                     itemBuilder: (context, index) {
                       final product = homeController.products[index];
@@ -394,8 +552,14 @@ class _Homev2sState extends State<Homev2s> {
                                       ? CachedNetworkImage(
                                         imageUrl: imageUrl,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                                        errorWidget: (context, url, error) => Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                                        placeholder:
+                                            (context, url) => Container(
+                                              color: Colors.grey[200],
+                                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                            ),
+                                        errorWidget:
+                                            (context, url, error) =>
+                                                Container(color: Colors.grey[300], child: const Icon(Icons.broken_image, color: Colors.grey)),
                                       )
                                       : Container(color: Colors.grey[300]), // fallback
                             ),
@@ -407,7 +571,10 @@ class _Homev2sState extends State<Homev2s> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(4)),
-                                child: Text('฿${(product.price ?? 0).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                child: Text(
+                                  '฿${(product.price ?? 0).toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
 

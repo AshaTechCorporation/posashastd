@@ -1,17 +1,21 @@
 import 'dart:async';
 import 'dart:developer';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
+import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
 import 'package:posashastd/helpers/printReceiptFromCartItemsV2s.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/local_db/order_local.dart';
 import 'package:intl/intl.dart';
 import 'package:posashastd/D2S/home/widgets/ReceiptPreviewWidget.dart';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReceiptHistoryV2s extends StatefulWidget {
   const ReceiptHistoryV2s({super.key});
@@ -22,10 +26,19 @@ class ReceiptHistoryV2s extends StatefulWidget {
 
 class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
   late OrderController orderController;
+  late HomeController homeController;
+  RxBool isConnected = false.obs;
+  late SharedPreferences prefs;
+  OrderLocal? selectedOfflineOrder;
+  bool vehicleCheck = false;
+
+  // ✅ เพิ่มตัวแปรสำหรับเก็บวันที่ที่เลือก
+  Rx<DateTime> selectedDate = DateTime.now().obs;
 
   @override
   void initState() {
     super.initState();
+    fristLoad();
     log('🏠 ReceiptHistoryV2s initState called');
 
     // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
@@ -35,13 +48,85 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     }
 
     orderController = Get.put(OrderController());
+    homeController = Get.put(HomeController());
     log('📱 OrderController created: ${orderController.hashCode}');
 
     // เรียก API เมื่อหน้าโหลด
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      log('⏰ PostFrameCallback: calling fetchOrders');
-      orderController.fetchOrders();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await checkConnectivityAndLoadData();
+      await _loadOrders();
+
+      // ✅ เรียก fetchOrders เฉพาะเมื่อมีอินเทอร์เน็ต
+      if (isConnected.value) {
+        log('⏰ PostFrameCallback: calling fetchOrders (online mode)');
+        orderController.fetchOrders();
+      } else {
+        log('⏰ PostFrameCallback: skipping fetchOrders (offline mode)');
+      }
     });
+  }
+
+  Future<void> _loadOrders() async {
+    await homeController.getOrders();
+    setState(() {});
+  }
+
+  // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและโหลดข้อมูล
+  Future<void> checkConnectivityAndLoadData() async {
+    try {
+      log('🌐 Checking connectivity and loading data...');
+      final connectivityResult = await Connectivity().checkConnectivity();
+      isConnected.value = !connectivityResult.contains(ConnectivityResult.none);
+      log('📶 Connected: ${isConnected.value}');
+
+      if (isConnected.value) {
+        log('🔄 Loading categories...');
+        log('✅ Categories loaded successfully');
+
+        // ✅ มีเน็ต → ตั้งเป็นออนไลน์ (vehicleCheck = false)
+        if (mounted) {
+          setState(() {
+            vehicleCheck = false;
+          });
+          await prefs.setBool('vehicle', false);
+          log('✅ Online mode - vehicleCheck = false');
+        }
+      } else {
+        log('❌ No internet connection');
+
+        // ✅ ไม่มีเน็ต → ตั้งเป็นออฟไลน์ (vehicleCheck = true)
+        if (mounted) {
+          setState(() {
+            vehicleCheck = true;
+          });
+          await prefs.setBool('vehicle', true);
+          log('✅ Offline mode - vehicleCheck = true');
+        }
+      }
+      setState(() {});
+    } catch (e) {
+      log('❌ Error checking connectivity: $e');
+
+      // ✅ ถ้า error ให้ตั้งเป็นออฟไลน์เพื่อความปลอดภัย
+      if (mounted) {
+        setState(() {
+          vehicleCheck = true;
+        });
+        await prefs.setBool('vehicle', true);
+        log('✅ Error - set to offline mode');
+      }
+    }
+  }
+
+  Future<void> fristLoad() async {
+    prefs = await SharedPreferences.getInstance();
+    final vehicleCheck1 = prefs.getBool('vehicle');
+
+    if (mounted) {
+      setState(() {
+        vehicleCheck = vehicleCheck1 ?? false;
+      });
+    }
   }
 
   @override
@@ -51,14 +136,44 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
       appBar: AppBar(
         title: Text('ใบเสร็จรับเงิน', style: TextStyle(fontFamily: 'IBMPlexSansThai')),
         backgroundColor: ktextColr,
-        iconTheme: const IconThemeData(color: Colors.white), // 🔸 เปลี่ยนสีไอคอน
-        titleTextStyle: const TextStyle(
-          color: Colors.white, // 🔸 เปลี่ยนสีตัวหนังสือ
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        actions: [
+          // ✅ Switch ออนไลน์/ออฟไลน์
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Row(
+              children: [
+                Text(vehicleCheck ? 'ออฟไลน์' : 'ออนไลน์', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Switch(
+                  value: vehicleCheck,
+                  inactiveThumbColor: Colors.grey,
+                  inactiveTrackColor: const Color.fromARGB(137, 158, 158, 158),
+                  activeColor: Colors.orange,
+                  onChanged: (value) async {
+                    setState(() {
+                      vehicleCheck = value;
+                    });
+                    await prefs.setBool('vehicle', vehicleCheck);
 
+                    // ✅ โหลดข้อมูลใหม่ตามโหมด
+                    if (vehicleCheck) {
+                      // โหมดออฟไลน์ - โหลดจาก Isar
+                      await _loadOrders();
+                    } else {
+                      // โหมดออนไลน์ - โหลดจาก API
+                      if (isConnected.value) {
+                        await orderController.fetchOrders();
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // 🔍 ช่องค้นหา
@@ -80,6 +195,51 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
           // 🔘 รายการใบเสร็จ
           Expanded(
             child: Obx(() {
+              // ✅ เช็คว่าเป็นโหมดออฟไลน์หรือไม่ (ใช้ vehicleCheck แทน isConnected)
+              if (vehicleCheck) {
+                // โหมดออฟไลน์ - แสดงข้อมูลจาก Isar
+                final offlineOrders = homeController.orders;
+                if (offlineOrders.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('ไม่มีข้อมูลใบเสร็จออฟไลน์', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await _loadOrders();
+                  },
+                  child: ListView.builder(
+                    itemCount: offlineOrders.length,
+                    itemBuilder: (context, index) {
+                      final order = offlineOrders.reversed.toList()[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: ListTile(
+                          leading: const Icon(Icons.receipt_long, color: Colors.orange, size: 40),
+                          title: Text('฿${order.total!.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          subtitle: Text(DateFormat('dd-MMM-yy HH:mm น.').format(order.date!), style: TextStyle(color: Colors.grey[600])),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+                            child: const Text('ออฟไลน์', style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                          onTap: () => _showOfflineOrderDetail(order),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+
+              // โหมดออนไลน์ - แสดงข้อมูลจาก API
               if (orderController.isLoading.value) {
                 return Center(
                   child: Column(
@@ -218,15 +378,9 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     // จัดรูปแบบเวลา
     String timeString = '';
     if (order.orderDate != null) {
-      // ✅ เพิ่ม 7 ชั่วโมงก่อนแสดงเวลา
       final adjustedTime = order.orderDate!.add(const Duration(hours: 7));
       final hour = adjustedTime.hour;
       final minute = adjustedTime.minute.toString().padLeft(2, '0');
-
-      // Debug: แสดงเวลาก่อนและหลังปรับ
-      log('🕐 Original time: ${order.orderDate}');
-      log('🕐 Adjusted time: $adjustedTime');
-      log('🕐 Hour: $hour, Minute: $minute');
 
       final period = hour >= 12 ? 'หลังเที่ยง' : 'ก่อนเที่ยง';
       final displayHour =
@@ -238,8 +392,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
                   ? 12
                   : hour);
       timeString = '$displayHour:$minute $period';
-
-      log('🕐 Final display: $timeString');
     }
 
     return Card(
@@ -259,7 +411,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     );
   }
 
-  // แสดงรายละเอียดออเดอร์
+  // แสดงรายละเอียดออเดอร์ออนไลน์
   void _showOrderDetail(order) {
     Get.bottomSheet(
       Container(
@@ -308,7 +460,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // รายละเอียดออเดอร์แบบเดียวกับ ReceiptHistoryPage
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -319,7 +470,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ยอดรวมใหญ่ตรงกลาง
                           Center(
                             child: Text(
                               '฿${(order.total ?? 0).toStringAsFixed(2)}',
@@ -329,8 +479,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
                           const SizedBox(height: 4),
                           const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
                           const SizedBox(height: 16),
-
-                          // ข้อมูลพนักงานและระบบ
                           Text('พนักงาน: ${order.shift?.user?.username ?? 'ไม่ระบุ'}', style: const TextStyle(fontSize: 18)),
                           const SizedBox(height: 4),
                           Text('ระบบขาย: ${order.device?.name ?? 'POS 1'}', style: const TextStyle(fontSize: 18)),
@@ -413,6 +561,146 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
       isDismissible: true,
       enableDrag: true,
     );
+  }
+
+  // ✅ แสดงรายละเอียดออเดอร์ออฟไลน์
+  void _showOfflineOrderDetail(OrderLocal order) {
+    Get.bottomSheet(
+      Container(
+        height: Get.height * 0.9,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+
+            // Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade600,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.receipt_long, color: Colors.white, size: 28),
+                  SizedBox(width: 16),
+                  Expanded(child: Text('ใบเสร็จออฟไลน์', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
+                  IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close, color: Colors.white, size: 24), padding: EdgeInsets.zero),
+                ],
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Text('฿${order.total!.toStringAsFixed(2)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Center(child: Text('รวมทั้งหมด', style: TextStyle(fontSize: 18))),
+                          const SizedBox(height: 16),
+                          Text('พนักงาน: ${order.shiftId!.toString()}', style: const TextStyle(fontSize: 18)),
+                          const SizedBox(height: 16),
+
+                          // แสดงรายการสินค้า
+                          if (order.orderItems.isNotEmpty) ...[
+                            ...order.orderItems.map(
+                              (item) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.productName ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18)),
+                                  Text('${item.quantity ?? 0} x ฿${(item.price ?? 0).toStringAsFixed(2)}', style: const TextStyle(fontSize: 18)),
+                                  const SizedBox(height: 4),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          const Divider(height: 24),
+                          _buildRow('รวมทั้งหมด', '฿${order.total!.toStringAsFixed(2)}'),
+                          _buildRow('ชำระแล้ว', '฿${(order.paid != null ? double.tryParse(order.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}'),
+                          _buildRow('เงินทอน', '฿${order.change?.toStringAsFixed(2) ?? '0'}'),
+                          const SizedBox(height: 16),
+                          _buildRow('วันที่', DateFormat('d/M/yy HH:mm น.').format(order.date!)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer Actions
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, -2))],
+              ),
+              child: SafeArea(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Get.back(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        child: const Text('ปิด', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+    );
+  }
+
+  Widget _buildRow(String left, String right) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]),
+    );
+  }
+
+  // จัดรูปแบบวันที่และเวลา
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return 'ไม่ระบุวันที่';
+
+    final orderDate = dateTime.add(const Duration(hours: 7));
+    return DateFormat('d/M/yy HH:mm น.').format(orderDate);
   }
 
   // ฟังก์ชันปริ๊นใบเสร็จ
@@ -514,19 +802,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
         colorText: Colors.white,
         duration: const Duration(seconds: 3),
       );
-    }
-  }
-
-  // ✅ ปริ๊นไปยัง Network Printer (แบบเดียวกับ ReceiptHistoryPage)
-  Future<void> _printToNetworkPrinter(order, PrinterInfo printer) async {
-    try {
-      log('🖨️ Starting network printer process for: ${printer.name}');
-
-      // แสดง print preview dialog และรอให้ผู้ใช้กดปริ๊น
-      _showPrintPreviewDialog(order);
-    } catch (e) {
-      log('❌ Error in network printer process: $e');
-      Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -964,52 +1239,6 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
       }
 
       throw e;
-    }
-  }
-
-  Widget _buildRow(String left, String right) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(left), Text(right)]),
-    );
-  }
-
-  // จัดรูปแบบวันที่และเวลา
-  String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return 'ไม่ระบุวันที่';
-
-    final orderDate = dateTime.add(const Duration(hours: 7));
-    return DateFormat('d/M/yy HH:mm น.').format(orderDate);
-  }
-
-  // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
-  Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
-    try {
-      log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
-      log('💾 Memory-efficient connection: Only for printing session');
-
-      // ทดสอบการเชื่อมต่อ 2 ครั้ง
-      for (int attempt = 1; attempt <= 2; attempt++) {
-        log('🔄 Connection attempt $attempt/2...');
-        final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
-        if (isConnected) {
-          log('✅ Printer connected successfully on attempt $attempt');
-          log('📡 Connection established - ready for print job');
-          return true;
-        }
-
-        if (attempt < 2) {
-          log('⚠️ Connection failed on attempt $attempt, retrying...');
-          await Future.delayed(const Duration(seconds: 1));
-        }
-      }
-
-      log('❌ Failed to connect to printer after 2 attempts');
-      log('💾 No persistent connection - memory saved');
-      return false;
-    } catch (e) {
-      log('❌ Error connecting to printer: $e');
-      return false;
     }
   }
 }

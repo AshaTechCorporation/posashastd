@@ -869,7 +869,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
     );
   }
 
-  // สร้างออเดอร์
+  // ✅ สร้างออเดอร์ออนไลน์
   Future<void> createOrders({required int paymentMethodId}) async {
     try {
       final total = calculateTotalWithDiscount();
@@ -916,7 +916,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
         "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
       };
 
-      log("📦 JSON ที่จะส่ง: $formattedOrder");
+      log("📦 JSON ที่จะส่ง (Online): $formattedOrder");
       final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
       if (!mounted) return;
 
@@ -930,6 +930,73 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
       });
     } catch (e) {
       log('❌ Error creating order: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  // ✅ สร้างออเดอร์ออฟไลน์
+  Future<void> createOrdersOffline({required int paymentMethodId}) async {
+    try {
+      final total = calculateTotalWithDiscount();
+
+      // ✅ ตรวจสอบ shift ID ก่อน
+      if (homeController.currentShiftId.value.isEmpty) {
+        log('❌ No shift ID found - cannot create order');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ไม่พบข้อมูลกะ กรุณาเปิดกะก่อนทำรายการ'), backgroundColor: Colors.red));
+        return;
+      }
+
+      await homeController.loadDeviceInfo();
+
+      final currentDeviceInternalId = homeController.getCurrentDeviceInternalId();
+      final deviceIdToUse = currentDeviceInternalId ?? 1;
+
+      log('📱 Device info loaded for offline order: ${homeController.deviceInfo.isNotEmpty}');
+      log('📱 Current device internal ID: $currentDeviceInternalId');
+      log('📱 Using device ID for offline order: $deviceIdToUse');
+      log('📱 Current shift ID: ${homeController.currentShiftId.value}');
+
+      final formattedOrder = {
+        "deviceId": deviceIdToUse,
+        "shiftId": homeController.currentShiftId.value,
+        "branchId": 1,
+        "total": total,
+        "memberId": null,
+        "date": DateTime.now().toIso8601String(),
+        "orderItems":
+            widget.items.map((item) {
+              return {
+                "productId": item["id"] ?? 0,
+                "price": item["price"] ?? 0,
+                "quantity": item["qty"] ?? 0,
+                "total": item["price"] * item["qty"] ?? 0,
+              };
+            }).toList(),
+        "paymentMethodId": paymentMethodId,
+        "paid": receivedAmount,
+        "change": receivedAmount - total,
+        "discount": totalDiscountApplied,
+        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
+      };
+
+      log("📦 JSON ที่จะส่ง (Offline): $formattedOrder");
+      final order = await Homeservice.createOrderOffline(formattedOrder: formattedOrder);
+      if (!mounted) return;
+
+      // ✅ เก็บเลขที่ใบเสร็จจาก response
+      if (order != null && order['id'] != null) {
+        orderReceiptNumber = order['orderNo'].toString();
+        log('✅ Offline order created with receipt number: $orderReceiptNumber');
+      }
+
+      setState(() {
+        isPaid = true;
+      });
+    } catch (e) {
+      // handle error
+      log('❌ Error creating offline order: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e'), backgroundColor: Colors.red));
     }
   }
@@ -1441,8 +1508,19 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
               return;
             }
 
-            // ดำเนินการชำระเงิน
-            await createOrders(paymentMethodId: paymentMethodId);
+            // ✅ ดำเนินการชำระเงิน - เช็คการเชื่อมต่ออินเทอร์เน็ตก่อน
+            setState(() {
+              isPaid = true;
+            });
+
+            // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
+            if (homeController.isConnected.value) {
+              log('🌐 Internet connected - calling createOrders (online)');
+              await createOrders(paymentMethodId: paymentMethodId);
+            } else {
+              log('📴 No internet - calling createOrdersOffline');
+              await createOrdersOffline(paymentMethodId: paymentMethodId);
+            }
           },
         );
       },

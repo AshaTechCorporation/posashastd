@@ -1,10 +1,13 @@
 import 'dart:developer';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:posashastd/V2S/widgets/AppDrawerv2s.dart';
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/report_controller.dart';
 import 'package:posashastd/constants.dart';
+import 'package:posashastd/services/homeService.dart';
+import 'package:http/http.dart' as http;
 
 class ShiftV2s extends StatefulWidget {
   const ShiftV2s({super.key});
@@ -45,7 +48,14 @@ class _ShiftV2sState extends State<ShiftV2s> {
 
       // โหลดข้อมูลสรุปรายงานด้วย shift ID ที่ถูกต้อง
       await _loadSummaryReport();
+      await _loadOrders();
     });
+  }
+
+  // ✅ โหลดข้อมูลออเดอร์ออฟไลน์
+  Future<void> _loadOrders() async {
+    await homeController.getOrders();
+    setState(() {});
   }
 
   // ✅ โหลดข้อมูลสรุปรายงาน
@@ -66,42 +76,200 @@ class _ShiftV2sState extends State<ShiftV2s> {
     setState(() {}); // รีเฟรช UI
   }
 
-  // ✅ ปิดกะ
-  Future<void> _closeShift() async {
-    final shiftId = homeController.currentShiftId.value;
-    if (shiftId.isEmpty) {
-      Get.snackbar('ข้อผิดพลาด', 'ไม่พบ shift ID', backgroundColor: Colors.red, colorText: Colors.white);
-      return;
-    }
+  // ✅ ฟังก์ชันซิงค์ข้อมูล
+  Future<void> _syncData() async {
+    try {
+      log('🔄 Starting data sync...');
 
-    final success = await homeController.closeShift();
-
-    if (success) {
+      // แสดง loading dialog
       Get.dialog(
+        const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังซิงค์ข้อมูล...', style: TextStyle(fontSize: 16))],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // ซิงค์ข้อมูล
+      await Homeservice.orderSendOffline(orders: homeController.orders);
+      await homeController.clearOrders2();
+
+      // ปิด loading dialog
+      Get.back();
+
+      // แสดง dialog สำเร็จ
+      await Get.dialog(
         AlertDialog(
-          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
-          content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 18)),
+          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ซิงค์ข้อมูลสำเร็จ')]),
+          content: const Text('ข้อมูลได้รับการอัพเดทแล้ว', style: TextStyle(fontSize: 16)),
           actions: [
-            ElevatedButton(
-              onPressed: () async {
+            TextButton(
+              onPressed: () {
                 Get.back(); // ปิด dialog
-
-                // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
-                homeController.currentShiftId.value = '';
-                homeController.isShiftOpen.value = false;
-
-                // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
-                await homeController.checkShiftStatus();
-
-                // กลับไปหน้าหลัก
-                Get.offAllNamed('/homev2s');
+                // รีเฟรชข้อมูล
+                _loadOrders();
               },
-              style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
-              child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              child: const Text('ตกลง', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
+        barrierDismissible: false,
       );
+
+      log('✅ Data sync completed successfully');
+    } catch (e) {
+      log('❌ Error syncing data: $e');
+
+      // ปิด loading dialog (ถ้ายังเปิดอยู่)
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      // ✅ เช็คว่าเป็น ClientException หรือไม่
+      String errorMessage = 'ไม่สามารถซิงค์ข้อมูลได้';
+      if (e is SocketException || e is http.ClientException || e.toString().contains('ClientException')) {
+        errorMessage = 'ไม่มีอินเทอร์เน็ต\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else {
+        errorMessage = 'ไม่สามารถซิงค์ข้อมูลได้\nกรุณาลองใหม่อีกครั้ง';
+      }
+
+      // แสดง dialog ไม่สำเร็จ
+      await Get.dialog(
+        AlertDialog(
+          title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ซิงค์ข้อมูลไม่สำเร็จ')]),
+          content: Text(errorMessage, style: const TextStyle(fontSize: 16)),
+          actions: [TextButton(onPressed: () => Get.back(), child: const Text('ตกลง', style: TextStyle(fontSize: 16)))],
+        ),
+        barrierDismissible: false,
+      );
+    }
+  }
+
+  // ฟังก์ชันแสดง Dialog ปิดกะ
+  void _showCloseShiftDialog(BuildContext context) {
+    Get.dialog(
+      AlertDialog(
+        title: const Row(children: [Icon(Icons.lock, color: Colors.red), SizedBox(width: 8), Text('ยืนยันการปิดกะ')]),
+        content: const Text('คุณต้องการปิดกะหรือไม่?\nเมื่อปิดกะแล้วจะไม่สามารถทำรายการได้จนกว่าจะเปิดกะใหม่', style: TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back(); // ปิด dialog ยืนยัน
+              await _closeShift(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('ปิดกะ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  // ✅ ปิดกะ
+  Future<void> _closeShift(BuildContext context) async {
+    try {
+      // ✅ ใช้ homeController ที่สร้างใน initState แล้ว
+      log('🔍 Debug - Before closing shift:');
+      log('   currentShiftId: ${homeController.currentShiftId.value}');
+      log('   isShiftOpen: ${homeController.isShiftOpen.value}');
+
+      // ถ้า currentShiftId ว่าง ให้โหลดข้อมูลใหม่ก่อน
+      if (homeController.currentShiftId.value.isEmpty) {
+        log('⚠️ currentShiftId is empty, checking shift status...');
+        await homeController.checkShiftStatus();
+
+        // ถ้ายังว่างอยู่ แสดงว่าไม่มีกะเปิดอยู่
+        if (homeController.currentShiftId.value.isEmpty) {
+          Get.snackbar('ข้อผิดพลาด', 'ไม่พบข้อมูลกะที่เปิดอยู่', backgroundColor: Colors.red, colorText: Colors.white);
+          return;
+        }
+      }
+
+      // แสดง loading
+      Get.dialog(const Center(child: CircularProgressIndicator()), barrierDismissible: false);
+      await Homeservice.orderSendOffline(orders: homeController.orders);
+      await homeController.clearOrders();
+      final success = await homeController.closeShift();
+
+      // 🔍 Debug: ตรวจสอบผลลัพธ์
+      log('🔍 Debug - Close shift result: $success');
+
+      // ✅ ปิด loading dialog ก่อนแสดง result dialog
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      if (success) {
+        // ✅ ใช้ Get.dialog แทน showDialog เพื่อหลีกเลี่ยงปัญหา BuildContext
+        Get.dialog(
+          AlertDialog(
+            title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('ปิดกะสำเร็จ')]),
+            content: const Text('ปิดกะเรียบร้อยแล้ว\nระบบจะกลับไปหน้าหลักเพื่อเปิดกะใหม่', style: TextStyle(fontSize: 16)),
+            actions: [
+              ElevatedButton(
+                onPressed: () async {
+                  Get.back(); // ปิด dialog
+
+                  // ✅ เคลียร์ shiftId และอัพเดทสถานะให้แสดง UI เปิดกะใหม่
+                  homeController.currentShiftId.value = '';
+                  homeController.isShiftOpen.value = false;
+
+                  // ✅ เช็คสถานะ shift อีกครั้งเพื่อให้แน่ใจ
+                  await homeController.checkShiftStatus();
+
+                  // กลับไปหน้าหลัก
+                  Get.offAllNamed('/homev2s');
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
+                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+      } else {
+        // ❌ แสดง error dialog เมื่อปิดกะไม่สำเร็จ
+        Get.dialog(
+          AlertDialog(
+            title: const Row(children: [Icon(Icons.error, color: Colors.red), SizedBox(width: 8), Text('ปิดกะไม่สำเร็จ')]),
+            content: const Text('ไม่สามารถปิดกะได้\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 16)),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Get.back(),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('ตกลง', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+      }
+    } catch (e) {
+      // ✅ ปิด loading dialog หากเกิด error
+      if (Get.isDialogOpen == true) {
+        Get.back();
+      }
+
+      log('❌ Error in _closeShift: $e');
+
+      // ✅ เช็คว่าเป็น ClientException หรือไม่
+      String errorMessage = 'เกิดข้อผิดพลาดในการปิดกะ';
+      if (e is SocketException || e is http.ClientException || e.toString().contains('ClientException')) {
+        errorMessage = 'ไม่มีอินเทอร์เน็ต\nกรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต';
+      } else {
+        errorMessage = 'เกิดข้อผิดพลาดในการปิดกะ\nกรุณาลองใหม่อีกครั้ง';
+      }
+
+      Get.snackbar('ข้อผิดพลาด', errorMessage, backgroundColor: Colors.red, colorText: Colors.white);
     }
   }
 
@@ -120,7 +288,7 @@ class _ShiftV2sState extends State<ShiftV2s> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 🔘 ปุ่มจัดการเงินสด / ปิดกะ
+          // 🔘 ปุ่มจัดการเงินสด / ซิ้งข้อมูล / ปิดกะ
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -131,13 +299,34 @@ class _ShiftV2sState extends State<ShiftV2s> {
               //   borderColor: Colors.green,
               //   onTap: () {},
               // ),
+              // ✅ ปุ่มซิ้งข้อมูล (แสดงเฉพาะเมื่อมีออเดอร์ออฟไลน์)
+              Obx(
+                () =>
+                    homeController.orders.isEmpty
+                        ? const SizedBox.shrink()
+                        : Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            _buildFullWidthButton(
+                              label: 'ซิ้งค์ข้อมูล',
+                              backgroundColor: Colors.green,
+                              textColor: Colors.white,
+                              borderColor: Colors.green,
+                              onTap: _syncData,
+                            ),
+                          ],
+                        ),
+              ),
               const SizedBox(height: 12),
-              _buildFullWidthButton(
-                label: 'ปิดกะ',
-                backgroundColor: Colors.white,
-                textColor: Colors.black87,
-                borderColor: Colors.green,
-                onTap: _closeShift,
+              Builder(
+                builder:
+                    (context) => _buildFullWidthButton(
+                      label: 'ปิดกะ',
+                      backgroundColor: Colors.white,
+                      textColor: Colors.black87,
+                      borderColor: Colors.green,
+                      onTap: () => _showCloseShiftDialog(context),
+                    ),
               ),
             ],
           ),
