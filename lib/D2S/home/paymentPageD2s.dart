@@ -522,7 +522,7 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       Dialog(
         child: Container(
           width: 400,
-          height: 600,
+          height: 1000,
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
