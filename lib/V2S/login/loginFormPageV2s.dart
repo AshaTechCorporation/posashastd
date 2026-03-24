@@ -122,7 +122,7 @@ class _LoginFormPageV2sState extends State<LoginFormPageV2s> {
       // ถ้ายังไม่เคยเก็บ ให้สร้างใหม่จาก device info + MAC Address
       String deviceId;
 
-      // ดึง MAC Address ก่อน
+      // ดึง MAC Address ก่อน..
       log('🔄 Getting MAC Address...');
       final macAddress = await _getMacAddress();
       log('📱 MAC Address result: $macAddress');
@@ -252,33 +252,76 @@ class _LoginFormPageV2sState extends State<LoginFormPageV2s> {
     try {
       // ดึง deviceId จากเครื่อง
       final deviceId = await _getDeviceId();
+      log('🔍 Checking device registration for: $deviceId');
 
       // เรียกใช้ฟังก์ชัน checkDevice จาก HomeService
       final isRegistered = await Homeservice.checkDevice(deviceId: deviceId);
 
-      if (isRegistered != null) {
-        // Device ลงทะเบียนแล้ว - ไปหน้า Homev2s ตามปกติ
-        log('✅ Device is registered, navigating to Homev2s');
-        if (mounted) {
-          //
-          // เก็บข้อมูล device ที่ได้รับจาก API
-          await _saveDeviceData(isRegistered);
-          Get.offAll(const Homev2s());
-        }
-      } else {
+      // ถ้าถึงตรงนี้ = device ลงทะเบียนแล้ว (Status 200)
+      log('✅ Device is registered, navigating to Homev2s');
+      if (mounted) {
+        // เก็บข้อมูล device ที่ได้รับจาก API
+        await _saveDeviceData(isRegistered);
+        Get.offAll(const Homev2s());
+      }
+    } catch (e) {
+      log('❌ Error checking device registration: $e');
+
+      // ✅ เช็คว่าเป็น error เพราะ device ไม่ลงทะเบียน หรือ error อื่นๆ
+      final errorMessage = e.toString().toLowerCase();
+
+      // ตรวจสอบว่าเป็น error ที่บอกว่า device ไม่พบ/ไม่ลงทะเบียน
+      if (errorMessage.contains('not found') ||
+          errorMessage.contains('404') ||
+          errorMessage.contains('ไม่พบ') ||
+          errorMessage.contains('device not registered') ||
+          errorMessage.contains('device does not exist')) {
         // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
         log('⚠️ Device not registered, showing registration dialog');
         if (mounted) {
           await _showDeviceRegistrationDialog();
         }
+      } else {
+        // Error อื่นๆ (network error, server error, etc.)
+        log('❌ Real error occurred (not device registration issue): $e');
+        if (mounted) {
+          _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้: ${e.toString()}', isError: true);
+
+          // ถามผู้ใช้ว่าต้องการลงทะเบียนหรือข้ามไป
+          await _showErrorWithRetryDialog(e.toString());
+        }
       }
-    } catch (e) {
-      log('❌ Error checking device registration: $e');
-      // ถ้าเกิดข้อผิดพลาด ให้ไปหน้า Homev2s ตามปกติ
-      if (mounted) {
-        _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
-        Get.offAll(const Homev2s());
-      }
+    }
+  }
+
+  // ✅ แสดง dialog เมื่อเกิด error ให้เลือกว่าจะลงทะเบียนหรือข้าม
+  Future<void> _showErrorWithRetryDialog(String errorMessage) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Row(children: const [Icon(Icons.error_outline, color: Colors.orange), SizedBox(width: 8), Text('ไม่สามารถตรวจสอบอุปกรณ์ได้')]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [Text('เกิดข้อผิดพลาด: $errorMessage'), const SizedBox(height: 16), const Text('คุณต้องการลงทะเบียนอุปกรณ์ใหม่หรือไม่?')],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('ข้ามไป')),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('ลงทะเบียน', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    if (result == true) {
+      // ผู้ใช้เลือกลงทะเบียน
+      await _showDeviceRegistrationDialog();
+    } else {
+      // ผู้ใช้เลือกข้ามไป
+      Get.offAll(const Homev2s());
     }
   }
 
