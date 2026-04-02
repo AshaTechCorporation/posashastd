@@ -1109,7 +1109,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
 
       final imageWidth = fullImage.width;
       final imageHeight = fullImage.height;
-      final stripHeight = 400; // ความสูงของแต่ละแถบ (pixels)
+      final stripHeight = 1800; // ความสูงของแต่ละแถบ (pixels)
 
       log('📐 Full image size: ${imageWidth}x${imageHeight}');
       log('📏 Strip height: $stripHeight pixels');
