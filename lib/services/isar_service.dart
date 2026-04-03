@@ -41,8 +41,25 @@ class IsarService {
 
     // ✅ ตรวจสอบว่า data เป็น null หรือไม่
     if (data == null) {
+      print('❌ getData() returned null - aborting loadData');
       return;
     }
+
+    // ✅ ตรวจสอบว่าได้ข้อมูลจาก API หรือไม่
+    final categoriesFromApi = (data['categories'] as List? ?? const []);
+    final productsFromApi = (data['products'] as List? ?? const []);
+    final panelsFromApi = (data['panels'] as List? ?? const []);
+    final panelProductsFromApi = (data['panelProducts'] as List? ?? const []);
+
+    // ✅ ถ้าข้อมูลว่างเปล่าทั้งหมด = ไม่มีเน็ตหรือ error → ไม่ต้องลบข้อมูลเก่า
+    if (categoriesFromApi.isEmpty && productsFromApi.isEmpty && panelsFromApi.isEmpty && panelProductsFromApi.isEmpty) {
+      print('⚠️ No data from API - keeping existing data in database');
+      throw Exception('ไม่สามารถดึงข้อมูลจากเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+    }
+
+    print(
+      '✅ Got data from API - categories: ${categoriesFromApi.length}, products: ${productsFromApi.length}, panels: ${panelsFromApi.length}, panelProducts: ${panelProductsFromApi.length}',
+    );
 
     // ---------- 1) Categories ----------
     final categories = <CategoryLocal>[];
@@ -261,12 +278,14 @@ class IsarService {
   }
 
   Future<List<CategoryLocal>> getCategories() async {
-    return await _isar!.categoryLocals.where().findAll();
+    // ✅ Filter เฉพาะ Categories ที่ไม่ถูกลบ (deletedAt = null)
+    return await _isar!.categoryLocals.filter().deletedAtIsNull().findAll();
   }
 
   //get panel
   Future<List<PanelLocal>> getPanels() async {
-    return await _isar!.panelLocals.where().findAll();
+    // ✅ Filter เฉพาะ Panels ที่ไม่ถูกลบ (deletedAt = null)
+    return await _isar!.panelLocals.filter().deletedAtIsNull().findAll();
   }
 
   Future<List<OrderLocal>> getOrders() async {
@@ -288,9 +307,11 @@ class IsarService {
 
   Future<List<ProductLocal>> getProducts({int? categoryId}) async {
     if (categoryId != null && categoryId > 0) {
-      return await _isar!.productLocals.filter().category((q) => q.idEqualTo(categoryId)).findAll();
+      // ✅ Filter เฉพาะ Products ที่ไม่ถูกลบ (deletedAt = null) และอยู่ใน category ที่ระบุ
+      return await _isar!.productLocals.filter().deletedAtIsNull().and().category((q) => q.idEqualTo(categoryId)).findAll();
     } else {
-      return await _isar!.productLocals.where().findAll();
+      // ✅ Filter เฉพาะ Products ที่ไม่ถูกลบ (deletedAt = null)
+      return await _isar!.productLocals.filter().deletedAtIsNull().findAll();
     }
   }
 

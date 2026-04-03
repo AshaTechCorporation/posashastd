@@ -47,16 +47,8 @@ class _Homev2sState extends State<Homev2s> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       log('⏰ PostFrameCallback: loading data');
-
-      // เช็คสถานะ shift ก่อน
-      await homeController.checkShiftStatus();
-      log('✅ Shift status checked - currentShiftId: ${homeController.currentShiftId.value}');
-
       await homeController.checkConnectivityAndLoadData();
       log('✅ Data loading completed');
-      log('📂 Categories loaded: ${homeController.categories.length} categories');
-      log('📦 Products loaded: ${homeController.products.length} products');
-      log('🎨 Panels loaded: ${homeController.panels.length} panels');
 
       // เรียก checkDiscount เพื่อดึงข้อมูลส่วนลด
       log('🎯 Loading discount data...');
@@ -247,7 +239,61 @@ class _Homev2sState extends State<Homev2s> {
     );
   }
 
-  // ✅ ฟังก์ชันซิ้งข้อมูล
+  // ✅ ฟังก์ชันรีโหลดข้อมูล (โหลดจาก Isar โดยไม่ต้องมีเน็ต)
+  Future<void> _reloadData() async {
+    try {
+      // แสดง loading indicator
+      Get.dialog(
+        const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังรีโหลดข้อมูล...')],
+              ),
+            ),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      log('🔄 Starting data reload...');
+
+      // รีเซ็ตข้อมูลในตะกร้า
+      homeController.cartItems.clear();
+
+      // โหลดข้อมูลใหม่
+      await homeController.checkConnectivityAndLoadData();
+      log('✅ Data reload completed');
+
+      // โหลดข้อมูลส่วนลด
+      await orderController.checkDiscount();
+      log('✅ Discount data reloaded');
+
+      // ปิด loading dialog
+      Get.back();
+
+      // ✅ แสดงข้อความสำเร็จเฉพาะเมื่อมีเน็ต
+      if (homeController.isConnected.value) {
+        Get.snackbar(
+          'รีโหลดสำเร็จ',
+          'ข้อมูลได้รับการอัพเดทแล้ว',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      // ปิด loading dialog
+      Get.back();
+
+      log('❌ Error reloading data: $e');
+      // ✅ ไม่แสดง Snackbar error เมื่อไม่มีเน็ต
+    }
+  }
+
+  // ✅ ฟังก์ชันซิ้งข้อมูล (ดึงข้อมูลจาก API - ต้องมีเน็ต)
   Future<void> _syncData() async {
     try {
       // แสดง loading dialog
@@ -381,12 +427,24 @@ class _Homev2sState extends State<Homev2s> {
 
                   const Spacer(),
 
-                  // ✅ ปุ่มซิ้งข้อมูล (แสดงเฉพาะเมื่อกะเปิดและมีเน็ต)
+                  // ✅ ปุ่มซิ้งข้อมูล (แสดงตลอดเวลา - ถ้ากะปิดจะ disable)
                   Obx(() {
-                    if (homeController.isShiftOpen.value && homeController.isConnected.value) {
-                      return IconButton(onPressed: _syncData, icon: const Icon(Icons.sync, color: Colors.white), tooltip: 'ซิ้งข้อมูล');
-                    }
-                    return const SizedBox.shrink();
+                    final canSync = homeController.isShiftOpen.value && homeController.isConnected.value;
+                    return IconButton(
+                      onPressed: canSync ? _syncData : null,
+                      icon: Icon(Icons.sync, color: canSync ? Colors.white : Colors.grey),
+                      tooltip: canSync ? 'ซิ้งข้อมูล' : 'ต้องเปิดกะและมีเน็ตก่อน',
+                    );
+                  }),
+
+                  // ✅ ปุ่มรีโหลดข้อมูล (แสดงตลอดเวลา - ถ้ากะปิดจะ disable)
+                  Obx(() {
+                    final canReload = homeController.isShiftOpen.value;
+                    return IconButton(
+                      onPressed: canReload ? _reloadData : null,
+                      icon: Icon(Icons.refresh, color: canReload ? Colors.white : Colors.grey),
+                      tooltip: canReload ? 'รีโหลดข้อมูล' : 'ต้องเปิดกะก่อน',
+                    );
                   }),
 
                   // 👤 ไอคอนรูปคน

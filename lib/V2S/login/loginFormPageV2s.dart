@@ -52,7 +52,9 @@ class _LoginFormPageV2sState extends State<LoginFormPageV2s> {
 
       final isLoggedIn = await _authService.checkLoginStatus();
       if (isLoggedIn && mounted) {
-        await _databaseService.loadDataSync();
+        // ✅ ถ้ามี token แล้ว ไปหน้า Home เลย ไม่ต้อง sync ข้อมูล
+        // (ข้อมูลจะโหลดจาก Isar ในหน้า Home อยู่แล้ว)
+        log('✅ User already logged in, navigating to Homev2s');
         Get.offAll(const Homev2s());
       }
     } catch (e) {

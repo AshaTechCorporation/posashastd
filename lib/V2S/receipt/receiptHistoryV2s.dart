@@ -30,7 +30,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
   RxBool isConnected = false.obs;
   late SharedPreferences prefs;
   OrderLocal? selectedOfflineOrder;
-  bool vehicleCheck = false;
+  RxBool vehicleCheck = false.obs; // ✅ เปลี่ยนเป็น RxBool เพื่อให้ Obx() rebuild ได้
 
   // ✅ เพิ่มตัวแปรสำหรับเก็บวันที่ที่เลือก
   Rx<DateTime> selectedDate = DateTime.now().obs;
@@ -84,37 +84,24 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
         log('✅ Categories loaded successfully');
 
         // ✅ มีเน็ต → ตั้งเป็นออนไลน์ (vehicleCheck = false)
-        if (mounted) {
-          setState(() {
-            vehicleCheck = false;
-          });
-          await prefs.setBool('vehicle', false);
-          log('✅ Online mode - vehicleCheck = false');
-        }
+        vehicleCheck.value = false;
+        await prefs.setBool('vehicle', false);
+        log('✅ Online mode - vehicleCheck = false');
       } else {
         log('❌ No internet connection');
 
         // ✅ ไม่มีเน็ต → ตั้งเป็นออฟไลน์ (vehicleCheck = true)
-        if (mounted) {
-          setState(() {
-            vehicleCheck = true;
-          });
-          await prefs.setBool('vehicle', true);
-          log('✅ Offline mode - vehicleCheck = true');
-        }
+        vehicleCheck.value = true;
+        await prefs.setBool('vehicle', true);
+        log('✅ Offline mode - vehicleCheck = true');
       }
-      setState(() {});
     } catch (e) {
       log('❌ Error checking connectivity: $e');
 
       // ✅ ถ้า error ให้ตั้งเป็นออฟไลน์เพื่อความปลอดภัย
-      if (mounted) {
-        setState(() {
-          vehicleCheck = true;
-        });
-        await prefs.setBool('vehicle', true);
-        log('✅ Error - set to offline mode');
-      }
+      vehicleCheck.value = true;
+      await prefs.setBool('vehicle', true);
+      log('✅ Error - set to offline mode');
     }
   }
 
@@ -123,9 +110,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
     final vehicleCheck1 = prefs.getBool('vehicle');
 
     if (mounted) {
-      setState(() {
-        vehicleCheck = vehicleCheck1 ?? false;
-      });
+      vehicleCheck.value = vehicleCheck1 ?? false;
     }
   }
 
@@ -140,36 +125,39 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
         titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         actions: [
           // ✅ Switch ออนไลน์/ออฟไลน์
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: Row(
-              children: [
-                Text(vehicleCheck ? 'ออฟไลน์' : 'ออนไลน์', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Switch(
-                  value: vehicleCheck,
-                  inactiveThumbColor: Colors.grey,
-                  inactiveTrackColor: const Color.fromARGB(137, 158, 158, 158),
-                  activeColor: Colors.orange,
-                  onChanged: (value) async {
-                    setState(() {
-                      vehicleCheck = value;
-                    });
-                    await prefs.setBool('vehicle', vehicleCheck);
+          Obx(
+            () => Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Row(
+                children: [
+                  Text(
+                    vehicleCheck.value ? 'ออฟไลน์' : 'ออนไลน์',
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 8),
+                  Switch(
+                    value: vehicleCheck.value,
+                    inactiveThumbColor: Colors.grey,
+                    inactiveTrackColor: const Color.fromARGB(137, 158, 158, 158),
+                    activeColor: Colors.orange,
+                    onChanged: (value) async {
+                      vehicleCheck.value = value;
+                      await prefs.setBool('vehicle', value);
 
-                    // ✅ โหลดข้อมูลใหม่ตามโหมด
-                    if (vehicleCheck) {
-                      // โหมดออฟไลน์ - โหลดจาก Isar
-                      await _loadOrders();
-                    } else {
-                      // โหมดออนไลน์ - โหลดจาก API
-                      if (isConnected.value) {
-                        await orderController.fetchOrders();
+                      // ✅ โหลดข้อมูลใหม่ตามโหมด
+                      if (vehicleCheck.value) {
+                        // โหมดออฟไลน์ - โหลดจาก Isar
+                        await _loadOrders();
+                      } else {
+                        // โหมดออนไลน์ - โหลดจาก API
+                        if (isConnected.value) {
+                          await orderController.fetchOrders();
+                        }
                       }
-                    }
-                  },
-                ),
-              ],
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -196,7 +184,7 @@ class _ReceiptHistoryV2sState extends State<ReceiptHistoryV2s> {
           Expanded(
             child: Obx(() {
               // ✅ เช็คว่าเป็นโหมดออฟไลน์หรือไม่ (ใช้ vehicleCheck แทน isConnected)
-              if (vehicleCheck) {
+              if (vehicleCheck.value) {
                 // โหมดออฟไลน์ - แสดงข้อมูลจาก Isar
                 final offlineOrders = homeController.orders;
                 if (offlineOrders.isEmpty) {

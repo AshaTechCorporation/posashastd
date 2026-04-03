@@ -57,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final isLoggedIn = await _authService.checkLoginStatus();
       if (isLoggedIn && mounted) {
-        await _isarService.loadData();
+        // ✅ ถ้ามี token แล้ว ไปหน้า Home เลย ไม่ต้อง sync ข้อมูล
+        // (ข้อมูลจะโหลดจาก Isar ในหน้า Home อยู่แล้ว)
+        log('✅ User already logged in, navigating to HomePage');
         Get.offAll(HomePage());
       }
     } catch (e) {
