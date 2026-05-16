@@ -8,6 +8,16 @@ import 'package:posashastd/main.dart';
 import 'package:posashastd/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class HomeServiceApiException implements Exception {
+  final String message;
+  final int? statusCode;
+
+  HomeServiceApiException(this.message, {this.statusCode});
+
+  @override
+  String toString() => message;
+}
+
 class Homeservice {
   Homeservice();
   //เรียกดูข้อมูล Category
@@ -16,7 +26,10 @@ class Homeservice {
     final _authService = AuthService();
     // final domain = prefs.getString('domain');
     final url = Uri.https(publicUrl, '/api/category');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     // var headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
     final response = await http.get(headers: headers, url);
     if (response.statusCode == 200) {
@@ -34,11 +47,22 @@ class Homeservice {
     final _authService = AuthService();
     Uri url;
     if (branchId != 0) {
-      url = Uri.https(publicUrl, '/api/product', {"branchId": "$branchId", "categoryId": '$categoryId', "sortBy": 'createdAt:DESC'});
+      url = Uri.https(publicUrl, '/api/product', {
+        "branchId": "$branchId",
+        "categoryId": '$categoryId',
+        "sortBy": 'createdAt:DESC',
+      });
     } else {
-      url = Uri.https(publicUrl, '/api/product', {"branchId": "null", "categoryId": '$categoryId', "sortBy": 'createdAt:DESC'});
+      url = Uri.https(publicUrl, '/api/product', {
+        "branchId": "null",
+        "categoryId": '$categoryId',
+        "sortBy": 'createdAt:DESC',
+      });
     }
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     final response = await http.get(headers: headers, url);
     if (response.statusCode == 200) {
       final data = convert.jsonDecode(response.body);
@@ -52,18 +76,38 @@ class Homeservice {
   }
 
   //สร้างออเดอร์
-  static Future createOrders({required Map<String, dynamic> formattedOrder}) async {
+  static Future createOrders({
+    required Map<String, dynamic> formattedOrder,
+  }) async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/order/order-with-payment');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
-    final response = await http.post(url, headers: headers, body: convert.jsonEncode(formattedOrder));
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
+    final response = await http
+        .post(url, headers: headers, body: convert.jsonEncode(formattedOrder))
+        .timeout(const Duration(seconds: 20));
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
       //return Shift.fromJson(data);
       return data;
     } else {
-      final data = convert.jsonDecode(response.body);
-      throw Exception(data['message']);
+      Map<String, dynamic> data = {};
+      if (response.body.isNotEmpty) {
+        try {
+          final decoded = convert.jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            data = decoded;
+          }
+        } catch (_) {
+          data = {};
+        }
+      }
+      throw HomeServiceApiException(
+        data['message']?.toString() ?? 'ไม่สามารถสร้างออเดอร์ได้',
+        statusCode: response.statusCode,
+      );
     }
   }
 
@@ -71,7 +115,10 @@ class Homeservice {
   static Future voidOrder({required int orderId}) async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/order/$orderId/void');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     final response = await http.post(url, headers: headers);
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
@@ -83,11 +130,20 @@ class Homeservice {
   }
 
   //เปิดกะงาน
-  static Future openShift({required Map<String, dynamic> formattedShift}) async {
+  static Future openShift({
+    required Map<String, dynamic> formattedShift,
+  }) async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/shift');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
-    final response = await http.post(url, headers: headers, body: convert.jsonEncode(formattedShift));
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: convert.jsonEncode(formattedShift),
+    );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
       return data;
@@ -102,7 +158,10 @@ class Homeservice {
     try {
       final _authService = AuthService();
       final url = Uri.https(publicUrl, '/api/shift/$shiftId/off');
-      var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+      var headers = {
+        'Authorization': 'Bearer ${_authService.currentToken}',
+        'Content-Type': 'application/json',
+      };
 
       print('🔍 Debug - Close Shift API Call:');
       print('   URL: $url');
@@ -133,14 +192,21 @@ class Homeservice {
   static Future orderSendOffline({required List<OrderLocal> orders}) async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/order/offline-mode');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     final ordersPayload = <Map<String, dynamic>>[];
     for (final order in orders) {
       await order.orderItems.load();
       ordersPayload.add(order.toJson());
     }
 
-    final response = await http.post(url, headers: headers, body: convert.jsonEncode({"orders": ordersPayload}));
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: convert.jsonEncode({"orders": ordersPayload}),
+    );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
       return data;
@@ -154,7 +220,10 @@ class Homeservice {
   static Future checkLogin() async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/auth/me');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     final response = await http.get(headers: headers, url);
     if (response.statusCode == 200) {
       final data = convert.jsonDecode(response.body);
@@ -168,8 +237,13 @@ class Homeservice {
   //เช็ค device id เครื่องที่ลงทะเบียน
   static Future checkDevice({required String deviceId}) async {
     final _authService = AuthService();
-    final url = Uri.https(publicUrl, '/api/device/v2/check-device', {"deviceId": deviceId});
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
+    final url = Uri.https(publicUrl, '/api/device/v2/check-device', {
+      "deviceId": deviceId,
+    });
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
     final response = await http.get(headers: headers, url);
     if (response.statusCode == 200) {
       final data = convert.jsonDecode(response.body);
@@ -181,11 +255,27 @@ class Homeservice {
   }
 
   //เพิ่ม device id
-  static Future registerDevice({required String deviceId, required String name, required String description}) async {
+  static Future registerDevice({
+    required String deviceId,
+    required String name,
+    required String description,
+  }) async {
     final _authService = AuthService();
     final url = Uri.https(publicUrl, '/api/device');
-    var headers = {'Authorization': 'Bearer ${_authService.currentToken}', 'Content-Type': 'application/json'};
-    final response = await http.post(url, headers: headers, body: convert.jsonEncode({"deviceId": deviceId, "name": name, "description": description, "active": true}));
+    var headers = {
+      'Authorization': 'Bearer ${_authService.currentToken}',
+      'Content-Type': 'application/json',
+    };
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: convert.jsonEncode({
+        "deviceId": deviceId,
+        "name": name,
+        "description": description,
+        "active": true,
+      }),
+    );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = convert.jsonDecode(response.body);
       return data;
@@ -196,8 +286,10 @@ class Homeservice {
   }
 
   //สร้างออเดอร์ Offline
-  static Future createOrderOffline({required Map<String, dynamic> formattedOrder}) async {
-    await isar.writeTxn(() async {
+  static Future createOrderOffline({
+    required Map<String, dynamic> formattedOrder,
+  }) async {
+    return await isar.writeTxn(() async {
       final order =
           OrderLocal()
             ..localNo = formattedOrder['localNo']
@@ -208,14 +300,25 @@ class Homeservice {
             ..memberId = formattedOrder['memberId']
             ..date = DateTime.parse(formattedOrder['date'])
             ..paymentMethodId = formattedOrder['paymentMethodId']
-            ..paid = formattedOrder['paid'] != null ? double.tryParse(formattedOrder['paid'].toString()) : null
-            ..change = formattedOrder['change'] != null ? double.tryParse(formattedOrder['change'].toString()) : null
-            ..discount = formattedOrder['discount'] != null ? double.tryParse(formattedOrder['discount'].toString()) : null
+            ..paid =
+                formattedOrder['paid'] != null
+                    ? double.tryParse(formattedOrder['paid'].toString())
+                    : null
+            ..change =
+                formattedOrder['change'] != null
+                    ? double.tryParse(formattedOrder['change'].toString())
+                    : null
+            ..discount =
+                formattedOrder['discount'] != null
+                    ? double.tryParse(formattedOrder['discount'].toString())
+                    : null
             ..remark = formattedOrder['remark'];
       print('📦 Saving order to Isar');
       final orderId = await isar.orderLocals.put(order);
 
-      final rawItems = (formattedOrder['orderItems'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final rawItems =
+          (formattedOrder['orderItems'] as List<dynamic>)
+              .cast<Map<String, dynamic>>();
       final orderItems =
           rawItems
               .map(
@@ -234,11 +337,14 @@ class Homeservice {
       await order.orderItems.save();
 
       inspect({'orderId': orderId, 'items': orderItems.length});
+      return {'id': orderId, 'orderNo': order.localNo};
     });
   }
 
   //สร้างออเดอร์ Offline
-  static Future createOpenShiftOffline({required Map<String, dynamic> formattedOrder}) async {
+  static Future createOpenShiftOffline({
+    required Map<String, dynamic> formattedOrder,
+  }) async {
     await isar.writeTxn(() async {
       final shiftOffline =
           ShiftLocal()

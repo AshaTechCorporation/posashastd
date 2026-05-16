@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:posashastd/D2S/controllers/home_controller.dart';
 import 'package:posashastd/D2S/controllers/order_controller.dart';
 import 'package:posashastd/D2S/controllers/printer_controller.dart';
@@ -30,7 +32,12 @@ class PaymentPageD2s extends StatefulWidget {
   final int? editOrderId;
   final String? editOrderNumber;
 
-  const PaymentPageD2s({super.key, required this.cartItems, this.editOrderId, this.editOrderNumber});
+  const PaymentPageD2s({
+    super.key,
+    required this.cartItems,
+    this.editOrderId,
+    this.editOrderNumber,
+  });
 
   @override
   State<PaymentPageD2s> createState() => _PaymentPageD2sState();
@@ -47,7 +54,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double? selectedDiscountAmount;
   double discountAmount = 0;
   double totalDiscountApplied = 0; // ✅ เก็บยอดส่วนลดรวมที่ใช้ไปแล้ว
-  int currentPaymentMethodId = 1; // ✅ เก็บ paymentMethodId ปัจจุบัน (default: เงินสด)
+  int currentPaymentMethodId =
+      1; // ✅ เก็บ paymentMethodId ปัจจุบัน (default: เงินสด)
   String staffName = 'unknown unknown'; // ✅ เก็บชื่อพนักงานจาก API
   late HomeController homeController;
   late PrinterController printerController;
@@ -57,6 +65,22 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   String _formatPrice(num price) {
     final formatter = NumberFormat('#,##0.00', 'en_US');
     return formatter.format(price);
+  }
+
+  bool _shouldSaveOfflineAfterOrderFailure(Object error) {
+    if (error is TimeoutException ||
+        error is SocketException ||
+        error is http.ClientException ||
+        error is HandshakeException) {
+      return true;
+    }
+
+    if (error is HomeServiceApiException) {
+      final statusCode = error.statusCode;
+      return statusCode == 408 || (statusCode != null && statusCode >= 500);
+    }
+
+    return false;
   }
 
   @override
@@ -78,7 +102,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     // ✅ เชื่อมต่อ OrderController ที่สร้างไว้แล้วใน HomePage
     try {
       orderController = Get.find<OrderController>();
-      log('✅ Found existing OrderController with ${orderController.discounts.length} discounts');
+      log(
+        '✅ Found existing OrderController with ${orderController.discounts.length} discounts',
+      );
     } catch (e) {
       log('❌ OrderController not found, creating new one');
       orderController = Get.put(OrderController());
@@ -95,7 +121,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ✅ ตรวจสอบโหมดแก้ไขออเดอร์
       if (widget.editOrderId != null) {
-        log('📝 Edit mode - Order ID: ${widget.editOrderId}, Number: ${widget.editOrderNumber}');
+        log(
+          '📝 Edit mode - Order ID: ${widget.editOrderId}, Number: ${widget.editOrderNumber}',
+        );
       }
 
       // ✅ คำนวณส่วนลดอัตโนมัติเมื่อเข้าหน้า
@@ -117,11 +145,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter == null) {
         log('⚠️ No default printer configured');
-        _showPrinterStatusSnackbar('ไม่พบการตั้งค่าปริ๊นเตอร์', 'กรุณาตั้งค่าปริ๊นเตอร์ในหน้าการตั้งค่า', Colors.orange);
+        _showPrinterStatusSnackbar(
+          'ไม่พบการตั้งค่าปริ๊นเตอร์',
+          'กรุณาตั้งค่าปริ๊นเตอร์ในหน้าการตั้งค่า',
+          Colors.orange,
+        );
         return;
       }
 
-      log('🔍 Found default printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+      log(
+        '🔍 Found default printer: ${defaultPrinter.name} (${defaultPrinter.type})',
+      );
 
       // เช็คว่าเป็น Sunmi printer หรือไม่
       bool isSunmiPrinter =
@@ -139,7 +173,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       }
     } catch (e) {
       log('❌ Error checking printer status: $e');
-      _showPrinterStatusSnackbar('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบสถานะปริ๊นเตอร์ได้: $e', Colors.red);
+      _showPrinterStatusSnackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถตรวจสอบสถานะปริ๊นเตอร์ได้: $e',
+        Colors.red,
+      );
     }
   }
 
@@ -148,18 +186,33 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     try {
       log('🌐 Checking network printer status: ${printer.address}');
 
-      final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
+      final isConnected = await printerController.testPrinterConnection(
+        printer,
+        showSnackbar: false,
+      );
 
       if (isConnected) {
         log('✅ Network printer is ready');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น ${printer.name} พร้อมใช้งาน', Colors.green);
+        _showPrinterStatusSnackbar(
+          'ปริ๊นเตอร์พร้อม',
+          'เครื่องปริ๊น ${printer.name} พร้อมใช้งาน',
+          Colors.green,
+        );
       } else {
         log('❌ Network printer not ready');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'ไม่สามารถเชื่อมต่อ ${printer.name} ได้ กรุณาตรวจสอบการเชื่อมต่อ', Colors.orange);
+        _showPrinterStatusSnackbar(
+          'ปริ๊นเตอร์ไม่พร้อม',
+          'ไม่สามารถเชื่อมต่อ ${printer.name} ได้ กรุณาตรวจสอบการเชื่อมต่อ',
+          Colors.orange,
+        );
       }
     } catch (e) {
       log('❌ Error checking network printer: $e');
-      _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'เกิดข้อผิดพลาดในการเชื่อมต่อ ${printer.name}: $e', Colors.red);
+      _showPrinterStatusSnackbar(
+        'ปริ๊นเตอร์ไม่พร้อม',
+        'เกิดข้อผิดพลาดในการเชื่อมต่อ ${printer.name}: $e',
+        Colors.red,
+      );
     }
   }
 
@@ -173,14 +226,22 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       if (isReady) {
         log('✅ Sunmi printer is ready and working');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น Sunmi พร้อมใช้งาน', Colors.green);
+        _showPrinterStatusSnackbar(
+          'ปริ๊นเตอร์พร้อม',
+          'เครื่องปริ๊น Sunmi พร้อมใช้งาน',
+          Colors.green,
+        );
       } else {
         log('❌ Sunmi printer is not ready');
         _showSunmiPrinterNotReadyDialog();
       }
     } catch (e) {
       log('❌ Sunmi printer check error: $e');
-      _showPrinterStatusSnackbar('ปริ๊นเตอร์ไม่พร้อม', 'เครื่องปริ๊น Sunmi มีปัญหา: $e', Colors.red);
+      _showPrinterStatusSnackbar(
+        'ปริ๊นเตอร์ไม่พร้อม',
+        'เครื่องปริ๊น Sunmi มีปัญหา: $e',
+        Colors.red,
+      );
     }
   }
 
@@ -201,14 +262,19 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('❌ Sunmi printer test failed: $e');
 
       // เช็คว่าเป็น lateinit property error หรือไม่
-      if (e.toString().contains('lateint property') || e.toString().contains('not been initialized')) {
+      if (e.toString().contains('lateint property') ||
+          e.toString().contains('not been initialized')) {
         log('⚠️ Detected lateinit property error - Sunmi printer not ready');
         return false;
       }
 
       // ถ้าเป็น error เกี่ยวกับ empty cart หรือ TEST data แสดงว่า printer พร้อมใช้งาน
-      if (e.toString().contains('empty') || e.toString().contains('no items') || e.toString().contains('TEST')) {
-        log('✅ Sunmi printer is working (test error is expected for empty cart)');
+      if (e.toString().contains('empty') ||
+          e.toString().contains('no items') ||
+          e.toString().contains('TEST')) {
+        log(
+          '✅ Sunmi printer is working (test error is expected for empty cart)',
+        );
         return true;
       }
 
@@ -226,14 +292,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('✅ Sunmi Printer test initialized successfully');
     } catch (e) {
       // ถ้า error เป็น lateinit property ให้ลองใหม่ครั้งเดียว
-      if (e.toString().contains('lateint property') || e.toString().contains('not been initialized')) {
+      if (e.toString().contains('lateint property') ||
+          e.toString().contains('not been initialized')) {
         log('⚠️ Detected lateinit error, retrying test initialization once...');
         await Future.delayed(const Duration(milliseconds: 200));
         try {
           await SunmiPrinter.lineWrap(0);
           log('✅ Sunmi Printer test initialized on retry');
         } catch (retryError) {
-          log('❌ Failed to initialize Sunmi Printer test after retry: $retryError');
+          log(
+            '❌ Failed to initialize Sunmi Printer test after retry: $retryError',
+          );
           throw retryError; // ส่งต่อ error เพื่อให้ _testSunmiPrinterReady รู้ว่าไม่พร้อม
         }
       } else {
@@ -284,8 +353,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   void _showSunmiPrinterNotReadyDialog() {
     Get.dialog(
       AlertDialog(
-        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.orange), SizedBox(width: 8), Text('เครื่องปริ๊น Sunmi ไม่พร้อม')]),
-        content: const Text('เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน\nกรุณาตรวจสอบและลองใหม่อีกครั้ง', style: TextStyle(fontSize: 16)),
+        title: const Row(
+          children: [
+            Icon(Icons.print_disabled, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('เครื่องปริ๊น Sunmi ไม่พร้อม'),
+          ],
+        ),
+        content: const Text(
+          'เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน\nกรุณาตรวจสอบและลองใหม่อีกครั้ง',
+          style: TextStyle(fontSize: 16),
+        ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
           ElevatedButton.icon(
@@ -295,7 +373,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             },
             icon: const Icon(Icons.refresh),
             label: const Text('ลองใหม่'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
@@ -313,7 +394,14 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [CircularProgressIndicator(), SizedBox(height: 16), Text('กำลังตรวจสอบปริ๊นเตอร์...', style: TextStyle(color: Colors.white))],
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'กำลังตรวจสอบปริ๊นเตอร์...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
           ),
         ),
         barrierDismissible: false,
@@ -328,15 +416,27 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       if (isReady) {
         log('✅ Sunmi printer is now ready after recheck');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์พร้อม', 'เครื่องปริ๊น Sunmi พร้อมใช้งานแล้ว', Colors.green);
+        _showPrinterStatusSnackbar(
+          'ปริ๊นเตอร์พร้อม',
+          'เครื่องปริ๊น Sunmi พร้อมใช้งานแล้ว',
+          Colors.green,
+        );
       } else {
         log('❌ Sunmi printer still not ready after recheck');
-        _showPrinterStatusSnackbar('ปริ๊นเตอร์ยังไม่พร้อม', 'เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน กรุณาตรวจสอบอีกครั้ง', Colors.orange);
+        _showPrinterStatusSnackbar(
+          'ปริ๊นเตอร์ยังไม่พร้อม',
+          'เครื่องปริ๊น Sunmi ยังไม่พร้อมใช้งาน กรุณาตรวจสอบอีกครั้ง',
+          Colors.orange,
+        );
       }
     } catch (e) {
       Get.back(); // ปิด loading dialog ถ้ายังเปิดอยู่
       log('❌ Error rechecking Sunmi printer: $e');
-      _showPrinterStatusSnackbar('เกิดข้อผิดพลาด', 'ไม่สามารถตรวจสอบปริ๊นเตอร์ได้: $e', Colors.red);
+      _showPrinterStatusSnackbar(
+        'เกิดข้อผิดพลาด',
+        'ไม่สามารถตรวจสอบปริ๊นเตอร์ได้: $e',
+        Colors.red,
+      );
     }
   }
 
@@ -352,7 +452,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('   cartItems: ${widget.cartItems}');
       log('   discounts: ${orderController.discounts}');
 
-      final calculatedDiscount = calculateDiscountFromRules(cartItems: widget.cartItems, discounts: orderController.discounts);
+      final calculatedDiscount = calculateDiscountFromRules(
+        cartItems: widget.cartItems,
+        discounts: orderController.discounts,
+      );
 
       log('🎯 Calculated discount from rules: ฿$calculatedDiscount');
       return calculatedDiscount;
@@ -390,12 +493,16 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         totalDiscountApplied += discountToApply;
         discountAmount = totalDiscountApplied;
 
-        log('💰 Applied additional manual discount: ฿$discountToApply, Total discount: ฿$totalDiscountApplied');
+        log(
+          '💰 Applied additional manual discount: ฿$discountToApply, Total discount: ฿$totalDiscountApplied',
+        );
 
         // แสดงข้อความยืนยัน
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('ลดเพิ่ม ฿${_formatPrice(discountToApply)} (รวมลดแล้ว ฿${_formatPrice(totalDiscountApplied)})'),
+            content: Text(
+              'ลดเพิ่ม ฿${_formatPrice(discountToApply)} (รวมลดแล้ว ฿${_formatPrice(totalDiscountApplied)})',
+            ),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 2),
           ),
@@ -403,7 +510,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       } else {
         log('⚠️ Cannot apply more discount, total is already 0');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+          const SnackBar(
+            content: Text('ไม่สามารถลดเพิ่มได้ ยอดเป็น 0 แล้ว'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
         );
       }
     });
@@ -418,9 +529,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       log('🧹 Cleared all discounts');
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('เคลียร์ส่วนลดแล้ว'), backgroundColor: Colors.green, duration: Duration(seconds: 1)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('เคลียร์ส่วนลดแล้ว'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
     });
 
     // คำนวณส่วนลดอัตโนมัติใหม่หลังจากเคลียร์
@@ -435,7 +550,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // ✅ ตรวจสอบปริ๊นเตอร์เริ่มต้นทันที
       final defaultPrinter = printerController.getDefaultPrinter();
       if (defaultPrinter != null) {
-        log('🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})');
+        log(
+          '🔍 Found printer: ${defaultPrinter.name} (${defaultPrinter.type})',
+        );
 
         // ✅ เช็คเร็วๆ ว่าเป็นปริ๊นเตอร์ในตัวหรือไม่ (เช็คทุกกรณี)
         bool isBuiltInPrinter =
@@ -475,7 +592,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       _showPrintPreviewDialog();
     } catch (e) {
       log('❌ Error in network printer process: $e');
-      Get.snackbar('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'เกิดข้อผิดพลาด',
+        'เกิดข้อผิดพลาดในการปริ๊น: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -483,18 +605,33 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   void _showNoPrinterDialog() {
     Get.dialog(
       AlertDialog(
-        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.orange), SizedBox(width: 8), Text('ไม่พบเครื่องปริ๊นเตอร์')]),
+        title: const Row(
+          children: [
+            Icon(Icons.print_disabled, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('ไม่พบเครื่องปริ๊นเตอร์'),
+          ],
+        ),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ยังไม่มีการตั้งค่าเครื่องปริ๊นเตอร์เริ่มต้น', style: TextStyle(fontSize: 16)),
+            Text(
+              'ยังไม่มีการตั้งค่าเครื่องปริ๊นเตอร์เริ่มต้น',
+              style: TextStyle(fontSize: 16),
+            ),
             SizedBox(height: 12),
-            Text('กรุณาไปที่หน้าการตั้งค่า > เครื่องพิมพ์ เพื่อ:', style: TextStyle(fontSize: 14, color: Colors.grey)),
+            Text(
+              'กรุณาไปที่หน้าการตั้งค่า > เครื่องพิมพ์ เพื่อ:',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
             SizedBox(height: 8),
             Text('• สแกนหาเครื่องปริ๊นเตอร์', style: TextStyle(fontSize: 14)),
             Text('• เพิ่มเครื่องปริ๊นเตอร์', style: TextStyle(fontSize: 14)),
-            Text('• ตั้งค่าเป็นเครื่องปริ๊นเตอร์เริ่มต้น', style: TextStyle(fontSize: 14)),
+            Text(
+              '• ตั้งค่าเป็นเครื่องปริ๊นเตอร์เริ่มต้น',
+              style: TextStyle(fontSize: 14),
+            ),
           ],
         ),
         actions: [
@@ -506,7 +643,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               _navigateToSettings();
             },
             style: ElevatedButton.styleFrom(backgroundColor: kTabColor),
-            child: const Text('ไปตั้งค่า', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'ไปตั้งค่า',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -531,9 +671,15 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                 children: [
                   const Icon(Icons.receipt_long, color: Colors.blue),
                   const SizedBox(width: 8),
-                  const Text('พรีวิวใบเสร็จ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'พรีวิวใบเสร็จ',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const Spacer(),
-                  IconButton(onPressed: () => Get.back(), icon: const Icon(Icons.close)),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close),
+                  ),
                 ],
               ),
               const Divider(),
@@ -556,8 +702,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                         child: ReceiptPreviewWidget(
                           cartItems: widget.cartItems,
                           receivedAmount: receivedAmount,
-                          changeAmount: receivedAmount - calculateTotalWithDiscount(),
-                          discountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
+                          changeAmount:
+                              receivedAmount - calculateTotalWithDiscount(),
+                          discountAmount:
+                              totalDiscountApplied > 0
+                                  ? totalDiscountApplied
+                                  : null,
                           paymentMethod: _getPaymentMethodName(),
                           staffName: staffName,
                           receiptNumber: orderReceiptNumber,
@@ -575,7 +725,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _captureAndPrintReceipt(previewKey); // แคปภาพและปริ๊นก่อน
+                    await _captureAndPrintReceipt(
+                      previewKey,
+                    ); // แคปภาพและปริ๊นก่อน
                   },
                   icon: const Icon(Icons.print),
                   label: const Text('ปริ๊น'),
@@ -616,7 +768,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       if (renderObject is! RenderRepaintBoundary) {
         log('❌ RenderObject is not RenderRepaintBoundary');
-        Get.snackbar('ข้อผิดพลาด', 'ไม่สามารถแคปภาพได้ - ไม่ใช่ RepaintBoundary');
+        Get.snackbar(
+          'ข้อผิดพลาด',
+          'ไม่สามารถแคปภาพได้ - ไม่ใช่ RepaintBoundary',
+        );
         return;
       }
 
@@ -641,22 +796,48 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.print, color: Colors.blue, size: 32),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.print,
+                      color: Colors.blue,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.blue), strokeWidth: 3),
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    strokeWidth: 3,
+                  ),
                   const SizedBox(height: 16),
-                  const Text('กำลังปริ๊น...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87)),
+                  const Text(
+                    'กำลังปริ๊น...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('กรุณารอสักครู่', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                  Text(
+                    'กรุณารอสักครู่',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),
@@ -675,7 +856,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ✅ เช็คจำนวนรายการก่อนตัดสินใจวิธีปริ๊น
       final itemCount = widget.cartItems.length;
-      final isLongReceipt = itemCount > 20; // ถ้ามีรายการมากกว่า 20 รายการถือว่ายาว
+      final isLongReceipt =
+          itemCount > 20; // ถ้ามีรายการมากกว่า 20 รายการถือว่ายาว
 
       log('📊 Cart items count: $itemCount, isLongReceipt: $isLongReceipt');
 
@@ -691,18 +873,27 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     } catch (e) {
       log('❌ Error in capture and print: $e');
       Get.back(); // ปิด loading
-      Get.snackbar('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการปริ๊น: $e', backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        'เกิดข้อผิดพลาดในการปริ๊น: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
   // ✅ ปริ๊นแบบภาพเดียว (สำหรับใบเสร็จสั้น)
-  Future<void> _captureAndPrintSingleImage(RenderRepaintBoundary boundary) async {
+  Future<void> _captureAndPrintSingleImage(
+    RenderRepaintBoundary boundary,
+  ) async {
     try {
       log('📄 Capturing single image for normal receipt');
 
       // สร้างภาพ
       ui.Image image = await boundary.toImage(pixelRatio: 1.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
 
       if (byteData == null) {
         log('❌ Cannot convert image to bytes');
@@ -710,7 +901,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       }
 
       Uint8List imageBytes = byteData.buffer.asUint8List();
-      log('✅ Single image captured successfully, size: ${imageBytes.length} bytes');
+      log(
+        '✅ Single image captured successfully, size: ${imageBytes.length} bytes',
+      );
 
       await _sendImageToPrinter(imageBytes);
     } catch (e) {
@@ -743,7 +936,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         final endY = ((i + 1) * stripHeight).clamp(0, imageHeight);
         final currentStripHeight = endY - startY;
 
-        log('� Processing strip ${i + 1}/$numberOfStrips: y=$startY-$endY (height=$currentStripHeight)');
+        log(
+          '� Processing strip ${i + 1}/$numberOfStrips: y=$startY-$endY (height=$currentStripHeight)',
+        );
 
         // สร้างภาพแถบ
         final recorder = ui.PictureRecorder();
@@ -752,22 +947,43 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         // วาดส่วนของภาพที่ต้องการ
         canvas.drawImageRect(
           fullImage,
-          Rect.fromLTWH(0, startY.toDouble(), imageWidth.toDouble(), currentStripHeight.toDouble()),
-          Rect.fromLTWH(0, 0, imageWidth.toDouble(), currentStripHeight.toDouble()),
+          Rect.fromLTWH(
+            0,
+            startY.toDouble(),
+            imageWidth.toDouble(),
+            currentStripHeight.toDouble(),
+          ),
+          Rect.fromLTWH(
+            0,
+            0,
+            imageWidth.toDouble(),
+            currentStripHeight.toDouble(),
+          ),
           Paint(),
         );
 
         final picture = recorder.endRecording();
-        final stripImage = await picture.toImage(imageWidth, currentStripHeight);
+        final stripImage = await picture.toImage(
+          imageWidth,
+          currentStripHeight,
+        );
 
         // แปลงเป็น bytes
-        final stripByteData = await stripImage.toByteData(format: ui.ImageByteFormat.png);
+        final stripByteData = await stripImage.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
         if (stripByteData != null) {
           final stripBytes = stripByteData.buffer.asUint8List();
           log('✅ Strip ${i + 1} captured: ${stripBytes.length} bytes');
 
           // ส่งแถบไปปริ๊นเตอร์แบบต่อเนื่อง (ไม่ตัดกระดาษ)
-          await _sendImageToPrinter(stripBytes, isStrip: true, stripNumber: i + 1, totalStrips: numberOfStrips, isLastStrip: i == numberOfStrips - 1);
+          await _sendImageToPrinter(
+            stripBytes,
+            isStrip: true,
+            stripNumber: i + 1,
+            totalStrips: numberOfStrips,
+            isLastStrip: i == numberOfStrips - 1,
+          );
 
           // รอสักครู่ระหว่างแถบ (ลดเวลาให้แถบติดกันมากขึ้น)
           await Future.delayed(const Duration(milliseconds: 50));
@@ -805,24 +1021,37 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       }
 
       if (isStrip) {
-        log('�️ Sending strip $stripNumber/$totalStrips to printer: ${defaultPrinter.name}');
+        log(
+          '�️ Sending strip $stripNumber/$totalStrips to printer: ${defaultPrinter.name}',
+        );
       } else {
         log('🖨️ Sending single image to printer: ${defaultPrinter.name}');
       }
 
       // เชื่อมต่อปริ๊นเตอร์
-      final connectSuccess = await _connectToPrinter(defaultPrinter, printerController);
+      final connectSuccess = await _connectToPrinter(
+        defaultPrinter,
+        printerController,
+      );
       if (!connectSuccess) {
-        throw Exception('ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}');
+        throw Exception(
+          'ไม่สามารถเชื่อมต่อกับปริ๊นเตอร์ ${defaultPrinter.name}',
+        );
       }
 
       // ส่งภาพไปปริ๊นเตอร์ (ตัดกระดาษเฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
-      final printSuccess = await printerController.printImage(defaultPrinter, imageBytes, cutPaper: !isStrip || isLastStrip);
+      final printSuccess = await printerController.printImage(
+        defaultPrinter,
+        imageBytes,
+        cutPaper: !isStrip || isLastStrip,
+      );
 
       // ปิดการเชื่อมต่อ (เฉพาะแถบสุดท้ายหรือภาพเดี่ยว)
       if (!isStrip || isLastStrip) {
         await _disconnectFromPrinter(defaultPrinter, printerController);
-        log('🔌 Disconnected from printer after ${isStrip ? "last strip" : "single image"}');
+        log(
+          '🔌 Disconnected from printer after ${isStrip ? "last strip" : "single image"}',
+        );
       } else {
         log('🔗 Keeping connection for next strip ($stripNumber/$totalStrips)');
       }
@@ -876,7 +1105,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   }
 
   // ✅ ปิดการเชื่อมต่อปริ๊นเตอร์เพื่อประหยัด RAM
-  Future<void> _disconnectFromPrinter(PrinterInfo printer, PrinterController printerController) async {
+  Future<void> _disconnectFromPrinter(
+    PrinterInfo printer,
+    PrinterController printerController,
+  ) async {
     try {
       log('🔌 Disconnecting from printer: ${printer.name}');
 
@@ -913,7 +1145,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   }
 
   // ✅ เชื่อมต่อปริ๊นเตอร์เฉพาะตอนปริ๊น (ประหยัด RAM)
-  Future<bool> _connectToPrinter(PrinterInfo printer, PrinterController printerController) async {
+  Future<bool> _connectToPrinter(
+    PrinterInfo printer,
+    PrinterController printerController,
+  ) async {
     try {
       log('🔌 Connecting to printer: ${printer.name} (${printer.address})');
       log('💾 Memory-efficient connection: Only for printing session');
@@ -921,7 +1156,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       // ทดสอบการเชื่อมต่อ 2 ครั้ง
       for (int attempt = 1; attempt <= 2; attempt++) {
         log('🔄 Connection attempt $attempt/2...');
-        final isConnected = await printerController.testPrinterConnection(printer, showSnackbar: false);
+        final isConnected = await printerController.testPrinterConnection(
+          printer,
+          showSnackbar: false,
+        );
         if (isConnected) {
           log('✅ Printer connected successfully on attempt $attempt');
           log('📡 Connection established - ready for print job');
@@ -965,7 +1203,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     } catch (e) {
       log('❌ Error in force print: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('เกิดข้อผิดพลาดในการปริ๊น: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -974,30 +1217,60 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   void _showPrinterConnectionErrorDialog(PrinterInfo printer) {
     Get.dialog(
       AlertDialog(
-        title: const Row(children: [Icon(Icons.error_outline, color: Colors.red), SizedBox(width: 8), Text('เชื่อมต่อปริ๊นเตอร์ไม่ได้')]),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('เชื่อมต่อปริ๊นเตอร์ไม่ได้'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ไม่สามารถเชื่อมต่อกับเครื่องปริ๊นเตอร์ "${printer.name}" ได้', style: const TextStyle(fontSize: 16)),
+            Text(
+              'ไม่สามารถเชื่อมต่อกับเครื่องปริ๊นเตอร์ "${printer.name}" ได้',
+              style: const TextStyle(fontSize: 16),
+            ),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('ประเภท: ${printer.type}', style: const TextStyle(fontSize: 14)),
-                  Text('ที่อยู่: ${printer.address}', style: const TextStyle(fontSize: 14)),
+                  Text(
+                    'ประเภท: ${printer.type}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  Text(
+                    'ที่อยู่: ${printer.address}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            const Text('กรุณาตรวจสอบ:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const Text(
+              'กรุณาตรวจสอบ:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
-            const Text('• เครื่องปริ๊นเตอร์เปิดอยู่', style: TextStyle(fontSize: 14)),
-            const Text('• สายเชื่อมต่อหรือ WiFi ทำงานปกติ', style: TextStyle(fontSize: 14)),
-            const Text('• เครื่องปริ๊นเตอร์อยู่ในเครือข่ายเดียวกัน', style: TextStyle(fontSize: 14)),
+            const Text(
+              '• เครื่องปริ๊นเตอร์เปิดอยู่',
+              style: TextStyle(fontSize: 14),
+            ),
+            const Text(
+              '• สายเชื่อมต่อหรือ WiFi ทำงานปกติ',
+              style: TextStyle(fontSize: 14),
+            ),
+            const Text(
+              '• เครื่องปริ๊นเตอร์อยู่ในเครือข่ายเดียวกัน',
+              style: TextStyle(fontSize: 14),
+            ),
           ],
         ),
         actions: [
@@ -1009,7 +1282,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               await printerController.testPrinterConnection(printer);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('ทดสอบใหม่', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'ทดสอบใหม่',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1081,15 +1357,23 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       log('✅ Print completed successfully');
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จไปยัง ${printer.name} สำเร็จ'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ปริ๊นใบเสร็จไปยัง ${printer.name} สำเร็จ'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       log('❌ Print failed: $e');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ปริ๊นใบเสร็จล้มเหลว: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ปริ๊นใบเสร็จล้มเหลว: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
 
       // แสดง dialog แนะนำให้ตรวจสอบปริ๊นเตอร์
@@ -1101,7 +1385,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   void _showPrintFailedDialog(PrinterInfo printer, String error) {
     Get.dialog(
       AlertDialog(
-        title: const Row(children: [Icon(Icons.print_disabled, color: Colors.red), SizedBox(width: 8), Text('ปริ๊นล้มเหลว')]),
+        title: const Row(
+          children: [
+            Icon(Icons.print_disabled, color: Colors.red),
+            SizedBox(width: 8),
+            Text('ปริ๊นล้มเหลว'),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1110,8 +1400,14 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(4)),
-              child: Text('ข้อผิดพลาด: $error', style: TextStyle(fontSize: 12, color: Colors.red[700])),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'ข้อผิดพลาด: $error',
+                style: TextStyle(fontSize: 12, color: Colors.red[700]),
+              ),
             ),
           ],
         ),
@@ -1144,21 +1440,33 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
     // Get.offAllNamed('/settings');
 
     // สำหรับตอนนี้ให้แสดงข้อความแทน
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์'), duration: Duration(seconds: 3)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'กรุณาไปที่เมนูการตั้งค่า > เครื่องพิมพ์ เพื่อตั้งค่าปริ๊นเตอร์',
+        ),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
-  Future<void> createOrdersOffline({required int paymentMethodId}) async {
+  Future<bool> createOrdersOffline({
+    required int paymentMethodId,
+    bool shouldVoidOriginal = true,
+  }) async {
     try {
       final total = calculateTotalWithDiscount();
 
       // ✅ ตรวจสอบและ void ออเดอร์เดิมก่อน (ถ้าเป็นโหมดแก้ไข)
-      if (widget.editOrderId != null) {
-        log('🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}');
+      if (shouldVoidOriginal && widget.editOrderId != null) {
+        log(
+          '🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}',
+        );
 
         try {
-          final voidResult = await Homeservice.voidOrder(orderId: widget.editOrderId!);
+          final voidResult = await Homeservice.voidOrder(
+            orderId: widget.editOrderId!,
+          );
           log('📋 Void order result: $voidResult');
 
           if (voidResult != null && voidResult is Map<String, dynamic>) {
@@ -1170,14 +1478,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'),
+                    content: Text(
+                      'ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ',
+                    ),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 2),
                   ),
                 );
               }
             } else {
-              throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus');
+              throw Exception(
+                'ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus',
+              );
             }
           } else {
             throw Exception('ไม่ได้รับข้อมูลการยกเลิกออเดอร์');
@@ -1192,10 +1504,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       await homeController.loadDeviceInfo();
 
       // ✅ ใช้ device internal ID ที่บันทึกไว้แทนเลข 1
-      final currentDeviceInternalId = homeController.getCurrentDeviceInternalId();
+      final currentDeviceInternalId =
+          homeController.getCurrentDeviceInternalId();
       final deviceIdToUse = currentDeviceInternalId ?? 1; // ใช้ 1 เป็น fallback
 
-      print('📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}');
+      print(
+        '📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}',
+      );
       print('📱 Current device internal ID: $currentDeviceInternalId');
       print('📱 Using device ID for order: $deviceIdToUse');
 
@@ -1222,12 +1537,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         "paid": receivedAmount,
         "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
         "discount": totalDiscountApplied,
-        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${_formatPrice(totalDiscountApplied)}" : "string",
+        "remark":
+            totalDiscountApplied > 0
+                ? "ส่วนลดรวม ฿${_formatPrice(totalDiscountApplied)}"
+                : "string",
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
-      final order = await Homeservice.createOrderOffline(formattedOrder: formattedOrder);
-      if (!mounted) return;
+      final order = await Homeservice.createOrderOffline(
+        formattedOrder: formattedOrder,
+      );
+      if (!mounted) return true;
 
       // ✅ เก็บเลขที่ใบเสร็จจาก response
       if (order != null && order['id'] != null) {
@@ -1236,10 +1556,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       }
 
       setState(() {});
+      return true;
     } catch (e) {
       // handle error
       log('❌ Error creating order: $e');
-      Get.snackbar('ข้อผิดพลาด', e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        e.toString(),
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
     }
   }
 
@@ -1249,10 +1576,14 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // ✅ ตรวจสอบและ void ออเดอร์เดิมก่อน (ถ้าเป็นโหมดแก้ไข)
       if (widget.editOrderId != null) {
-        log('🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}');
+        log(
+          '🔄 Edit mode detected, voiding original order ID: ${widget.editOrderId}',
+        );
 
         try {
-          final voidResult = await Homeservice.voidOrder(orderId: widget.editOrderId!);
+          final voidResult = await Homeservice.voidOrder(
+            orderId: widget.editOrderId!,
+          );
           log('📋 Void order result: $voidResult');
 
           if (voidResult != null && voidResult is Map<String, dynamic>) {
@@ -1264,14 +1595,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ'),
+                    content: Text(
+                      'ยกเลิกออเดอร์เดิม ${widget.editOrderNumber} สำเร็จ',
+                    ),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 2),
                   ),
                 );
               }
             } else {
-              throw Exception('ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus');
+              throw Exception(
+                'ไม่สามารถยกเลิกออเดอร์เดิมได้ สถานะ: $orderStatus',
+              );
             }
           } else {
             throw Exception('ไม่ได้รับข้อมูลการยกเลิกออเดอร์');
@@ -1286,10 +1621,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
       await homeController.loadDeviceInfo();
 
       // ✅ ใช้ device internal ID ที่บันทึกไว้แทนเลข 1
-      final currentDeviceInternalId = homeController.getCurrentDeviceInternalId();
+      final currentDeviceInternalId =
+          homeController.getCurrentDeviceInternalId();
       final deviceIdToUse = currentDeviceInternalId ?? 1; // ใช้ 1 เป็น fallback
 
-      print('📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}');
+      print(
+        '📱 Device info loaded for order: ${homeController.deviceInfo.isNotEmpty}',
+      );
       print('📱 Current device internal ID: $currentDeviceInternalId');
       print('📱 Using device ID for order: $deviceIdToUse');
 
@@ -1313,11 +1651,16 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
         "paid": receivedAmount,
         "change": receivedAmount - total, // ✅ ใช้ค่าเงินทอนจริงจากการกดปุ่ม
         "discount": totalDiscountApplied,
-        "remark": totalDiscountApplied > 0 ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}" : "string",
+        "remark":
+            totalDiscountApplied > 0
+                ? "ส่วนลดรวม ฿${totalDiscountApplied.toStringAsFixed(0)}"
+                : "string",
       };
 
       print("📦 JSON ที่จะส่ง: $formattedOrder");
-      final order = await Homeservice.createOrders(formattedOrder: formattedOrder);
+      final order = await Homeservice.createOrders(
+        formattedOrder: formattedOrder,
+      );
       if (!mounted) return;
 
       // ✅ เก็บเลขที่ใบเสร็จจาก response
@@ -1328,7 +1671,36 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       setState(() {});
     } catch (e) {
-      // handle error
+      log('❌ Error creating order online: $e');
+
+      if (_shouldSaveOfflineAfterOrderFailure(e)) {
+        homeController.isConnected.value = false;
+        log(
+          '📴 Online order failed from network/server availability issue - saving offline',
+        );
+        final savedOffline = await createOrdersOffline(
+          paymentMethodId: paymentMethodId,
+          shouldVoidOriginal: false,
+        );
+
+        if (savedOffline) {
+          Get.snackbar(
+            'บันทึกออฟไลน์แล้ว',
+            'สร้างออเดอร์ในเครื่องแล้ว จะซิงค์เมื่อมีอินเทอร์เน็ต',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 3),
+          );
+        }
+        return;
+      }
+
+      Get.snackbar(
+        'ข้อผิดพลาด',
+        e.toString(),
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -1350,7 +1722,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             if (widget.editOrderId != null) ...[
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 color: Colors.orange[50],
                 child: Row(
                   children: [
@@ -1358,7 +1733,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                     const SizedBox(width: 8),
                     Text(
                       'กำลังแก้ไขออเดอร์: ${widget.editOrderNumber ?? widget.editOrderId}',
-                      style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                 ),
@@ -1373,7 +1752,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                     flex: 2,
                     child: CartSummaryWidget(
                       cartItems: widget.cartItems,
-                      selectedDiscountAmount: totalDiscountApplied > 0 ? totalDiscountApplied : null,
+                      selectedDiscountAmount:
+                          totalDiscountApplied > 0
+                              ? totalDiscountApplied
+                              : null,
                       discountAmount: totalDiscountApplied,
                     ),
                   ),
@@ -1386,17 +1768,33 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ✅ ใช้ PaymentDisplayWidget แทน
-                          PaymentDisplayWidget(total: total, receivedAmount: receivedAmount),
+                          PaymentDisplayWidget(
+                            total: total,
+                            receivedAmount: receivedAmount,
+                          ),
 
                           const SizedBox(height: 24),
 
                           if (!isPaid) ...[
-                            const Text('จำนวนรับ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 20)),
+                            const Text(
+                              'จำนวนรับ',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('฿${_formatPrice(receivedAmount)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
+                                Text(
+                                  '฿${_formatPrice(receivedAmount)}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                                 OutlinedButton(
                                   onPressed: () async {
                                     final amount = await showDialog<double>(
@@ -1407,16 +1805,21 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                           title: const Text("ใส่จำนวนเงิน"),
                                           content: TextField(
                                             keyboardType: TextInputType.number,
-                                            decoration: const InputDecoration(hintText: 'เช่น 500'),
+                                            decoration: const InputDecoration(
+                                              hintText: 'เช่น 500',
+                                            ),
                                             onChanged: (value) {
-                                              tempAmount = double.tryParse(value) ?? 0;
+                                              tempAmount =
+                                                  double.tryParse(value) ?? 0;
                                             },
                                           ),
                                           actions: [
                                             TextButton(
                                               child: const Text("ตกลง"),
                                               onPressed: () {
-                                                Navigator.of(context).pop(tempAmount);
+                                                Navigator.of(
+                                                  context,
+                                                ).pop(tempAmount);
                                               },
                                             ),
                                           ],
@@ -1430,7 +1833,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                       });
                                     }
                                   },
-                                  child: const Text("จำนวนเงิน", style: TextStyle(color: Colors.black)),
+                                  child: const Text(
+                                    "จำนวนเงิน",
+                                    style: TextStyle(color: Colors.black),
+                                  ),
                                 ),
                               ],
                             ),
@@ -1445,7 +1851,8 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 OutlinedButton(
                                   onPressed: () {
                                     setState(() {
-                                      receivedAmount = calculateTotalWithDiscount();
+                                      receivedAmount =
+                                          calculateTotalWithDiscount();
                                     });
                                   },
                                   style: OutlinedButton.styleFrom(
@@ -1453,7 +1860,13 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     backgroundColor: Colors.green[50],
                                     fixedSize: Size(130, 48),
                                   ),
-                                  child: Text('รับเงินพอดี', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                  child: Text(
+                                    'รับเงินพอดี',
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                                 // ปุ่มจำนวนเงินต่างๆ
                                 for (final amount in [100, 200, 500, 1000])
@@ -1466,9 +1879,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     style: OutlinedButton.styleFrom(
                                       side: BorderSide(color: Colors.grey),
                                       backgroundColor: Colors.white,
-                                      fixedSize: Size(130, 48), // ✅ เพิ่มความกว้างตรงนี้
+                                      fixedSize: Size(
+                                        130,
+                                        48,
+                                      ), // ✅ เพิ่มความกว้างตรงนี้
                                     ),
-                                    child: Text('฿${_formatPrice(amount)}', style: const TextStyle(color: Colors.black)),
+                                    child: Text(
+                                      '฿${_formatPrice(amount)}',
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                      ),
+                                    ),
                                   ),
                               ],
                             ),
@@ -1483,7 +1904,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   child: Card(
                                     elevation: 4, // เพิ่มเงา
                                     color: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                     child: InkWell(
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเงินสด
@@ -1492,15 +1915,21 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             context: context,
                                             paymentMethod: 'เงินสด',
                                             icon: Icons.payments,
-                                            paymentMethodId: 1, // paymentMethodId สำหรับเงินสด
-                                            autoSetAmount: false, // ไม่ auto set receivedAmount
+                                            paymentMethodId:
+                                                1, // paymentMethodId สำหรับเงินสด
+                                            autoSetAmount:
+                                                false, // ไม่ auto set receivedAmount
                                             total: total,
                                             receivedAmount: receivedAmount,
                                             onCancel: () => Get.back(),
-                                            onConfirm: (paymentMethodId, autoSetAmount) async {
+                                            onConfirm: (
+                                              paymentMethodId,
+                                              autoSetAmount,
+                                            ) async {
                                               // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
                                               setState(() {
-                                                currentPaymentMethodId = paymentMethodId;
+                                                currentPaymentMethodId =
+                                                    paymentMethodId;
                                               });
 
                                               // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
@@ -1511,9 +1940,17 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               }
 
                                               // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                              if (!autoSetAmount && receivedAmount < total) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red),
+                                              if (!autoSetAmount &&
+                                                  receivedAmount < total) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'จำนวนที่รับชำระไม่เพียงพอ',
+                                                    ),
+                                                    backgroundColor: Colors.red,
+                                                  ),
                                                 );
                                                 return;
                                               }
@@ -1524,30 +1961,63 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               });
 
                                               // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                              if (homeController.isConnected.value) {
-                                                log('🌐 Internet connected - calling createOrders (online)');
-                                                await createOrders(paymentMethodId: paymentMethodId);
+                                              if (homeController
+                                                  .isConnected
+                                                  .value) {
+                                                log(
+                                                  '🌐 Internet connected - calling createOrders (online)',
+                                                );
+                                                await createOrders(
+                                                  paymentMethodId:
+                                                      paymentMethodId,
+                                                );
                                               } else {
-                                                log('📴 No internet - calling createOrdersOffline');
-                                                await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                                log(
+                                                  '📴 No internet - calling createOrdersOffline',
+                                                );
+                                                await createOrdersOffline(
+                                                  paymentMethodId:
+                                                      paymentMethodId,
+                                                );
                                               }
                                             },
                                           );
                                         } else {
                                           ScaffoldMessenger.of(
                                             context,
-                                          ).showSnackBar(const SnackBar(content: Text('จำนวนที่ชำระไม่พอ'), backgroundColor: Colors.red));
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'จำนวนที่ชำระไม่พอ',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
                                         }
                                       },
                                       borderRadius: BorderRadius.circular(12),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // ✅ สูงขึ้น
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 24,
+                                        ), // ✅ สูงขึ้น
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: const [
-                                            Icon(Icons.payments, color: Colors.black, size: 32), // ✅ ใหญ่ขึ้น
+                                            Icon(
+                                              Icons.payments,
+                                              color: Colors.black,
+                                              size: 32,
+                                            ), // ✅ ใหญ่ขึ้น
                                             SizedBox(height: 8),
-                                            Text("เงินสด", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                            Text(
+                                              "เงินสด",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1561,7 +2031,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   child: Card(
                                     elevation: 4,
                                     color: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                     child: InkWell(
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยโอน
@@ -1569,15 +2041,21 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                           context: context,
                                           paymentMethod: 'โอน',
                                           icon: Icons.account_balance,
-                                          paymentMethodId: 2, // paymentMethodId สำหรับโอน
-                                          autoSetAmount: true, // auto set receivedAmount = total
+                                          paymentMethodId:
+                                              2, // paymentMethodId สำหรับโอน
+                                          autoSetAmount:
+                                              true, // auto set receivedAmount = total
                                           total: total,
                                           receivedAmount: receivedAmount,
                                           onCancel: () => Get.back(),
-                                          onConfirm: (paymentMethodId, autoSetAmount) async {
+                                          onConfirm: (
+                                            paymentMethodId,
+                                            autoSetAmount,
+                                          ) async {
                                             // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
                                             setState(() {
-                                              currentPaymentMethodId = paymentMethodId;
+                                              currentPaymentMethodId =
+                                                  paymentMethodId;
                                             });
 
                                             // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
@@ -1588,10 +2066,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             }
 
                                             // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                            if (!autoSetAmount && receivedAmount < total) {
+                                            if (!autoSetAmount &&
+                                                receivedAmount < total) {
                                               ScaffoldMessenger.of(
                                                 context,
-                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'จำนวนที่รับชำระไม่เพียงพอ',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
                                               return;
                                             }
 
@@ -1602,25 +2088,51 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
                                             //await createOrders(paymentMethodId: paymentMethodId);
                                             // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                            if (homeController.isConnected.value) {
-                                              log('🌐 Internet connected - calling createOrders (online)');
-                                              await createOrders(paymentMethodId: paymentMethodId);
+                                            if (homeController
+                                                .isConnected
+                                                .value) {
+                                              log(
+                                                '🌐 Internet connected - calling createOrders (online)',
+                                              );
+                                              await createOrders(
+                                                paymentMethodId:
+                                                    paymentMethodId,
+                                              );
                                             } else {
-                                              log('📴 No internet - calling createOrdersOffline');
-                                              await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                              log(
+                                                '📴 No internet - calling createOrdersOffline',
+                                              );
+                                              await createOrdersOffline(
+                                                paymentMethodId:
+                                                    paymentMethodId,
+                                              );
                                             }
                                           },
                                         );
                                       },
                                       borderRadius: BorderRadius.circular(12),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 24,
+                                        ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: const [
-                                            Icon(Icons.account_balance, color: Colors.black, size: 32),
+                                            Icon(
+                                              Icons.account_balance,
+                                              color: Colors.black,
+                                              size: 32,
+                                            ),
                                             SizedBox(height: 8),
-                                            Text("โอน", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                            Text(
+                                              "โอน",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1634,7 +2146,9 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                   child: Card(
                                     elevation: 4,
                                     color: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                     child: InkWell(
                                       onTap: () {
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเครดิต
@@ -1642,15 +2156,21 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                           context: context,
                                           paymentMethod: 'เครดิต',
                                           icon: Icons.add_card,
-                                          paymentMethodId: 3, // paymentMethodId สำหรับเครดิต
-                                          autoSetAmount: true, // auto set receivedAmount = total
+                                          paymentMethodId:
+                                              3, // paymentMethodId สำหรับเครดิต
+                                          autoSetAmount:
+                                              true, // auto set receivedAmount = total
                                           total: total,
                                           receivedAmount: receivedAmount,
                                           onCancel: () => Get.back(),
-                                          onConfirm: (paymentMethodId, autoSetAmount) async {
+                                          onConfirm: (
+                                            paymentMethodId,
+                                            autoSetAmount,
+                                          ) async {
                                             // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
                                             setState(() {
-                                              currentPaymentMethodId = paymentMethodId;
+                                              currentPaymentMethodId =
+                                                  paymentMethodId;
                                             });
 
                                             // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
@@ -1661,10 +2181,18 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             }
 
                                             // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                            if (!autoSetAmount && receivedAmount < total) {
+                                            if (!autoSetAmount &&
+                                                receivedAmount < total) {
                                               ScaffoldMessenger.of(
                                                 context,
-                                              ).showSnackBar(const SnackBar(content: Text('จำนวนที่รับชำระไม่เพียงพอ'), backgroundColor: Colors.red));
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'จำนวนที่รับชำระไม่เพียงพอ',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
                                               return;
                                             }
 
@@ -1675,25 +2203,51 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
                                             //await createOrders(paymentMethodId: paymentMethodId);
                                             // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                            if (homeController.isConnected.value) {
-                                              log('🌐 Internet connected - calling createOrders (online)');
-                                              await createOrders(paymentMethodId: paymentMethodId);
+                                            if (homeController
+                                                .isConnected
+                                                .value) {
+                                              log(
+                                                '🌐 Internet connected - calling createOrders (online)',
+                                              );
+                                              await createOrders(
+                                                paymentMethodId:
+                                                    paymentMethodId,
+                                              );
                                             } else {
-                                              log('📴 No internet - calling createOrdersOffline');
-                                              await createOrdersOffline(paymentMethodId: paymentMethodId);
+                                              log(
+                                                '📴 No internet - calling createOrdersOffline',
+                                              );
+                                              await createOrdersOffline(
+                                                paymentMethodId:
+                                                    paymentMethodId,
+                                              );
                                             }
                                           },
                                         );
                                       },
                                       borderRadius: BorderRadius.circular(12),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 24,
+                                        ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: const [
-                                            Icon(Icons.add_card, color: Colors.black, size: 32),
+                                            Icon(
+                                              Icons.add_card,
+                                              color: Colors.black,
+                                              size: 32,
+                                            ),
                                             SizedBox(height: 8),
-                                            Text("เครดิต", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold)),
+                                            Text(
+                                              "เครดิต",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1708,18 +2262,34 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('ลดราคา', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+                                const Text(
+                                  'ลดราคา',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 22,
+                                  ),
+                                ),
                                 if (totalDiscountApplied > 0) ...[
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.red.shade100,
                                       borderRadius: BorderRadius.circular(15),
-                                      border: Border.all(color: Colors.red.shade300, width: 1.5),
+                                      border: Border.all(
+                                        color: Colors.red.shade300,
+                                        width: 1.5,
+                                      ),
                                     ),
                                     child: Text(
                                       'ลดไปแล้ว ฿${_formatPrice(totalDiscountApplied)}',
-                                      style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 13),
+                                      style: TextStyle(
+                                        color: Colors.red.shade800,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1733,17 +2303,34 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                 for (final amount in [1.0, 2.0, 5.0, 10.0])
                                   Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 3,
+                                      ),
                                       child: ElevatedButton(
-                                        onPressed: () => handleDiscountSelection(amount),
+                                        onPressed:
+                                            () =>
+                                                handleDiscountSelection(amount),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.orange.shade400,
+                                          backgroundColor:
+                                              Colors.orange.shade400,
                                           foregroundColor: Colors.white,
                                           elevation: 2,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
                                         ),
-                                        child: Text('ลด ฿${_formatPrice(amount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        child: Text(
+                                          'ลด ฿${_formatPrice(amount)}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1755,21 +2342,43 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: totalDiscountApplied > 0 ? clearAllDiscounts : null,
+                                onPressed:
+                                    totalDiscountApplied > 0
+                                        ? clearAllDiscounts
+                                        : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: totalDiscountApplied > 0 ? Colors.green.shade500 : Colors.grey.shade300,
+                                  backgroundColor:
+                                      totalDiscountApplied > 0
+                                          ? Colors.green.shade500
+                                          : Colors.grey.shade300,
                                   foregroundColor: Colors.white,
                                   elevation: totalDiscountApplied > 0 ? 2 : 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                 ),
-                                icon: Icon(Icons.refresh, color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600, size: 20),
+                                icon: Icon(
+                                  Icons.refresh,
+                                  color:
+                                      totalDiscountApplied > 0
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                  size: 20,
+                                ),
                                 label: Text(
-                                  totalDiscountApplied > 0 ? 'เคลียร์ - กลับเป็นราคาเดิม' : 'ไม่มีส่วนลดที่จะเคลียร์',
+                                  totalDiscountApplied > 0
+                                      ? 'เคลียร์ - กลับเป็นราคาเดิม'
+                                      : 'ไม่มีส่วนลดที่จะเคลียร์',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: totalDiscountApplied > 0 ? Colors.white : Colors.grey.shade600,
+                                    color:
+                                        totalDiscountApplied > 0
+                                            ? Colors.white
+                                            : Colors.grey.shade600,
                                   ),
                                 ),
                               ),
@@ -1777,45 +2386,78 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                           ] else ...[
                             const SizedBox(height: 16),
                             Container(
-                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: TextField(
                                 decoration: const InputDecoration(
                                   hintText: 'กรอกอีเมล์',
                                   prefixIcon: Icon(Icons.email),
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 14,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 25),
                             // ✅ ปุ่มปริ๊นพร้อมสถานะการเชื่อมต่อ
                             Obx(() {
-                              final isConnected = printerController.isDefaultPrinterConnected.value;
-                              final connectionStatus = printerController.connectionStatus.value;
+                              final isConnected =
+                                  printerController
+                                      .isDefaultPrinterConnected
+                                      .value;
+                              final connectionStatus =
+                                  printerController.connectionStatus.value;
 
                               return Column(
                                 children: [
                                   // แสดงสถานะการเชื่อมต่อ
                                   Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: isConnected ? Colors.green.shade50 : Colors.orange.shade50,
+                                      color:
+                                          isConnected
+                                              ? Colors.green.shade50
+                                              : Colors.orange.shade50,
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: isConnected ? Colors.green.shade200 : Colors.orange.shade200, width: 1),
+                                      border: Border.all(
+                                        color:
+                                            isConnected
+                                                ? Colors.green.shade200
+                                                : Colors.orange.shade200,
+                                        width: 1,
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
-                                          isConnected ? Icons.check_circle : Icons.warning,
-                                          color: isConnected ? Colors.green.shade600 : Colors.orange.shade600,
+                                          isConnected
+                                              ? Icons.check_circle
+                                              : Icons.warning,
+                                          color:
+                                              isConnected
+                                                  ? Colors.green.shade600
+                                                  : Colors.orange.shade600,
                                           size: 16,
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
                                             connectionStatus,
-                                            style: TextStyle(fontSize: 12, color: isConnected ? Colors.green.shade700 : Colors.orange.shade700),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color:
+                                                  isConnected
+                                                      ? Colors.green.shade700
+                                                      : Colors.orange.shade700,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -1829,23 +2471,45 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     },
                                     child: Container(
                                       width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: isConnected ? Colors.blue.shade100 : Colors.grey.shade200,
+                                        color:
+                                            isConnected
+                                                ? Colors.blue.shade100
+                                                : Colors.grey.shade200,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: isConnected ? Border.all(color: Colors.blue.shade300) : null,
+                                        border:
+                                            isConnected
+                                                ? Border.all(
+                                                  color: Colors.blue.shade300,
+                                                )
+                                                : null,
                                       ),
                                       child: Center(
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.print, color: isConnected ? Colors.blue.shade700 : Colors.black),
+                                            Icon(
+                                              Icons.print,
+                                              color:
+                                                  isConnected
+                                                      ? Colors.blue.shade700
+                                                      : Colors.black,
+                                            ),
                                             const SizedBox(width: 8),
                                             Text(
                                               'พิมพ์ใบเสร็จ',
                                               style: TextStyle(
-                                                color: isConnected ? Colors.blue.shade700 : Colors.black,
-                                                fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
+                                                color:
+                                                    isConnected
+                                                        ? Colors.blue.shade700
+                                                        : Colors.black,
+                                                fontWeight:
+                                                    isConnected
+                                                        ? FontWeight.w600
+                                                        : FontWeight.normal,
                                               ),
                                             ),
                                           ],
@@ -1864,18 +2528,27 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: kTabColor,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                                 onPressed: () {
                                   // ✅ เคลียร์ข้อมูลออเดอร์ที่แก้ไขใน HomeController
-                                  final homeController = Get.find<HomeController>();
+                                  final homeController =
+                                      Get.find<HomeController>();
                                   homeController.editOrderId = null;
                                   homeController.editOrderNumber = null;
 
                                   Navigator.pop(context, true);
                                 },
-                                icon: const Icon(Icons.check, color: Colors.white),
-                                label: const Text('เริ่มรายการใหม่', style: TextStyle(color: Colors.white)),
+                                icon: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'เริ่มรายการใหม่',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ),
                             ),
                           ],
@@ -1902,7 +2575,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
             color: Colors.white,
             width: 384, // 80mm ขนาดพอดีของ Sunmi
             padding: const EdgeInsets.all(16),
-            child: ReceiptWidget(cartItems: widget.cartItems, total: calculateCartTotal(widget.cartItems)),
+            child: ReceiptWidget(
+              cartItems: widget.cartItems,
+              total: calculateCartTotal(widget.cartItems),
+            ),
           ),
         ),
       ),

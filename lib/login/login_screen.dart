@@ -280,10 +280,30 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       log('❌ Error checking device registration: $e');
-      // ถ้าเกิดข้อผิดพลาด ให้ไปหน้า HomePage ตามปกติ
-      if (mounted) {
-        _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้', isError: true);
-        Get.offAll(HomePage());
+
+      // ✅ เช็คว่าเป็น error เพราะ device ไม่ลงทะเบียน หรือ error อื่นๆ
+      final errorMessage = e.toString().toLowerCase();
+
+      // ตรวจสอบว่าเป็น error ที่บอกว่า device ไม่พบ/ไม่ลงทะเบียน
+      if (errorMessage.contains('not found') ||
+          errorMessage.contains('404') ||
+          errorMessage.contains('ไม่พบ') ||
+          errorMessage.contains('device not registered') ||
+          errorMessage.contains('device does not exist')) {
+        // Device ยังไม่ลงทะเบียน - แสดง dialog สำหรับลงทะเบียน
+        log('⚠️ Device not registered, showing registration dialog');
+        if (mounted) {
+          await _showDeviceRegistrationDialog();
+        }
+      } else {
+        // Error อื่นๆ (network error, server error, etc.)
+        log('❌ Real error occurred (not device registration issue): $e');
+        if (mounted) {
+          _showMessage('ไม่สามารถตรวจสอบการลงทะเบียนอุปกรณ์ได้: ${e.toString()}', isError: true);
+
+          // ถามผู้ใช้ว่าต้องการลงทะเบียนหรือข้ามไป
+          await _showErrorWithRetryDialog(e.toString());
+        }
       }
     }
   }
@@ -343,6 +363,37 @@ class _LoginScreenState extends State<LoginScreen> {
     // ไม่ว่าผลลัพธ์จะเป็นอย่างไร ให้ไปหน้า HomePage
     if (mounted) {
       Get.offAll(HomePage());
+    }
+  }
+
+  // ✅ แสดง dialog เมื่อเกิด error ให้เลือกว่าจะลงทะเบียนหรือข้าม
+  Future<void> _showErrorWithRetryDialog(String errorMessage) async {
+    final result = await Get.dialog<bool>(
+      AlertDialog(
+        title: Row(children: const [Icon(Icons.error_outline, color: Colors.orange), SizedBox(width: 8), Text('ไม่สามารถตรวจสอบอุปกรณ์ได้')]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [Text('เกิดข้อผิดพลาด: $errorMessage'), const SizedBox(height: 16), const Text('คุณต้องการลงทะเบียนอุปกรณ์ใหม่หรือไม่?')],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(result: false), child: const Text('ข้ามไป')),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('ลงทะเบียน', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+
+    if (result == true) {
+      // ผู้ใช้เลือกลงทะเบียน
+      await _showDeviceRegistrationDialog();
+    } else {
+      // ผู้ใช้เลือกข้ามไป
+      Get.offAll(const HomePage());
     }
   }
 
