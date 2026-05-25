@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:posashastd/D2S/controllers/home_controller.dart';
@@ -21,7 +22,6 @@ import 'package:posashastd/services/homeService.dart';
 import 'package:posashastd/utils/cart_utils.dart';
 import 'package:screenshot/screenshot.dart';
 import 'dart:ui' as ui;
-import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
@@ -46,6 +46,7 @@ class PaymentPageD2s extends StatefulWidget {
 class _PaymentPageD2sState extends State<PaymentPageD2s> {
   double receivedAmount = 0;
   bool isPaid = false;
+  bool _isSubmittingOrder = false;
   final ScreenshotController screenshotController = ScreenshotController();
   final GlobalKey receiptKey = GlobalKey();
   String? orderReceiptNumber; // ✅ เก็บเลขที่ใบเสร็จจาก API
@@ -87,6 +88,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
   void initState() {
     super.initState();
     log('🏠 HomePage initState called');
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
 
     // ลบ controller เก่าและสร้างใหม่เพื่อให้แน่ใจว่าข้อมูลจะถูกโหลดใหม่
     if (Get.isRegistered<HomeController>()) {
@@ -134,6 +139,56 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
 
       // หลังจากโหลดข้อมูลเสร็จ ให้เช็คพาเนลและสร้างแท็บ
     });
+  }
+
+  Future<void> _confirmPayment({
+    required int paymentMethodId,
+    required bool autoSetAmount,
+    required double total,
+  }) async {
+    if (_isSubmittingOrder || orderReceiptNumber != null) return;
+
+    setState(() {
+      _isSubmittingOrder = true;
+      currentPaymentMethodId = paymentMethodId;
+      if (autoSetAmount) {
+        receivedAmount = total;
+      }
+    });
+
+    if (!autoSetAmount && receivedAmount < total) {
+      if (mounted) {
+        setState(() {
+          _isSubmittingOrder = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('จำนวนที่รับชำระไม่เพียงพอ'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      isPaid = true;
+    });
+
+    if (homeController.isConnected.value) {
+      log('🌐 Internet connected - calling createOrders (online)');
+      await createOrders(paymentMethodId: paymentMethodId);
+    } else {
+      log('📴 No internet - calling createOrdersOffline');
+      await createOrdersOffline(paymentMethodId: paymentMethodId);
+    }
+
+    if (mounted && orderReceiptNumber == null) {
+      setState(() {
+        isPaid = false;
+        _isSubmittingOrder = false;
+      });
+    }
   }
 
   // ✅ เช็คสถานะปริ๊นเตอร์ตั้งแต่เข้าหน้า
@@ -1909,6 +1964,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     ),
                                     child: InkWell(
                                       onTap: () {
+                                        if (_isSubmittingOrder ||
+                                            orderReceiptNumber != null) {
+                                          return;
+                                        }
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเงินสด
                                         if (receivedAmount >= total) {
                                           PaymentConfirmDialog.show(
@@ -1926,60 +1985,12 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                               paymentMethodId,
                                               autoSetAmount,
                                             ) async {
-                                              // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
-                                              setState(() {
-                                                currentPaymentMethodId =
-                                                    paymentMethodId;
-                                              });
-
-                                              // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
-                                              if (autoSetAmount) {
-                                                setState(() {
-                                                  receivedAmount = total;
-                                                });
-                                              }
-
-                                              // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                              if (!autoSetAmount &&
-                                                  receivedAmount < total) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'จำนวนที่รับชำระไม่เพียงพอ',
-                                                    ),
-                                                    backgroundColor: Colors.red,
-                                                  ),
-                                                );
-                                                return;
-                                              }
-
-                                              // ✅ ดำเนินการชำระเงิน
-                                              setState(() {
-                                                isPaid = true;
-                                              });
-
-                                              // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                              if (homeController
-                                                  .isConnected
-                                                  .value) {
-                                                log(
-                                                  '🌐 Internet connected - calling createOrders (online)',
-                                                );
-                                                await createOrders(
-                                                  paymentMethodId:
-                                                      paymentMethodId,
-                                                );
-                                              } else {
-                                                log(
-                                                  '📴 No internet - calling createOrdersOffline',
-                                                );
-                                                await createOrdersOffline(
-                                                  paymentMethodId:
-                                                      paymentMethodId,
-                                                );
-                                              }
+                                              await _confirmPayment(
+                                                paymentMethodId:
+                                                    paymentMethodId,
+                                                autoSetAmount: autoSetAmount,
+                                                total: total,
+                                              );
                                             },
                                           );
                                         } else {
@@ -2036,6 +2047,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     ),
                                     child: InkWell(
                                       onTap: () {
+                                        if (_isSubmittingOrder ||
+                                            orderReceiptNumber != null) {
+                                          return;
+                                        }
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยโอน
                                         PaymentConfirmDialog.show(
                                           context: context,
@@ -2052,61 +2067,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             paymentMethodId,
                                             autoSetAmount,
                                           ) async {
-                                            // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
-                                            setState(() {
-                                              currentPaymentMethodId =
-                                                  paymentMethodId;
-                                            });
-
-                                            // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
-                                            if (autoSetAmount) {
-                                              setState(() {
-                                                receivedAmount = total;
-                                              });
-                                            }
-
-                                            // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                            if (!autoSetAmount &&
-                                                receivedAmount < total) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'จำนวนที่รับชำระไม่เพียงพอ',
-                                                  ),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                              return;
-                                            }
-
-                                            // ✅ ดำเนินการชำระเงิน
-                                            setState(() {
-                                              isPaid = true;
-                                            });
-
-                                            //await createOrders(paymentMethodId: paymentMethodId);
-                                            // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                            if (homeController
-                                                .isConnected
-                                                .value) {
-                                              log(
-                                                '🌐 Internet connected - calling createOrders (online)',
-                                              );
-                                              await createOrders(
-                                                paymentMethodId:
-                                                    paymentMethodId,
-                                              );
-                                            } else {
-                                              log(
-                                                '📴 No internet - calling createOrdersOffline',
-                                              );
-                                              await createOrdersOffline(
-                                                paymentMethodId:
-                                                    paymentMethodId,
-                                              );
-                                            }
+                                            await _confirmPayment(
+                                              paymentMethodId: paymentMethodId,
+                                              autoSetAmount: autoSetAmount,
+                                              total: total,
+                                            );
                                           },
                                         );
                                       },
@@ -2151,6 +2116,10 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                     ),
                                     child: InkWell(
                                       onTap: () {
+                                        if (_isSubmittingOrder ||
+                                            orderReceiptNumber != null) {
+                                          return;
+                                        }
                                         // ✅ แสดง dialog ยืนยันการชำระด้วยเครดิต
                                         PaymentConfirmDialog.show(
                                           context: context,
@@ -2167,61 +2136,11 @@ class _PaymentPageD2sState extends State<PaymentPageD2s> {
                                             paymentMethodId,
                                             autoSetAmount,
                                           ) async {
-                                            // ✅ เก็บ paymentMethodId สำหรับการปริ๊น
-                                            setState(() {
-                                              currentPaymentMethodId =
-                                                  paymentMethodId;
-                                            });
-
-                                            // ✅ ตั้งค่า receivedAmount สำหรับโอนและเครดิต
-                                            if (autoSetAmount) {
-                                              setState(() {
-                                                receivedAmount = total;
-                                              });
-                                            }
-
-                                            // ✅ ตรวจสอบจำนวนเงินสำหรับเงินสด
-                                            if (!autoSetAmount &&
-                                                receivedAmount < total) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'จำนวนที่รับชำระไม่เพียงพอ',
-                                                  ),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                              return;
-                                            }
-
-                                            // ✅ ดำเนินการชำระเงิน
-                                            setState(() {
-                                              isPaid = true;
-                                            });
-
-                                            //await createOrders(paymentMethodId: paymentMethodId);
-                                            // ✅ เช็คการเชื่อมต่ออินเทอร์เน็ตก่อนเรียก API
-                                            if (homeController
-                                                .isConnected
-                                                .value) {
-                                              log(
-                                                '🌐 Internet connected - calling createOrders (online)',
-                                              );
-                                              await createOrders(
-                                                paymentMethodId:
-                                                    paymentMethodId,
-                                              );
-                                            } else {
-                                              log(
-                                                '📴 No internet - calling createOrdersOffline',
-                                              );
-                                              await createOrdersOffline(
-                                                paymentMethodId:
-                                                    paymentMethodId,
-                                              );
-                                            }
+                                            await _confirmPayment(
+                                              paymentMethodId: paymentMethodId,
+                                              autoSetAmount: autoSetAmount,
+                                              total: total,
+                                            );
                                           },
                                         );
                                       },
