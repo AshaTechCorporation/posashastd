@@ -676,7 +676,7 @@ class _PaymentPagev2sState extends State<PaymentPagev2s> {
 
       final imageWidth = fullImage.width;
       final imageHeight = fullImage.height;
-      final stripHeight = 1800; // ความสูงของแต่ละแถบ (pixels)
+      final stripHeight = 2000; // ความสูงของแต่ละแถบ (pixels)
 
       log('� Full image size: ${imageWidth}x${imageHeight}');
       log('📏 Strip height: $stripHeight pixels');
