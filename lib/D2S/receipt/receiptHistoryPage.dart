@@ -66,7 +66,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
   // ✅ ฟังก์ชันจัดรูปแบบตัวเลข (เพิ่ม comma คั่นหลักพัน)
   String _formatPrice(num price) {
     final formatter = NumberFormat('#,##0.00', 'en_US');
-    return formatter.format(price);
+    return formatter.format(price.abs());
+  }
+
+  String _formatQuantity(num quantity) {
+    final formatter = NumberFormat('#,##0.##', 'en_US');
+    return formatter.format(quantity.abs());
   }
 
   // ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและโหลดข้อมูล
@@ -229,7 +234,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                             (index) => ListTile(
                                               leading: Icon(Icons.receipt_long, color: Colors.green),
                                               title: Text(
-                                                '฿${homeController.orders[index].total!.toStringAsFixed(2)}',
+                                                '฿${_formatPrice(homeController.orders[index].total ?? 0)}',
                                                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
                                               ),
                                               subtitle: Text(
@@ -342,7 +347,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                       children: [
                                         Center(
                                           child: Text(
-                                            '฿${order!.total!.toStringAsFixed(2)}',
+                                            '฿${_formatPrice(order!.total ?? 0)}',
                                             style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                                           ),
                                         ),
@@ -371,13 +376,13 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                                       child: Text(item.productName ?? 'ไม่ระบุชื่อสินค้า', style: const TextStyle(fontSize: 18)),
                                                     ),
                                                     Text(
-                                                      '฿${totalPrice.toStringAsFixed(2)}',
+                                                      '฿${_formatPrice(totalPrice)}',
                                                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                                     ),
                                                   ],
                                                 ),
                                                 Text(
-                                                  '$quantity x ฿${unitPrice.toStringAsFixed(2)}',
+                                                  '${_formatQuantity(quantity)} x ฿${_formatPrice(unitPrice)}',
                                                   style: const TextStyle(fontSize: 16, color: Colors.grey),
                                                 ),
                                                 const SizedBox(height: 8),
@@ -387,12 +392,12 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                                         ],
 
                                         const Divider(height: 24),
-                                        _buildRow('รวมทั้งหมด', '฿${order!.total!.toStringAsFixed(2)}'),
+                                        _buildRow('รวมทั้งหมด', '฿${_formatPrice(order!.total ?? 0)}'),
                                         _buildRow(
                                           'ชำระแล้ว',
-                                          '฿${(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0).toStringAsFixed(2)}',
+                                          '฿${_formatPrice(order!.paid != null ? double.tryParse(order!.paid!.toString()) ?? 0 : 0)}',
                                         ),
-                                        _buildRow('เงินทอน', '฿${order!.change?.toStringAsFixed(2) ?? '0'}'),
+                                        _buildRow('เงินทอน', '฿${_formatPrice(order!.change ?? 0)}'),
                                         const SizedBox(height: 16),
                                         _buildRow('วันที่', DateFormat('d/M/yy HH:mm น.').format(order!.date!)),
                                       ],
@@ -694,7 +699,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                     Text('฿${_formatPrice(totalPrice)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                Text('$quantity x ฿${_formatPrice(unitPrice)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                Text('${_formatQuantity(quantity)} x ฿${_formatPrice(unitPrice)}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 const SizedBox(height: 8),
               ],
             );
