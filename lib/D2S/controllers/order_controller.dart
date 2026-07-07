@@ -9,6 +9,11 @@ class OrderController extends GetxController {
   RxBool isLoading = false.obs;
   RxString searchQuery = ''.obs;
   RxList<Map<String, dynamic>> discounts = <Map<String, dynamic>>[].obs;
+  RxInt currentPage = 1.obs;
+  RxInt totalPages = 1.obs;
+  RxInt totalItems = 0.obs;
+  RxInt itemsPerPage = 100.obs;
+  DateTime? currentSelectedDate;
 
   @override
   void onInit() {
@@ -18,27 +23,34 @@ class OrderController extends GetxController {
   }
 
   // ดึงข้อมูล orders จาก API
-  Future<void> fetchOrders({DateTime? selectedDate}) async {
+  Future<void> fetchOrders({DateTime? selectedDate, int page = 1}) async {
     try {
       log('🔄 Starting to fetch orders...');
       isLoading.value = true;
 
-      final rawData = await OrderService.getOrders(selectedDate: selectedDate);
-      log('📦 Raw data received: ${rawData.toString()}');
+      currentSelectedDate = selectedDate ?? DateTime.now();
+      final result = await OrderService.getOrders(selectedDate: currentSelectedDate, page: page, limit: itemsPerPage.value);
+      log('📦 Raw data received: ${result.data.toString()}');
 
       // แปลงข้อมูลเป็น List<Order>
-      final List<Map<String, dynamic>> ordersList = List<Map<String, dynamic>>.from(rawData);
+      final List<Map<String, dynamic>> ordersList = List<Map<String, dynamic>>.from(result.data);
       log('📋 Orders list length: ${ordersList.length}');
 
       final List<Order> orderList = ordersList.map((orderData) => Order.fromJson(orderData)).toList();
       log('✅ Converted to Order objects: ${orderList.length}');
 
       orders.assignAll(orderList);
+      currentPage.value = result.currentPage;
+      totalPages.value = result.totalPages;
+      totalItems.value = result.totalItems;
+      itemsPerPage.value = result.itemsPerPage == 0 ? itemsPerPage.value : result.itemsPerPage;
 
       // เลือก order แรกเป็น default
       if (orderList.isNotEmpty) {
         selectedOrder.value = orderList.first;
         log('🎯 Selected first order: ${orderList.first.orderNo}');
+      } else {
+        selectedOrder.value = null;
       }
 
       log('✅ Orders fetched successfully');
@@ -61,6 +73,21 @@ class OrderController extends GetxController {
   void selectOrder(Order order) {
     selectedOrder.value = order;
     selectedOrder.refresh();
+  }
+
+  Future<void> goToPage(int page) async {
+    if (page < 1 || page > totalPages.value || page == currentPage.value) {
+      return;
+    }
+    await fetchOrders(selectedDate: currentSelectedDate, page: page);
+  }
+
+  Future<void> nextPage() async {
+    await goToPage(currentPage.value + 1);
+  }
+
+  Future<void> previousPage() async {
+    await goToPage(currentPage.value - 1);
   }
 
   // ค้นหา orders
@@ -118,6 +145,6 @@ class OrderController extends GetxController {
 
   // รีเฟรชข้อมูล
   Future<void> refreshOrders() async {
-    await fetchOrders();
+    await fetchOrders(selectedDate: currentSelectedDate, page: currentPage.value);
   }
 }

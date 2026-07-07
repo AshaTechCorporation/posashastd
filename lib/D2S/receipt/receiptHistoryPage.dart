@@ -517,7 +517,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
                         // ✅ เรียก API ใหม่เมื่อเลือกวันที่
                         if (isConnected.value) {
                           log('📅 Date changed to: ${DateFormat('yyyy-MM-dd').format(picked)}');
-                          await orderController.fetchOrders(selectedDate: picked);
+                          await orderController.fetchOrders(selectedDate: picked, page: 1);
                         }
                       }
                     },
@@ -555,7 +555,7 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
             return RefreshIndicator(
               onRefresh: orderController.refreshOrders,
               child: ListView.builder(
-                padding: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.only(left: 8, bottom: 8),
                 itemCount: groupedOrders.length,
                 itemBuilder: (context, index) {
                   final dateKey = groupedOrders.keys.elementAt(index);
@@ -581,7 +581,74 @@ class _ReceiptHistoryPageState extends State<ReceiptHistoryPage> {
             );
           }),
         ),
+        _buildPaginationControls(orderController),
       ],
+    );
+  }
+
+  Widget _buildPaginationControls(OrderController orderController) {
+    return Obx(() {
+      if (orderController.totalPages.value <= 1 || orderController.orders.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final currentPage = orderController.currentPage.value;
+      final totalPages = orderController.totalPages.value;
+      final startPage = (currentPage - 2).clamp(1, totalPages);
+      final endPage = (currentPage + 2).clamp(1, totalPages);
+      final pages = List<int>.generate(endPage - startPage + 1, (index) => startPage + index);
+
+      return Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade300))),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              tooltip: 'หน้าก่อนหน้า',
+              icon: const Icon(Icons.chevron_left),
+              onPressed: currentPage > 1 && !orderController.isLoading.value ? orderController.previousPage : null,
+            ),
+            if (startPage > 1) ...[
+              _buildPageButton(orderController, 1),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('...')),
+            ],
+            ...pages.map((page) => _buildPageButton(orderController, page)),
+            if (endPage < totalPages) ...[
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('...')),
+              _buildPageButton(orderController, totalPages),
+            ],
+            IconButton(
+              tooltip: 'หน้าถัดไป',
+              icon: const Icon(Icons.chevron_right),
+              onPressed: currentPage < totalPages && !orderController.isLoading.value ? orderController.nextPage : null,
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildPageButton(OrderController orderController, int page) {
+    final isSelected = orderController.currentPage.value == page;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: TextButton(
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            backgroundColor: isSelected ? kTabColor : Colors.transparent,
+            foregroundColor: isSelected ? Colors.white : Colors.black87,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          ),
+          onPressed: isSelected || orderController.isLoading.value ? null : () => orderController.goToPage(page),
+          child: Text('$page', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        ),
+      ),
     );
   }
 
